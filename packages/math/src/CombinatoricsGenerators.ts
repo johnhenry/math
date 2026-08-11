@@ -1,21 +1,27 @@
 /**
- * Combinatorial generators: product, permutations, combinations,
- * combinationsWithReplacement -- ports of the iterative equivalent-code
- * algorithms documented in CPython's itertools docs (chosen over a
- * recursive approach to avoid recursion-depth limits on large inputs).
+ * Combinatorial generators: `product`, `permutations`, `combinations`,
+ * `combinationsWithReplacement` — ports of the iterative equivalent-code
+ * algorithms documented in CPython's itertools docs (chosen over a recursive
+ * approach to avoid recursion-depth limits on large inputs).
  *
- * These are inherently "materialize fully, then compute" algorithms in
- * Python too (CPython's own docs note product() completely consumes its
- * inputs before running). Every function here has an Async variant that
- * accepts async iterable sources: the materialization step (via
- * exhaustAsync, already provided by exhaust.ts) is cleanly separable
- * from the combinatorial generation step, so `xAsync` just awaits full
- * materialization and then runs the same sync generator internally,
- * yielding through an async generator. This is a "collect-then-compute"
- * shape, not a streaming one -- see docs/discussion/python-itertools.md.
+ * These are the **enumerating** counterpart to {@link Combinatorics}'s
+ * **counting** functions: `Combinatorics.permutationsCount(n, r)` tells you how
+ * many there are, `Combinatorics.permutations(iterable, r)` yields them. They
+ * are surfaced as static methods on {@link Combinatorics} so both faces of each
+ * concept sit together.
+ *
+ * These are inherently "materialize fully, then compute" algorithms — CPython's
+ * own docs note that `product()` completely consumes its inputs before running,
+ * so a fully lazy formulation isn't available. Pools are therefore buffered in
+ * memory; enumerating a large product is bounded by that, not by laziness.
+ *
+ * Originally written for the library now published as `mallory-iteration`;
+ * moved here because enumeration is mathematics rather than stream plumbing.
+ * The async duals stayed behind — they only added a "collect the source, then
+ * run this same sync generator" wrapper, and mallory-math is deliberately
+ * synchronous throughout.
  */
 
-import { exhaustAsync } from "./exhaust.ts";
 
 function* productFromPools<T>(pools: T[][]): Generator<T[]> {
   if (pools.some((pool) => pool.length === 0)) return;
@@ -41,24 +47,6 @@ function* productFromPools<T>(pools: T[][]): Generator<T[]> {
  */
 export function* product<T>(...iterables: Array<Iterable<T>>): Generator<T[]> {
   yield* productFromPools(iterables.map((it) => [...it]));
-}
-
-/**
- * Asynchronous dual of product; accepts async iterable sources.
- * @kind function
- * @name productAsync
- */
-export async function* productAsync<T>(
-  ...asyncIterables: Array<AsyncIterable<T> | Iterable<T>>
-): AsyncGenerator<T[]> {
-  const pools = await Promise.all(
-    asyncIterables.map(async (it) =>
-      Symbol.asyncIterator in Object(it)
-        ? exhaustAsync(it as AsyncIterable<T>)
-        : [...(it as Iterable<T>)]
-    )
-  );
-  yield* productFromPools(pools);
 }
 
 function* permutationsFromPool<T>(
@@ -106,19 +94,6 @@ export function* permutations<T>(
   yield* permutationsFromPool([...iterable], r);
 }
 
-/**
- * Asynchronous dual of permutations; accepts an async iterable source.
- * @kind function
- * @name permutationsAsync
- */
-export async function* permutationsAsync<T>(
-  asyncIterable: AsyncIterable<T>,
-  r?: number
-): AsyncGenerator<T[]> {
-  const pool = await exhaustAsync(asyncIterable);
-  yield* permutationsFromPool(pool, r);
-}
-
 function* combinationsFromPool<T>(pool: T[], r: number): Generator<T[]> {
   const n = pool.length;
   if (r > n || r < 0) return;
@@ -152,19 +127,6 @@ export function* combinations<T>(
   r: number
 ): Generator<T[]> {
   yield* combinationsFromPool([...iterable], r);
-}
-
-/**
- * Asynchronous dual of combinations; accepts an async iterable source.
- * @kind function
- * @name combinationsAsync
- */
-export async function* combinationsAsync<T>(
-  asyncIterable: AsyncIterable<T>,
-  r: number
-): AsyncGenerator<T[]> {
-  const pool = await exhaustAsync(asyncIterable);
-  yield* combinationsFromPool(pool, r);
 }
 
 function* combinationsWithReplacementFromPool<T>(
@@ -203,18 +165,4 @@ export function* combinationsWithReplacement<T>(
   r: number
 ): Generator<T[]> {
   yield* combinationsWithReplacementFromPool([...iterable], r);
-}
-
-/**
- * Asynchronous dual of combinationsWithReplacement; accepts an async
- * iterable source.
- * @kind function
- * @name combinationsWithReplacementAsync
- */
-export async function* combinationsWithReplacementAsync<T>(
-  asyncIterable: AsyncIterable<T>,
-  r: number
-): AsyncGenerator<T[]> {
-  const pool = await exhaustAsync(asyncIterable);
-  yield* combinationsWithReplacementFromPool(pool, r);
 }

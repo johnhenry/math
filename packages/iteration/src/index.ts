@@ -7,7 +7,6 @@ export * from "./empty-iterator.ts";
 export * from "./async-channel.ts";
 export * from "./count.ts";
 export * from "./itertools.ts";
-export * from "./combinatorics.ts";
 export * from "./consumers.ts";
 export * from "./abort.ts";
 export * from "./concurrency.ts";

@@ -11,7 +11,7 @@ The module standardizes a core set of fast, memory efficient tools that are usef
   - [Pause output](./tutorial/pause.md)
   - [User input](./tutorial/input.md)
   - [Send output to multiple destinations with tee](./tutorial/tee.md)
-- How To Guides - Learn how to use async-itertools in depth.
+- How To Guides - Learn how to use mallory-iteration in depth.
   - [Create a guessing game with AsyncChannel](./how-to/guessing-game.md)
   - [Creating your own transducers](./how-to/creating-your-own-transducers.md)
 - Discussions

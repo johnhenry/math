@@ -22,7 +22,7 @@ test("eventualequal resolves false for differing async iterables", async () => {
   assert.strictEqual(await eventualequal(asyncFrom(1, 2, 3), asyncFrom(1, 2)), false);
 });
 
-// The "async-itertools/pop-quiz/asserteventualequal" subpath export must
+// The "mallory-iteration/pop-quiz/asserteventualequal" subpath export must
 // keep working even though pop-quiz itself is no longer a dependency: it
 // returns the message on success, and a TestError (Error subclass carrying
 // actual/expected/operator on .val, iterable over its entries) on failure.

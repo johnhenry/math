@@ -6,6 +6,12 @@
 
 // Counting mathematics
 export { Combinatorics } from "./Combinatorics.ts";
+export {
+  combinations,
+  combinationsWithReplacement,
+  permutations,
+  product,
+} from "./CombinatoricsGenerators.ts";
 export * as ComplexMath from "./ComplexMath.ts";
 export { ComplexNumber } from "./ComplexNumber.ts";
 export { Cycle } from "./Cycle.ts";

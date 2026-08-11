@@ -1,4 +1,4 @@
-# Async-itertools
+# mallory-iteration
 
 This module implements a number of asynchronous iterator building blocks inspired by constructs from [Python](https://docs.python.org/3/library/itertools.html), APL, Haskell, and SML. Each has been recast in a form suitable for JavaScript.
 
@@ -11,6 +11,11 @@ Since this library's original release, JavaScript gained native **Iterator Helpe
 **Async Iterator helpers are not yet shipped** (still TC39 Stage 2 as of this writing), so the async half of this library remains hand-rolled and is where it continues to add the most value — every sync function here has an async dual for exactly this reason. See [docs/discussion/python-itertools.md](./docs/discussion/python-itertools.md) for the full design rationale and a function-by-function comparison to Python's `itertools`.
 
 Requires **Node.js 22.12+** (or an equivalent Iterator-Helpers-capable engine).
+
+> **Provenance.** This library was previously published as `async-itertools`; the 1.x releases
+> referenced below are under that name. It now ships as `mallory-iteration`, part of the
+> [Mallory](https://github.com/johnhenry/mallory) family, starting at 2.0.0 to keep continuity
+> with its own version history.
 
 ## What's new in 2.0
 
@@ -68,7 +73,7 @@ which is why that's this package's floor) lets `require()` load an ES module
 synchronously:
 
 ```javascript
-const { countSync, someAsync } = require("async-itertools");
+const { countSync, someAsync } = require("mallory-iteration");
 ```
 
 No separate CJS build or `"require"` condition in `package.json`'s `exports` is needed or provided — `require(esm)` resolves through the same ESM files everything else uses. This is verified in CI (`scripts/require-esm-smoke-test.cjs`), not just documented.
@@ -76,7 +81,7 @@ No separate CJS build or `"require"` condition in `package.json`'s `exports` is 
 ## Installation
 
 ```bash
-npm install async-itertools
+npm install mallory-iteration
 ```
 
 ## Production
@@ -88,7 +93,7 @@ Generally, you'll use this library to transform existing iterators; but we provi
 Create empty iterators
 
 ```javascript
-import { emptySync, emptyAsync } from "async-itertools";
+import { emptySync, emptyAsync } from "mallory-iteration";
 for (const a of emptySync()) {
   // dream the impossible
 }
@@ -107,7 +112,7 @@ import {
   countBigSync,
   countAsync,
   countBigAsync,
-} from "async-itertools";
+} from "mallory-iteration";
 for (const a of countSync(0, 9)) {
   console.log(a);
 } // logs 1, 2, 3, 4, 5, 6, 7, 8, 9
@@ -127,7 +132,7 @@ for await (const a of countBigAsync(9n, 0n)) {
 Create iterators from given items
 
 ```javascript
-import { syncFrom, asyncFrom } from "async-itertools";
+import { syncFrom, asyncFrom } from "mallory-iteration";
 for (const a of syncFrom(1, 2, 3)) {
   console.log(a);
 } // logs 1, 2, 3
@@ -143,7 +148,7 @@ the next value from every input in parallel each round, and accepts a mix of
 sync and async iterables.
 
 ```javascript
-import { zipSync, zipAsync } from "async-itertools";
+import { zipSync, zipAsync } from "mallory-iteration";
 for (const pair of zipSync([1, 2, 3], ["a", "b", "c"])) {
   console.log(pair);
 } // logs [1,'a'], [2,'b'], [3,'c']
@@ -164,16 +169,16 @@ to apply transducers to synchronous
 and asynchronous iterators.
 
 ```javascript
-import { transduceSync } from "async-itertools";
-// import { transduceSync } from "async-itertools/transduce";
+import { transduceSync } from "mallory-iteration";
+// import { transduceSync } from "mallory-iteration/transduce";
 for (const item of transduceSync(/*list of transducers*/)(/*some iterator*/)) {
   // do something with transduced item
 }
 ```
 
 ```javascript
-import { transduceAsync } from "async-itertools";
-// import { transduceAsync } from "async-itertools/transduce";
+import { transduceAsync } from "mallory-iteration";
+// import { transduceAsync } from "mallory-iteration/transduce";
 for await (const item of transduceAsync(/*list of transducers*/)(/*some asynchronous iterator*/)) {
   // do something with transduced item
 }
@@ -189,9 +194,9 @@ Similiar to [Array.prototype.map](),
 maps items with a given transformation function.
 
 ```javascript
-// import { transducers } from "async-itertools";
+// import { transducers } from "mallory-iteration";
 // const { map } = transducers;
-import { map } from "async-itertools/transducers";
+import { map } from "mallory-iteration/transducers";
 const addOne = map((x) => x + 1);
 const abs = map(Math.abs);
 for (const x of transduceSync(addOne, abs)([-3, -2, -1, 0, 1, 2, 3])) {
@@ -206,7 +211,7 @@ Similiar to [Array.prototype.filter](),
 filters items that do not match a given predicate
 
 ```javascript
-import { filter } from "async-itertools/transducers";
+import { filter } from "mallory-iteration/transducers";
 const removeStrings = map((x) => typeof x !== "string");
 const keepPositive = map((x) => x > 0);
 for (const x of transduceSync(
@@ -224,7 +229,7 @@ Apply function successively to items in iterator.
 Similar to `Array.prototype.reduce`.
 
 ```javascript
-import { accumulate } from "async-itertools/transducers";
+import { accumulate } from "mallory-iteration/transducers";
 const sum = accumulate((a, b) => a + b, 0);
 for (const x of transduceSync(sum)([1, 2, 3, 4])) {
   console.log(x);
@@ -239,7 +244,7 @@ once the source is exhausted (via the transducer completion protocol — see
 `transduceSync`/`transduceAsync`).
 
 ```javascript
-import { group } from "async-itertools/transducers";
+import { group } from "mallory-iteration/transducers";
 const triplet = group(3);
 for (const x of transduceSync(triplet)([1, 2, 3, 4, 5, 6, 7])) {
   console.log(x);
@@ -252,7 +257,7 @@ for (const x of transduceSync(triplet)([1, 2, 3, 4, 5, 6, 7])) {
 Take only the first N items and drop the rest (see 'drop').
 
 ```javascript
-import { take } from "async-itertools/transducers";
+import { take } from "mallory-iteration/transducers";
 const take5 = take(5);
 for (const x of transduceSync(take5)([1, 2, 3, 4, 5, 6, 7, 8, 9])) {
   console.log(x);
@@ -267,7 +272,7 @@ Drop the first N items and take the rest (see 'take'). Previously named
 of `filter`, below.
 
 ```javascript
-import { drop } from "async-itertools/transducers";
+import { drop } from "mallory-iteration/transducers";
 const dropDozen = drop(12);
 for (const x of transduceSync(dropDozen)([
   1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
@@ -283,7 +288,7 @@ Reject items matching a predicate and keep the rest — the complement of
 `filter` (see 'filter'). Mirrors Python's `itertools.filterfalse`.
 
 ```javascript
-import { reject } from "async-itertools/transducers";
+import { reject } from "mallory-iteration/transducers";
 const rejectEven = reject((x) => x % 2 === 0);
 for (const x of transduceSync(rejectEven)([1, 2, 3, 4, 5])) {
   console.log(x);
@@ -299,7 +304,7 @@ adjacent-only counterpart to `uniqueSync`/`uniqueAsync` (which dedupe
 globally, across the whole stream, not just neighboring items).
 
 ```javascript
-import { dedupe } from "async-itertools/transducers";
+import { dedupe } from "mallory-iteration/transducers";
 for (const x of transduceSync(dedupe())([1, 1, 2, 2, 1, 1, 3])) {
   console.log(x);
 }
@@ -312,7 +317,7 @@ Insert a separator between consecutive emitted items — not before the
 first item, and not after the last.
 
 ```javascript
-import { interpose } from "async-itertools/transducers";
+import { interpose } from "mallory-iteration/transducers";
 for (const x of transduceSync(interpose(","))([1, 2, 3])) {
   console.log(x);
 }
@@ -328,7 +333,7 @@ a fixed size rather than by a shared key. Like `group`, a trailing partial
 run is flushed once the source completes.
 
 ```javascript
-import { partitionBy } from "async-itertools/transducers";
+import { partitionBy } from "mallory-iteration/transducers";
 for (const x of transduceSync(partitionBy())([1, 1, 2, 1, 1])) {
   console.log(x);
 }
@@ -342,7 +347,7 @@ RxJS-style, for debugging or instrumenting a pipeline without altering its
 values.
 
 ```javascript
-import { tap } from "async-itertools/transducers";
+import { tap } from "mallory-iteration/transducers";
 const logged = tap((x) => console.log("saw:", x));
 for (const x of transduceSync(logged)([1, 2, 3])) {
   // "saw: 1", "saw: 2", "saw: 3" logged as a side effect;
@@ -353,7 +358,7 @@ for (const x of transduceSync(logged)([1, 2, 3])) {
 Multiple different types of transducers can be applied.
 
 ```javascript
-import { map, filter, take } from "async-itertools/transducers";
+import { map, filter, take } from "mallory-iteration/transducers";
 const transformation = transduceSync(
   map((x) => x + 2),
   filter((x) => x % 2),
@@ -374,7 +379,7 @@ this is how `take` works. Renamed from the misspelled `HAULT` in 2.0;
 `HAULT` is still exported as a deprecated alias of the same symbol.
 
 ```javascript
-import { HALT } from "async-itertools";
+import { HALT } from "mallory-iteration";
 ```
 
 ### The step protocol (writing custom transducers)
@@ -407,7 +412,7 @@ that `.complete` must cascade to the inner step's own `.complete`) — see
 > itself, or called `reduceSync`/`reduceAsync` with an iterable `init`,
 > needs updating to the array-buffer protocol.
 
-## Python itertools parity (`async-itertools/itertools`)
+## Python itertools parity (`mallory-iteration/itertools`)
 
 Flat, non-curried building blocks mirroring functions from Python's
 [`itertools`](https://docs.python.org/3/library/itertools.html) module —
@@ -435,8 +440,8 @@ import {
   zipLongestSync,
   isliceSync,
   // ...and their `*Async` duals: takeWhileAsync, dropWhileAsync, etc.
-} from "async-itertools";
-// or: import { ... } from "async-itertools/itertools";
+} from "mallory-iteration";
+// or: import { ... } from "mallory-iteration/itertools";
 
 takeWhileSync((x) => x < 3, [1, 2, 3, 4, 1]); // yields 1, 2
 dropWhileSync((x) => x < 3, [1, 2, 3, 4, 1]); // yields 3, 4, 1
@@ -455,36 +460,27 @@ compressSync(["a", "b", "c", "d"], [1, 0, 1, 0]); // yields 'a', 'c'
 [...isliceSync([1, 2, 3, 4, 5, 6, 7, 8], 1, 8, 2)]; // [2,4,6,8]
 ```
 
-## Combinatorics (`async-itertools/combinatorics`)
+## Combinatorics — moved to `mallory-math`
 
 `product`, `permutations`, `combinations`, and `combinationsWithReplacement`
-— direct ports of the iterative algorithms documented in CPython's own
-`itertools` docs. Each has an `Async` variant that accepts an async iterable
-*source*: it fully materializes the source first (these are inherently
-"collect-then-compute" algorithms, in Python too), then generates
-combinatorially, so it's not a streaming operation.
+now live in [`mallory-math`](../math)'s `Combinatorics`, alongside the counting
+functions they pair with (`binomial`, `permutationsCount`, …). Enumeration is
+mathematics rather than stream plumbing, and having both faces in one place
+lets the library assert that they agree.
 
 ```javascript
-import {
-  product,
-  permutations,
-  combinations,
-  combinationsWithReplacement,
-} from "async-itertools";
-// or: import { ... } from "async-itertools/combinatorics";
+import { Combinatorics } from "mallory-math";
 
-[...product([1, 2], [3, 4])]; // [[1,3],[1,4],[2,3],[2,4]]
-[...permutations([1, 2, 3], 2)]; // [[1,2],[1,3],[2,1],[2,3],[3,1],[3,2]]
-[...combinations([1, 2, 3], 2)]; // [[1,2],[1,3],[2,3]]
-[...combinationsWithReplacement([1, 2], 2)]; // [[1,1],[1,2],[2,2]]
-
-// Async variants accept async iterable sources:
-for await (const combo of combinationsAsync(fetchItemsAsync(), 2)) {
-  console.log(combo);
-}
+[...Combinatorics.combinations([1, 2, 3], 2)]; // [[1,2],[1,3],[2,3]]
+Combinatorics.binomial(3, 2); // 3n — the count of exactly the above
 ```
 
-## Terminal consumers (`async-itertools/consumers`)
+The `Async` duals were dropped rather than moved: they only wrapped
+"materialize the source, then run the same sync generator" (these algorithms
+are inherently collect-then-compute, in Python too), so `exhaustAsync` from
+this package plus the sync generator gives the identical result.
+
+## Terminal consumers (`mallory-iteration/consumers`)
 
 Resolve an iterable to a single value (or a `Promise` of one), rather than
 another iterable. Two families:
@@ -517,8 +513,8 @@ import {
   someSync, everySync, findSync, forEachSync, foldSync,
   firstSync, lastSync, nthSync, quantifySync, minSync, maxSync,
   // ...and their `*Async` duals
-} from "async-itertools";
-// or: import { ... } from "async-itertools/consumers";
+} from "mallory-iteration";
+// or: import { ... } from "mallory-iteration/consumers";
 
 someSync((x) => x > 2, [1, 2, 3]); // true
 everySync((x) => x > 0, [1, 2, 3]); // true
@@ -547,7 +543,7 @@ accepts one as a second argument. On abort, the source iterator is closed
 the signal's reason — an `"AbortError"` `DOMException` by default:
 
 ```javascript
-import { lastAsync, transduceAsync, transducers } from "async-itertools";
+import { lastAsync, transduceAsync, transducers } from "mallory-iteration";
 
 const controller = new AbortController();
 setTimeout(() => controller.abort(), 1000);
@@ -566,10 +562,10 @@ for await (const item of pipeline(source, { signal: controller.signal })) {
 ```
 
 The underlying `abortable(iterable, signal)` async-generator wrapper is
-exported too (also at `async-itertools/abort`) if you want the same prompt,
+exported too (also at `mallory-iteration/abort`) if you want the same prompt,
 `return()`-propagating cancellation around any `for await` loop.
 
-## Bounded concurrency (`async-itertools/concurrency`, new in 2.0)
+## Bounded concurrency (`mallory-iteration/concurrency`, new in 2.0)
 
 ### `mapConcurrentAsync`
 
@@ -582,8 +578,8 @@ promptly even mid-`fn`, and early consumer exit / `fn` errors / abort all
 close the source via `iterator.return()`.
 
 ```javascript
-import { mapConcurrentAsync } from "async-itertools";
-// or: import { mapConcurrentAsync } from "async-itertools/concurrency";
+import { mapConcurrentAsync } from "mallory-iteration";
+// or: import { mapConcurrentAsync } from "mallory-iteration/concurrency";
 
 for await (const page of mapConcurrentAsync(
   (url) => fetch(url).then((r) => r.text()),
@@ -602,7 +598,7 @@ slow consumer. `n <= 0` degenerates to plain iteration; early consumer exit
 closes the source via `iterator.return()`.
 
 ```javascript
-import { prefetchAsync } from "async-itertools";
+import { prefetchAsync } from "mallory-iteration";
 
 for await (const record of prefetchAsync(8, slowDatabaseCursor())) {
   await expensiveProcessing(record); // next 8 reads already in flight
@@ -618,7 +614,7 @@ This library provides a number of iterator related utilities.
 Test of object is an iterator or asyncIterator, or either.
 
 ```javascript
-import { isIterator, isAsyncIterator, exhaustable } from "async-itertools";
+import { isIterator, isAsyncIterator, exhaustable } from "mallory-iteration";
 const iterator = (function* () {})();
 const asyncIterator = (async function* () {})();
 const block = {};
@@ -636,12 +632,12 @@ console.log(exhaustable(block)); // false
 ### `exhaust` & `exhaustSync` & `exhaustAsync`
 
 Exhaust all items from iterator — this library's "collect to an array"
-(`toArray`) operation; see [Terminal consumers](#terminal-consumers-async-itertoolsconsumers)
+(`toArray`) operation; see [Terminal consumers](#terminal-consumers-mallory-iterationconsumers)
 for other ways to resolve an iterable to a single value.
 Warning: Initial object may have items removed
 
 ```javascript
-import { exhaust, exhaustSync, exhaustAsync } from "async-itertools";
+import { exhaust, exhaustSync, exhaustAsync } from "mallory-iteration";
 const iterator = [1, 2, 3];
 const aIterator = (async function* () {
   yield 4;
@@ -660,7 +656,7 @@ Tee iterator onto n other iterators
 Warning: Initial object may be emptied
 
 ```javascript
-import { teeSync, teeAsync } from "async-itertools";
+import { teeSync, teeAsync } from "mallory-iteration";
 const iterator = (async function* () {
   yield 1;
   yield 2;
@@ -701,7 +697,7 @@ await bounded.put(item); // suspends the producer while the channel is full
 
 ```javascript
 // file://declare.mjs
-import { AsyncChannel } from "async-itertools";
+import { AsyncChannel } from "mallory-iteration";
 export const c = new AsyncChannel();
 setTimeout(async () => {
   for await (const i of c) {
@@ -724,7 +720,7 @@ Automatically place items onto channels via decorators
 ```javascript
 // file://use-websocket.mjs
 import { c } from "./declare.mjs";
-import { withWebSocket } from "async-itertools/channel-decorators";
+import { withWebSocket } from "mallory-iteration/channel-decorators";
 const socket = new WebSocket(/*ws url*/);
 withWebSocket(c, socket);
 ```
@@ -732,7 +728,7 @@ withWebSocket(c, socket);
 ```javascript
 // file://use-event-emitter.mjs
 import { c } from "./declare.mjs";
-import { withEmitter } from "async-itertools/channel-decorators";
+import { withEmitter } from "mallory-iteration/channel-decorators";
 const source = new EventSource(/*sse url*/);
 withEmitter(c, source);
 ```
@@ -757,5 +753,5 @@ Requires the **`NPM_TOKEN`** repository secret — a granular automation token
 with write access to this package:
 
 ```bash
-gh secret set NPM_TOKEN --repo johnhenry/async-itertools
+gh secret set NPM_TOKEN --repo johnhenry/mallory-iteration
 ```

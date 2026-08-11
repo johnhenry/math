@@ -10,6 +10,13 @@
  * well before n reaches 20.
  */
 
+import {
+  combinations,
+  combinationsWithReplacement,
+  permutations,
+  product,
+} from "./CombinatoricsGenerators.ts";
+
 const big = (x: bigint | number): bigint => (typeof x === "bigint" ? x : BigInt(x));
 
 export class Combinatorics {
@@ -132,4 +139,32 @@ export class Combinatorics {
     }
     return prev1;
   }
+
+  // ---- enumeration ---------------------------------------------------------
+  // The counting functions above answer "how many?"; these yield the objects
+  // themselves. See CombinatoricsGenerators.ts for the algorithms.
+
+  /**
+   * Cartesian product of the given iterables, last varying fastest.
+   * Counting counterpart: multiply the pool sizes.
+   */
+  static product = product;
+
+  /**
+   * `r`-length permutations of `iterable` (default `r` = pool size).
+   * Counting counterpart: {@link Combinatorics.permutationsCount}.
+   */
+  static permutations = permutations;
+
+  /**
+   * `r`-length combinations of `iterable`, in input order.
+   * Counting counterpart: {@link Combinatorics.binomial}.
+   */
+  static combinations = combinations;
+
+  /**
+   * `r`-length combinations of `iterable` allowing repeats.
+   * Counting counterpart: `binomial(n + r - 1, r)`.
+   */
+  static combinationsWithReplacement = combinationsWithReplacement;
 }

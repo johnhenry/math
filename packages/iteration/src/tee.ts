@@ -6,7 +6,7 @@
  * @returns function
  * @example <caption>Split an iterator into 4 </caption>
  * ```javascript
- * import { teeAsync, countAsync } from 'async-itertools';
+ * import { teeAsync, countAsync } from 'mallory-iteration';
  * const streams = teeAsync(4)(countAsync(Infinity))
  * for await (const num of streams[0]){
  *   console.info(num);

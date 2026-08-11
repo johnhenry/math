@@ -12,7 +12,7 @@
 ## Installation
 
 ```bash
-npm install async-itertools
+npm install mallory-iteration
 ```
 
 ## Usage
@@ -25,9 +25,9 @@ The traditional way to load javascript in browsers.
 
 ```html
 <html>
-  <script src="./node_modules/async-itertools/dist/asyncItertools.mjs"></script>
+  <script src="./node_modules/mallory-iteration/dist/malloryIteration.mjs"></script>
   <script>
-    // do stuff with asyncItertools
+    // do stuff with malloryIteration
   </script>
 </html>
 ```
@@ -37,8 +37,8 @@ The traditional way to load javascript in browsers.
 The traditional way to load javascript in node.
 
 ```javascript
-const asyncItertools = require("./node_modules/async-itertools/dist/cjs/index.cjs");
-// do stuff with asyncItertools
+const malloryIteration = require("./node_modules/mallory-iteration/dist/cjs/index.cjs");
+// do stuff with malloryIteration
 ```
 
 ### Ecmascript modules ('import')
@@ -48,14 +48,14 @@ The modern way to load javascript in browsers and node.
 ```html
 <html>
   <script type="module">
-    import * as asyncItertools from "./node_modules/async-itertools/dist/index.mjs";
-    // do stuff with asyncItertools
+    import * as malloryIteration from "./node_modules/mallory-iteration/dist/index.mjs";
+    // do stuff with malloryIteration
   </script>
 </html>
 ```
 
 ```javascript
-// import * as asyncItertools from './node_modules/async-itertools/dist/index.mjs';
-import * as asyncItertools from "async-itertools";
-// do stuff with asyncItertools
+// import * as malloryIteration from './node_modules/mallory-iteration/dist/index.mjs';
+import * as malloryIteration from "mallory-iteration";
+// do stuff with malloryIteration
 ```
