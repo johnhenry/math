@@ -42,8 +42,6 @@ function* productFromPools<T>(pools: T[][]): Generator<T[]> {
 /**
  * Cartesian product of the given iterables. Mirrors Python's
  * itertools.product(*iterables) -- the last iterable varies fastest.
- * @kind function
- * @name product
  */
 export function* product<T>(...iterables: Array<Iterable<T>>): Generator<T[]> {
   yield* productFromPools(iterables.map((it) => [...it]));
@@ -84,8 +82,6 @@ function* permutationsFromPool<T>(
 /**
  * r-length permutations of `iterable` (default r = pool length). Mirrors
  * Python's itertools.permutations(iterable, r).
- * @kind function
- * @name permutations
  */
 export function* permutations<T>(
   iterable: Iterable<T>,
@@ -119,8 +115,6 @@ function* combinationsFromPool<T>(pool: T[], r: number): Generator<T[]> {
 /**
  * r-length combinations of `iterable`, in sorted (input) order, without
  * replacement. Mirrors Python's itertools.combinations(iterable, r).
- * @kind function
- * @name combinations
  */
 export function* combinations<T>(
   iterable: Iterable<T>,
@@ -157,8 +151,6 @@ function* combinationsWithReplacementFromPool<T>(
 /**
  * r-length combinations of `iterable`, with replacement. Mirrors Python's
  * itertools.combinations_with_replacement(iterable, r).
- * @kind function
- * @name combinationsWithReplacement
  */
 export function* combinationsWithReplacement<T>(
   iterable: Iterable<T>,

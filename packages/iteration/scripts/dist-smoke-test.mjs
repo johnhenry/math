@@ -34,8 +34,17 @@ for await (const item of channel) seen.push(item);
 assert.deepStrictEqual(seen, [1, 2], "dist AsyncChannel round-trip");
 
 // subpath modules resolve out of dist via the exports map
-const { permutations } = await import("mallory-iteration/combinatorics");
-assert.strictEqual([...permutations([1, 2, 3])].length, 6);
+// (combinatorics moved to mallory-math's Combinatorics — see readme)
+const { windowedSync } = await import("mallory-iteration/itertools");
+assert.deepStrictEqual(
+  [...windowedSync([1, 2, 3, 4], 2)],
+  [
+    [1, 2],
+    [2, 3],
+    [3, 4],
+  ],
+  "dist subpath export resolves",
+);
 const assertion = await import("mallory-iteration/pop-quiz/asserteventualequal");
 assert.strictEqual(typeof assertion.default, "function");
 
