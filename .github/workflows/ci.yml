@@ -24,19 +24,19 @@ jobs:
 
       - run: npm ci
 
-      - name: Typecheck
+      - name: Typecheck (all workspaces)
         run: npm run typecheck
 
       - name: Lint & format check (Biome)
         run: npm run check
 
-      - name: Unit tests
+      - name: Unit tests (all workspaces)
         run: npm test
 
-      - name: Build
+      - name: Build (all workspaces)
         run: npm run build
 
-      - name: Smoke-test the built package
+      - name: Smoke-test the built packages
         run: npm run test:build
 
       - name: API docs build

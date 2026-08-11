@@ -1,15 +1,30 @@
 name: Publish to npm
 
+# Release-gated. Bump the version in whichever workspace package you want to
+# ship, merge, then cut a GitHub Release — this verifies everything and
+# publishes any package whose version isn't on npm yet (idempotent, so
+# re-running a release or dispatching manually is safe).
+#
+# Requires the NPM_TOKEN repository secret.
+
 on:
   release:
     types: [published]
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+  id-token: write # npm provenance attestation
+
+concurrency:
+  group: npm-publish
+  cancel-in-progress: false
+
 jobs:
   publish:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -17,6 +32,7 @@ jobs:
         with:
           node-version: "24"
           registry-url: "https://registry.npmjs.org"
+          cache: npm
 
       - run: npm ci
 
@@ -28,6 +44,15 @@ jobs:
 
       - run: npm run build
 
-      - run: npm publish --access public
+      - run: npm run test:build
+
+      - name: No NPM_TOKEN — skipping publish
+        if: env.NPM_TOKEN == ''
+        run: |
+          echo "::notice title=Publish skipped::NPM_TOKEN is not configured; nothing was published."
+
+      - name: Publish new workspace versions
+        if: env.NPM_TOKEN != ''
+        run: node scripts/publish-workspaces.mjs
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

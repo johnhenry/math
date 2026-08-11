@@ -1,0 +1,236 @@
+<!DOCTYPE html><html class="default" lang="en" data-base="./"><head><meta charset="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>mallory-ts</title><meta name="description" content="Documentation for mallory-ts"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="assets/style.css"/><link rel="stylesheet" href="assets/highlight.css"/><script defer src="assets/main.js"></script><script async src="assets/icons.js" id="tsd-icons-script"></script><script async src="assets/search.js" id="tsd-search-script"></script><script async src="assets/navigation.js" id="tsd-nav-script"></script><script async src="assets/hierarchy.js" id="tsd-hierarchy-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os";document.body.style.display="none";setTimeout(() => window.app?app.showPage():document.body.style.removeProperty("display"),500)</script><header class="tsd-page-toolbar"><div class="tsd-toolbar-contents container"><a href="index.html" class="title">mallory-ts</a><div id="tsd-toolbar-links"><a href="https://github.com/johnhenry/mallory-ts">GitHub</a><a href="https://github.com/johnhenry/mallory-ts/blob/main/docs/COOKBOOK.md">Cookbook</a></div><button id="tsd-search-trigger" class="tsd-widget" aria-label="Search"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-search"></use></svg></button><dialog id="tsd-search" aria-label="Search"><input role="combobox" id="tsd-search-input" aria-controls="tsd-search-results" aria-autocomplete="list" aria-expanded="true" autocapitalize="off" autocomplete="off" placeholder="Search the docs" maxLength="100"/><ul role="listbox" id="tsd-search-results"></ul><div id="tsd-search-status" aria-live="polite" aria-atomic="true"><div>Preparing search index...</div></div></dialog><a href="#" class="tsd-widget menu" id="tsd-toolbar-menu-trigger" data-toggle="menu" aria-label="Menu"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-menu"></use></svg></a></div></header><div class="container container-main"><div class="col-content"><div class="tsd-page-title"><h1>mallory-ts</h1></div><div class="tsd-panel tsd-typography"><h1 id="mallory" class="tsd-anchor-link">mallory<a href="#mallory" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h1>
+<p><strong>Advanced college-level mathematics for TypeScript</strong> — a modern, fully-typed,
+test-covered port of the Mallory ActionScript 3 library (a project worked on,
+on and off, since 2004), published to npm as <code>mallory-math</code>.</p>
+<p>Complex numbers, linear algebra over arbitrary algebraic structures,
+combinatorics and number theory, an expression evaluator, and renderer-agnostic
+graphing geometry — all rewritten in modern TypeScript with <code>node:test</code>
+(example-based and, for algebraic laws, property-based via <code>fast-check</code>).</p>
+<pre><code class="ts"><span class="hl-0">import</span><span class="hl-1"> { </span><span class="hl-2">ComplexNumber</span><span class="hl-1">, </span><span class="hl-2">Structure</span><span class="hl-1">, </span><span class="hl-2">Vector</span><span class="hl-1">, </span><span class="hl-2">StringEvaluator</span><span class="hl-1"> } </span><span class="hl-0">from</span><span class="hl-1"> </span><span class="hl-3">&quot;mallory-math&quot;</span><span class="hl-1">;</span><br/><br/><span class="hl-2">ComplexNumber</span><span class="hl-1">.</span><span class="hl-4">E</span><span class="hl-1">.</span><span class="hl-5">power</span><span class="hl-1">(</span><span class="hl-6">new</span><span class="hl-1"> </span><span class="hl-5">ComplexNumber</span><span class="hl-1">(</span><span class="hl-7">0</span><span class="hl-1">, </span><span class="hl-2">Math</span><span class="hl-1">.</span><span class="hl-4">PI</span><span class="hl-1">)); </span><span class="hl-8">// ≈ -1  (Euler)</span><br/><span class="hl-2">Structure</span><span class="hl-1">.</span><span class="hl-5">realField</span><span class="hl-1">().</span><span class="hl-5">determinant</span><span class="hl-1">(</span><span class="hl-8">/* 3×3 matrix, as Vector&lt;Vector&lt;number&gt;&gt; */</span><span class="hl-1">);</span><br/><span class="hl-2">StringEvaluator</span><span class="hl-1">.</span><span class="hl-5">evaluate</span><span class="hl-1">(</span><span class="hl-3">&quot;sin(pi/2) + 2^3&quot;</span><span class="hl-1">, </span><span class="hl-2">StringEvaluator</span><span class="hl-1">.</span><span class="hl-5">mathEnvironment</span><span class="hl-1">()); </span><span class="hl-8">// 9</span>
+</code><button type="button">Copy</button></pre>
+
+<h2 id="install-use" class="tsd-anchor-link">Install &amp; use<a href="#install-use" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<p>Requires Node.js ≥ 22.6 (the test suite runs <code>.ts</code> directly via Node's built-in
+type stripping).</p>
+<pre><code class="bash"><span class="hl-5">npm</span><span class="hl-1"> </span><span class="hl-3">install</span><br/><span class="hl-5">npm</span><span class="hl-1"> </span><span class="hl-3">test</span><span class="hl-1">           </span><span class="hl-8"># run the node:test suite (against src/)</span><br/><span class="hl-5">npm</span><span class="hl-1"> </span><span class="hl-3">run</span><span class="hl-1"> </span><span class="hl-3">typecheck</span><span class="hl-1">  </span><span class="hl-8"># tsc --noEmit</span><br/><span class="hl-5">npm</span><span class="hl-1"> </span><span class="hl-3">run</span><span class="hl-1"> </span><span class="hl-3">check</span><span class="hl-1">      </span><span class="hl-8"># Biome lint + format check</span><br/><span class="hl-5">npm</span><span class="hl-1"> </span><span class="hl-3">run</span><span class="hl-1"> </span><span class="hl-3">check:fix</span><span class="hl-1">  </span><span class="hl-8"># apply Biome fixes</span><br/><span class="hl-5">npm</span><span class="hl-1"> </span><span class="hl-3">run</span><span class="hl-1"> </span><span class="hl-3">build</span><span class="hl-1">      </span><span class="hl-8"># emit ./dist (ESM + .d.ts)</span><br/><span class="hl-5">npm</span><span class="hl-1"> </span><span class="hl-3">run</span><span class="hl-1"> </span><span class="hl-3">test:build</span><span class="hl-1"> </span><span class="hl-8"># build, then smoke-test the emitted package</span><br/><span class="hl-5">npm</span><span class="hl-1"> </span><span class="hl-3">run</span><span class="hl-1"> </span><span class="hl-3">docs</span><span class="hl-1">       </span><span class="hl-8"># generate the API reference into docs/api (TypeDoc)</span>
+</code><button type="button">Copy</button></pre>
+
+<p>Continuous integration (<code>.github/workflows/ci.yml</code>) runs typecheck → lint →
+tests → build → dist smoke test → docs build on Node 22 and 24.</p>
+<p><strong>Documentation:</strong></p>
+<ul>
+<li><strong><a href="media/COOKBOOK.md">Cookbook</a></strong> — task-oriented recipes across every
+domain (linear algebra, symbolic calculus, number theory, group theory,
+FFT, geometry, graphs, and more), each one verified against the test suite.</li>
+<li><strong>API reference</strong> — generated with <a href="https://typedoc.org">TypeDoc</a> from
+the source JSDoc; run <code>npm run docs</code> and open <code>docs/api/index.html</code>.</li>
+</ul>
+<h2 id="modules" class="tsd-anchor-link">Modules<a href="#modules" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<table>
+<thead>
+<tr>
+<th>Area</th>
+<th>Modules</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Foundations</td>
+<td><code>Vector</code>, <code>ComplexNumber</code> (arithmetic, trig, logs as fluent instance methods), <code>Type</code></td>
+</tr>
+<tr>
+<td>Real &amp; complex analysis</td>
+<td><code>RealMath</code> (plain scalar functions, not a class), <code>ComplexMath</code> (complex vectors + probability helpers), <code>Statistics</code> (descriptive stats on <code>number[]</code>)</td>
+</tr>
+<tr>
+<td>Linear algebra</td>
+<td><code>VectorUtils</code>, generic linear algebra in <code>Structure</code>, numerical decompositions in <code>MatrixMath</code></td>
+</tr>
+<tr>
+<td>Algebraic structures</td>
+<td><code>Structure</code> — groups/rings/fields; do linear algebra over e.g. GF(7)</td>
+</tr>
+<tr>
+<td>Number theory &amp; combinatorics</td>
+<td><code>Permutation</code>, <code>Cycle</code></td>
+</tr>
+<tr>
+<td>Geometry</td>
+<td><code>Polygon</code>, <code>GraphUtils</code>, <code>Graph3DUtils</code> (emit paths/meshes as plain data)</td>
+</tr>
+<tr>
+<td>Expressions</td>
+<td><code>Environment</code>, <code>Expression</code>, <code>StringEvaluator</code></td>
+</tr>
+<tr>
+<td>Misc</td>
+<td><code>Utilities</code>, <code>Logic</code>, <code>IntUtils</code>, <code>SpecialOperator</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="about-the-port" class="tsd-anchor-link">About the port<a href="#about-the-port" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<p>This is a faithful port that <strong>fixes bugs rather than carrying them over</strong>, and
+takes advantage of modern JavaScript/TypeScript: ES classes, generics, iterators,
+<code>Array</code> subclassing, tagged unions, and <code>.ts</code>-native execution. Every module was
+translated <strong>test-first</strong>.</p>
+<p>A sampling of the ~40 bugs found and fixed while translating:</p>
+<ul>
+<li><strong><code>RealMath.subtract</code> returned <code>a * b</code>.</strong> (Yes, really.)</li>
+<li><strong>Order statistics were broken:</strong> <code>sort</code> used the default <em>lexicographic</em> sort,
+so <code>minimum</code>/<code>maximum</code>/<code>median</code> were wrong for numbers.</li>
+<li><strong><code>ComplexMath.divide</code></strong> compared <code>alpha.ivalue</code> (lowercase <code>v</code>, always
+<code>undefined</code>), so all eight directed-infinity results were dead code.</li>
+<li><strong><code>ComplexMath.normalDistribution</code></strong> reciprocated the whole expression, putting
+the exponential in the denominator (wrong sign) — the normal PDF was inverted.</li>
+<li><strong><code>solveN</code></strong> wasn't Newton's method — it assumed a derivative of 1 and diverged;
+now a real numeric Newton–Raphson.</li>
+<li><strong><code>integrateN</code></strong> sampled at <code>2·x + interval</code>; <strong><code>differentiateN</code></strong> was a forward
+difference despite claiming to be symmetric.</li>
+<li><strong><code>invertMatrix</code></strong> had no pivoting (divide-by-zero on a zero pivot); now uses
+partial pivoting (and a zero-pivot row swap in <code>Structure</code>, for finite fields).</li>
+<li><strong><code>crossProduct</code></strong> read index 3 for the z-component and used truthiness tests
+that dropped zero components; <strong><code>powerMatrix</code></strong> never actually multiplied.</li>
+<li><strong><code>Vector.setElement</code></strong> infinitely recursed on a falsy slot.</li>
+<li><strong><code>ComplexNumber</code> string parsing</strong> crashed on non-matches and couldn't
+round-trip negative imaginary parts; it also swallowed every <code>*</code>, so <code>&quot;4*2&quot;</code>
+parsed as <code>42</code>.</li>
+<li><strong><code>StringEvaluator</code></strong> was uniformly right-associative (<code>10-2-3 → 11</code>); now
+left-associative for <code>+ - * / %</code> and right-associative for <code>^</code>.</li>
+<li><strong><code>Polynomial.multiply</code></strong> referenced a non-existent <code>dimension.value</code>;
+<strong><code>Polynomial.antiderivative</code></strong> dropped its highest-degree term.</li>
+<li><strong><code>IntegerMath.modulus</code></strong> recursed one step at a time (stack overflow);
+<code>primeFactors</code> infinite-looped on <code>0</code> and negatives.</li>
+<li><strong><code>Structure</code></strong>'s matrix section was non-functional (static/instance confusion,
+undefined references) and is reconstructed as working generic linear algebra.</li>
+<li><code>IntUtils</code> spelled &quot;forty&quot; and &quot;ninety&quot; as &quot;fourty&quot; and &quot;ninty&quot;.</li>
+</ul>
+<p>Where the original genuinely had <em>no</em> verifiable intended behavior — the Flash
+3D ribbon geometry in <code>Graph3DUtils</code> — the math is ported verbatim with an
+explicit note rather than &quot;fixed&quot; by guesswork. The Flash rendering utilities
+(<code>GraphUtils</code>/<code>Graph3DUtils</code>) now return renderer-agnostic geometry (2D paths,
+3D meshes) instead of Flash display objects.</p>
+<h2 id="beyond-the-original" class="tsd-anchor-link">Beyond the original<a href="#beyond-the-original" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<p>A completeness pass added the missing counterparts and a few natural supplements
+the AS3 library never had:</p>
+<ul>
+<li>
+<p><strong><code>ComplexNumber</code></strong>: <code>fromPolar</code>, <code>fromVector</code>, <code>fromXML</code> (inverses of
+<code>magnitude</code>/<code>angle</code>, <code>toVector</code>, <code>toXML</code>).</p>
+</li>
+<li>
+<p><strong><code>Vector</code></strong>: <code>fromXML</code>, <code>fromString</code> (best-effort inverses of <code>toXML</code>/<code>toString</code>).</p>
+</li>
+<li>
+<p><strong><code>PolynomialRing</code></strong>: <code>evaluate</code> (Horner), <code>add</code>/<code>subtract</code>, <code>divide</code>/<code>mod</code>/<code>divmod</code>
+(long division), <code>derivative</code>/<code>antiderivative</code> (generalized to any <code>Structure</code>,
+not just reals), and the real-number-only <code>parsePolynomial</code>/<code>polynomialToString</code>
+helpers (inverses of each other).</p>
+</li>
+<li>
+<p><strong><code>Polygon</code></strong>: <code>centroid</code>, <code>contains</code> (point-in-polygon), <code>isConvex</code>, <code>isSimple</code>.</p>
+</li>
+<li>
+<p><strong><code>Statistics</code></strong>: <code>populationVariance</code> / <code>populationStandardDeviation</code>
+alongside the sample versions.</p>
+</li>
+<li>
+<p><strong><code>Structure</code> presets</strong>: <code>Structure.realField()</code>, <code>complexField()</code>,
+<code>integersModulo(n)</code> (a field when <code>n</code> is prime), and <code>booleanRing()</code> — so you
+can do linear algebra over these without wiring up operations by hand:</p>
+<pre><code class="ts"><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-4">gf7</span><span class="hl-1"> = </span><span class="hl-2">Structure</span><span class="hl-1">.</span><span class="hl-5">integersModulo</span><span class="hl-1">(</span><span class="hl-7">7</span><span class="hl-1">);</span><br/><span class="hl-2">gf7</span><span class="hl-1">.</span><span class="hl-5">invertMatrix</span><span class="hl-1">(</span><span class="hl-8">/* a matrix over GF(7) */</span><span class="hl-1">); </span><span class="hl-8">// Gauss-Jordan over the finite field</span>
+</code><button type="button">Copy</button></pre>
+
+</li>
+</ul>
+<h2 id="expanded-mathematics" class="tsd-anchor-link">Expanded mathematics<a href="#expanded-mathematics" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<p>Well beyond the original ActionScript scope, the library now spans:</p>
+<table>
+<thead>
+<tr>
+<th>Area</th>
+<th>Module(s)</th>
+<th>Highlights</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Numerical linear algebra</td>
+<td><code>MatrixMath</code></td>
+<td>LU, QR, Cholesky, symmetric eigen (Jacobi), SVD; <code>solve</code>, RREF, rank, null space, least squares, pseudo-inverse, norms, condition number</td>
+</tr>
+<tr>
+<td>Symbolic calculus</td>
+<td><code>Symbolic</code></td>
+<td>expression parser (41 unary elementary functions incl. inverse-trig, reciprocal-trig, hyperbolic/inverse-hyperbolic, <code>abs</code>/<code>log10</code>/<code>log2</code>/<code>cbrt</code>/<code>floor</code>/<code>ceil</code>/<code>round</code>/<code>sign</code>/<code>trunc</code>, and <code>expm1</code>/<code>log1p</code>/<code>sigmoid</code>/<code>erf</code>/<code>relu</code>, with <code>arcsin</code>/<code>logistic</code>-style aliases and <code>|x|</code> bar syntax, plus N-ary <code>atan2</code>/<code>hypot</code>/<code>min</code>/<code>max</code>/<code>gcd</code>/<code>lcm</code>, <code>log(base, x)</code>/<code>clamp(x, lo, hi)</code>, and <code>piecewise(cond, expr, ..., otherwise)</code> with <code>&lt;</code>/<code>&lt;=</code>/<code>&gt;</code>/<code>&gt;=</code>/<code>==</code>/<code>!=</code> comparisons), symbolic differentiation (incl. the multivariate chain rule for the N-ary functions and branch-wise piecewise differentiation) with a u-substitution fallback for <code>integrate</code>, algebraic simplification with like-term collection and constant-folding, elementary integration (incl. by-parts, arctan/arcsin forms, and u-substitution), <code>integrateDefinite</code> (closed-form first, adaptive-quadrature fallback), <code>sumSeries</code> (finite/infinite, closed-form geometric recognition + numeric fallback), Taylor series, <code>expand</code>/<code>substitute</code>, polynomial <code>solve</code>/<code>factor</code>, linear <code>solveSystem</code>, L'Hopital <code>limit</code> (incl. limits at infinity), LaTeX round-trip (<code>toLatex</code>/<code>fromLatex</code>, incl. <code>\operatorname{...}</code>, bracket notation for <code>abs</code>/<code>floor</code>/<code>ceil</code>/<code>cbrt</code>, and <code>\begin{cases}</code> for piecewise), <code>evaluateExact</code> (exact <code>Rational</code> evaluation), and <code>evaluateOverStructure</code> (folds an <code>Expr</code> through an arbitrary <code>Structure</code>'s own algebra, e.g. for plotting over Z/7Z)</td>
+</tr>
+<tr>
+<td>Number types</td>
+<td><code>Rational</code>, <code>Quaternion</code>, <code>DualNumber</code>, <code>Interval</code></td>
+<td>exact bigint rationals, 3D-rotation quaternions, forward-mode autodiff, rigorous interval arithmetic — each also a <code>Structure</code> preset</td>
+</tr>
+<tr>
+<td>Number theory</td>
+<td><code>NumberTheory</code></td>
+<td><code>bigint</code> modPow, extended GCD, CRT, Miller–Rabin, Pollard-rho factorization, Legendre/Jacobi</td>
+</tr>
+<tr>
+<td>Group theory</td>
+<td><code>GroupTheory</code></td>
+<td>Cayley tables, axiom checks, element order, generated subgroups, cosets, Lagrange, orbits, Sₙ/Zₙ</td>
+</tr>
+<tr>
+<td>Numerical methods</td>
+<td><code>Numerical</code></td>
+<td>bisection/secant/Newton/Brent; Simpson, adaptive Simpson, Gauss–Legendre; Euler &amp; RK4 ODE solvers</td>
+</tr>
+<tr>
+<td>Probability &amp; special functions</td>
+<td><code>SpecialFunctions</code>, <code>Distributions</code></td>
+<td>gamma/beta/erf, incomplete gamma/beta; normal/exponential/uniform/gamma/χ²/t/binomial/Poisson; t-tests, χ² GoF, CIs</td>
+</tr>
+<tr>
+<td>Signal processing</td>
+<td><code>FFT</code></td>
+<td>radix-2 FFT/IFFT, DFT, FFT convolution</td>
+</tr>
+<tr>
+<td>Computational geometry</td>
+<td><code>Geometry</code>, <code>Transform2D</code></td>
+<td>convex hull, predicates, point-in-polygon, 2D affine transforms</td>
+</tr>
+<tr>
+<td>Graph theory</td>
+<td><code>Graph</code></td>
+<td>BFS/DFS, Dijkstra, Kruskal MST, topological sort, components, Floyd–Warshall</td>
+</tr>
+<tr>
+<td>Counting mathematics</td>
+<td><code>Combinatorics</code></td>
+<td><code>bigint</code> factorials, nCk/nPk, multinomial coefficients, Catalan/Stirling/Bell numbers, integer partitions, derangements</td>
+</tr>
+<tr>
+<td>Arbitrary precision</td>
+<td><code>Decimal</code></td>
+<td><code>bigint</code>-backed decimal arithmetic — exact add/subtract/multiply, configurable-precision division; also a <code>Structure</code> preset</td>
+</tr>
+<tr>
+<td>Abstract algebra</td>
+<td><code>PolynomialRing</code></td>
+<td>polynomials over any <code>Structure</code> (finite fields, rationals, ...) — long division, monic GCD, Horner evaluation, derivative/antiderivative</td>
+</tr>
+<tr>
+<td>Multivariable calculus</td>
+<td><code>VectorCalculus</code></td>
+<td>gradient, directional derivative, Jacobian, divergence, curl, Hessian (via <code>DualNumber</code> autodiff), plus an exact symbolic gradient</td>
+</tr>
+</tbody>
+</table>
+<p>Many of these interlock: <code>GroupTheory</code> runs over any <code>Structure</code> (including
+<code>integersModulo</code>); <code>Graph.floydWarshall</code> emits matrices for <code>MatrixMath</code>;
+<code>DualNumber</code> gives exact derivatives, which both <code>Structure.dualNumbers()</code> and
+<code>VectorCalculus</code> build on; <code>PolynomialRing</code> composes with any <code>Structure</code>
+preset (including the new <code>Decimal</code>-backed <code>decimalField()</code>); and
+<code>SpecialFunctions</code> gives the <code>Distributions</code> CDFs exact closed forms.</p>
+<h2 id="license" class="tsd-anchor-link">License<a href="#license" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<p>MIT</p>
+</div></div><div class="col-sidebar"><div class="page-menu"><div class="tsd-navigation settings"><details class="tsd-accordion"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-chevronDown"></use></svg><h3>Settings</h3></summary><div class="tsd-accordion-details"><div class="tsd-filter-visibility"><span class="settings-label">Member Visibility</span><ul id="tsd-filter-options"><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-protected" name="protected"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Protected</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li></ul></div><div class="tsd-theme-toggle"><label class="settings-label" for="tsd-theme">Theme</label><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div><details open class="tsd-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-chevronDown"></use></svg><h3>On This Page</h3></summary><div class="tsd-accordion-details"><a href="#mallory"><span>mallory</span></a><ul><li><a href="#install-use"><span>Install &amp; use</span></a></li><li><a href="#modules"><span>Modules</span></a></li><li><a href="#about-the-port"><span>About the port</span></a></li><li><a href="#beyond-the-original"><span>Beyond the original</span></a></li><li><a href="#expanded-mathematics"><span>Expanded mathematics</span></a></li><li><a href="#license"><span>License</span></a></li></ul></div></details></div><div class="site-menu"><nav id="tsd-sidebar-links" class="tsd-navigation"><a href="https://github.com/johnhenry/mallory-ts" class="tsd-nav-link">GitHub</a><a href="https://github.com/johnhenry/mallory-ts/blob/main/docs/COOKBOOK.md" class="tsd-nav-link">Cookbook</a></nav><nav class="tsd-navigation"><a href="modules.html">mallory-ts</a><ul class="tsd-small-nested-navigation" id="tsd-nav-container"><li>Loading...</li></ul></nav></div></div></div><footer><p class="tsd-generator">Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></footer><div class="overlay"></div></body></html>
