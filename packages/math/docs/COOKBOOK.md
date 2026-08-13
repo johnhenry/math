@@ -27,9 +27,9 @@ See [`test/ComplexNumber.test.ts`](../test/ComplexNumber.test.ts).
 import { Statistics, Vector } from "mallory-math";
 
 const sample = Vector.fromArray([2, 4, 4, 4, 5, 5, 7, 9]);
-Statistics.mean(sample); // 5
+Statistics.mean(sample); // => 5
 Statistics.variance(sample); // sample variance (n-1 denominator)
-Statistics.populationVariance(sample); // population variance (n denominator) = 4
+Statistics.populationVariance(sample); // => 4
 ```
 
 ## Numeric linear algebra basics
@@ -43,7 +43,7 @@ import { Structure, Vector } from "mallory-math";
 
 const A = Vector.fromArray([Vector.fromArray([4, 3]), Vector.fromArray([6, 3])]);
 const real = Structure.realField();
-real.determinant(A); // -6
+real.determinant(A); // => -6
 const inv = real.invertMatrix(A); // partial pivoting, no divide-by-zero
 real.multiplyMatrix(A, inv); // ≈ identity
 ```
@@ -57,7 +57,8 @@ finite fields, rationals, quaternions, dual numbers — via one generic API:
 import { Structure, Vector } from "mallory-math";
 
 const gf7 = Structure.integersModulo(7); // GF(7), a finite field
-gf7.reciprocal(3); // 5  (3 * 5 = 15 ≡ 1 mod 7)
+// 3 * 5 = 15 ≡ 1 mod 7:
+gf7.reciprocal(3); // => 5
 
 const a = Vector.fromArray([Vector.fromArray([2, 3]), Vector.fromArray([1, 4])]);
 const inv = gf7.invertMatrix(a); // Gauss-Jordan over GF(7)
@@ -120,10 +121,10 @@ import { PolynomialRing, Structure, parsePolynomial, polynomialToString } from "
 
 const R = new PolynomialRing(Structure.realField());
 const p = parsePolynomial("x^2 + 2x + 1"); // parses polynomialToString's own format
-R.evaluate(p, 3); // 16
-R.evaluate(R.derivative(p), 3); // 8
+R.evaluate(p, 3); // => 16
+R.evaluate(R.derivative(p), 3); // => 8
 R.divmod(p, parsePolynomial("x + 1")); // long division: { quotient, remainder }
-polynomialToString(p); // "1*x^2+2*x+1"
+polynomialToString(p); // => "1*x^2+2*x+1"
 ```
 
 ## Counting mathematics (combinatorics)
@@ -131,16 +132,21 @@ polynomialToString(p); // "1*x^2+2*x+1"
 ```ts
 import { Combinatorics } from "mallory-math";
 
-Combinatorics.factorial(5); // 120n
-Combinatorics.binomial(10, 3); // 120n  (nCk, symmetric: nCk = nC(n-k))
-Combinatorics.permutationsCount(5, 3); // 60n  (nPk)
-Combinatorics.multinomial(10, [2, 3, 5]); // 2520n
+Combinatorics.factorial(5); // => 120n
+Combinatorics.binomial(10, 3); // => 120n
+Combinatorics.permutationsCount(5, 3); // => 60n
+Combinatorics.multinomial(10, [2, 3, 5]); // => 2520n
 
-Combinatorics.catalan(5); // 42n  (balanced parenthesizations, binary trees, ...)
-Combinatorics.stirlingSecond(4, 2); // 7n  (partitions of a 4-set into 2 unlabeled subsets)
-Combinatorics.bell(4); // 15n  (total partitions of a 4-set)
-Combinatorics.partitionCount(5); // 7n  (integer partitions of 5)
-Combinatorics.derangements(4); // 9n  (permutations of 4 with no fixed point)
+// catalan: balanced parenthesizations, binary trees, ...
+Combinatorics.catalan(5); // => 42n
+// stirlingSecond: partitions of a 4-set into 2 unlabeled subsets
+Combinatorics.stirlingSecond(4, 2); // => 7n
+// bell: total partitions of a 4-set
+Combinatorics.bell(4); // => 15n
+// partitionCount: integer partitions of 5
+Combinatorics.partitionCount(5); // => 7n
+// derangements: permutations of 4 with no fixed point
+Combinatorics.derangements(4); // => 9n
 ```
 
 Everything is `bigint`-based (matching `NumberTheory`'s convention), since
@@ -154,14 +160,14 @@ reaches 20. See
 import { Decimal, Structure } from "mallory-math";
 
 // Exact decimal arithmetic — no float drift:
-Decimal.from("0.1").add(Decimal.from("0.2")).toString(); // "0.3" (0.1 + 0.2 !== 0.3 in plain JS)
+Decimal.from("0.1").add(Decimal.from("0.2")).toString(); // => "0.3"
 
 // Division is inherently approximate; precision (significant digits) is configurable:
-Decimal.from(1).divide(Decimal.from(3), 10).toString(); // "0.3333333333"
+Decimal.from(1).divide(Decimal.from(3), 10).toString(); // => "0.3333333333"
 
 // Also a Structure preset, for linear algebra over exact decimals:
 const decimals = Structure.decimalField();
-decimals.multiply(Decimal.from("1.5"), Decimal.from("2.5")).toString(); // "3.75"
+decimals.multiply(Decimal.from("1.5"), Decimal.from("2.5")).toString(); // => "3.75"
 ```
 
 See [`test/Decimal.test.ts`](../test/Decimal.test.ts).
@@ -180,9 +186,10 @@ const R = new PolynomialRing(gf7);
 
 const p1 = [2, 4, 1]; // (x-1)(x-2) mod 7
 const p2 = [3, 3, 1]; // (x-1)(x-3) mod 7
-R.gcd(p1, p2); // [6, 1] -- monic (x - 1), the shared root at x=1
+// monic (x - 1), the shared root at x=1:
+R.gcd(p1, p2); // => [6, 1]
 
-R.toString(p1); // "1*x^2+4*x+2"
+R.toString(p1); // => "1*x^2+4*x+2"
 R.evaluate(p1, 5); // Horner's method, using gf7's field operations
 ```
 
@@ -195,34 +202,37 @@ rationals. See
 ```ts
 import { Symbolic } from "mallory-math";
 
-Symbolic.toString(Symbolic.differentiate("x^3")); // "3*x^2"
-Symbolic.toString(Symbolic.integrate("cos(x)")); // "sin(x)"
-Symbolic.toString(Symbolic.integrate("x*sin(x)")); // "sin(x) - x*cos(x)" — integration by parts
+Symbolic.toString(Symbolic.differentiate("x^3")); // => "3*x^2"
+Symbolic.toString(Symbolic.integrate("cos(x)")); // => "sin(x)"
+// integration by parts (≡ sin(x) - x*cos(x)):
+Symbolic.toString(Symbolic.integrate("x*sin(x)")); // => "-(cos(x)*x) + sin(x)"
 Symbolic.toString(Symbolic.taylor("exp(x)", "x", 0, 4)); // Taylor series about 0
-Symbolic.evaluate("x^2 + 1", { x: 3 }); // 10
+Symbolic.evaluate("x^2 + 1", { x: 3 }); // => 10
 
 // Algebraic simplification collects like terms, not just identities:
-Symbolic.toString(Symbolic.simplify("a*b + b*a")); // "2*(a*b)"
-Symbolic.toString(Symbolic.expand("(x+1)^2")); // "x^2 + 2*x + 1"
+Symbolic.toString(Symbolic.simplify("a*b + b*a")); // => "2*(a*b)"
+Symbolic.toString(Symbolic.expand("(x+1)^2")); // => "x^2 + 2*x + 1"
 Symbolic.toString(Symbolic.substitute("x^2 + 1", "x", "y+1")); // in terms of y
 
 // Polynomial solving/factoring (degree <= 6; real roots only):
-Symbolic.solve("x^2 - 5*x + 6").map(Symbolic.toString); // ["3", "2"]
-Symbolic.toString(Symbolic.factor("x^2 - 1")); // "(x - 1)*(x + 1)"
+Symbolic.solve("x^2 - 5*x + 6").map(Symbolic.toString); // => ["3", "2"]
+Symbolic.toString(Symbolic.factor("x^2 - 1")); // => "(x - 1)*(x + 1)"
 
-Symbolic.limit("sin(x)/x", "x", 0); // 1 — via L'Hopital's rule
-Symbolic.toLatex("x^2/2"); // "\\frac{x^{2}}{2}"
+// via L'Hopital's rule:
+Symbolic.limit("sin(x)/x", "x", 0); // => 1
+Symbolic.toLatex("x^2/2"); // => "\\frac{x^{2}}{2}"
 
 // fromLatex is the reverse of toLatex, for LaTeX-emitting math-field input:
-Symbolic.toString(Symbolic.fromLatex("\\frac{x^{2}}{2}")); // "x^2/2"
+Symbolic.toString(Symbolic.fromLatex("\\frac{x^{2}}{2}")); // => "x^2/2"
 Symbolic.toString(Symbolic.fromLatex("\\sqrt[3]{x}")); // "cbrt(x)" — not a fractional power,
 // since Math.cbrt(-8) = -2 but (-8)^(1/3) is NaN under JS's `**`.
 Symbolic.toString(Symbolic.fromLatex("\\sqrt[5]{x}")); // "x^(1/5)" — any other root stays a fractional power
 
 // arcsin/arccos/arctan/arcsinh/arccosh/arctanh are accepted as aliases for
 // asin/acos/atan/asinh/acosh/atanh — both spellings parse identically:
-Symbolic.toString(Symbolic.parse("arctan(x)")); // "atan(x)"
-Symbolic.toString(Symbolic.parse("logistic(x)")); // "sigmoid(x)" — logistic is an alias for sigmoid
+Symbolic.toString(Symbolic.parse("arctan(x)")); // => "atan(x)"
+// logistic is an alias for sigmoid:
+Symbolic.toString(Symbolic.parse("logistic(x)")); // => "sigmoid(x)"
 
 // |x| bar notation and \lfloor/\lceil round-trip too:
 Symbolic.toLatex("abs(x)"); // "\\left|x\\right|"
@@ -237,14 +247,16 @@ Symbolic.toString(Symbolic.fromLatex("\\operatorname{sech}(x)")); // "sech(x)"
 
 // N-ary functions (atan2/hypot/min/max/gcd/lcm) fold pairwise into nested
 // binary call2 nodes, so N >= 2 arguments all work:
-Symbolic.evaluate("hypot(3,4)", {}); // 5
-Symbolic.evaluate("min(3,7,-2,5)", {}); // -2
-Symbolic.evaluate("atan2(1,1)", {}); // 0.7853981633974483
+Symbolic.evaluate("hypot(3,4)", {}); // => 5
+Symbolic.evaluate("min(3,7,-2,5)", {}); // => -2
+Symbolic.evaluate("atan2(1,1)", {}); // => 0.7853981633974483
 
 // log(base, x) and clamp(x, lo, hi) desugar into existing constructs at parse
 // time — they're not their own Expr node type:
-Symbolic.evaluate("log(2,8)", {}); // 3 — desugars to ln(x)/ln(base)
-Symbolic.evaluate("clamp(15,0,10)", {}); // 10 — desugars to min(max(x,lo),hi)
+// desugars to ln(x)/ln(base):
+Symbolic.evaluate("log(2,8)", {}); // => 3
+// desugars to min(max(x,lo),hi):
+Symbolic.evaluate("clamp(15,0,10)", {}); // => 10
 
 // min/max/gcd round-trip through standard LaTeX commands; atan2/hypot/lcm
 // (no standard command) use \operatorname{...}, same as sech/csch above:
@@ -293,25 +305,30 @@ throws `NotIntegrableError` rather than returning a wrong answer — e.g.
 `Symbolic.integrate("sin(x^2)")` (no accompanying factor to substitute with).
 
 ```ts
+import { Symbolic } from "mallory-math";
+
 // u-substitution: 2x*sin(x^2) -> -cos(x^2), 3x^2*exp(x^3) -> exp(x^3)
-Symbolic.toString(Symbolic.integrate("2*x*sin(x^2)")); // "-cos(x^2)"
+Symbolic.toString(Symbolic.integrate("2*x*sin(x^2)")); // => "-cos(x^2)"
 
 // Definite integrals: closed form first, adaptive-quadrature fallback otherwise
-Symbolic.integrateDefinite("x^2", 0, 2); // 2.6666... = 8/3, exact
+Symbolic.integrateDefinite("x^2", 0, 2); // => 8 / 3
 Symbolic.integrateDefinite("sin(x^2)", 0, 1); // numeric (sin(x^2) has no elementary antiderivative)
 
 // Linear systems of equations (each equation implicitly "= 0", same convention
 // as solve() -- no "=" operator needed):
-Symbolic.solveSystem(["2*x + y - 5", "x - y - 1"], ["x", "y"]); // { x: 2, y: 1 }
+Symbolic.solveSystem(["2*x + y - 5", "x - y - 1"], ["x", "y"]); // => { x: 2, y: 1 }
 
 // Finite and infinite series -- geometric series get an exact closed form;
 // other convergent series fall back to numeric partial summation:
-Symbolic.sumSeries("n^2", 1, 5); // 55 -- finite partial sum
-Symbolic.sumSeries("3*0.5^n", 0, Infinity); // 6 -- geometric closed form, exact
-Symbolic.sumSeries("n*0.5^n", 1, Infinity); // 2 -- not pure geometric, numeric fallback
+// finite partial sum:
+Symbolic.sumSeries("n^2", 1, 5); // => 55
+// geometric closed form, exact:
+Symbolic.sumSeries("3*0.5^n", 0, Infinity); // => 6
+// not pure geometric, numeric fallback:
+Symbolic.sumSeries("n*0.5^n", 1, Infinity); // => 2
 
 // Comparisons (boolean-as-number, 1/0) and piecewise functions:
-Symbolic.evaluate("x < 3", { x: 1 }); // 1
+Symbolic.evaluate("x < 3", { x: 1 }); // => 1
 Symbolic.toString(Symbolic.differentiate("piecewise(x<0, x^2, x^3)")); // branch-wise: 2x for x<0, 3x^2 otherwise
 Symbolic.toLatex("piecewise(x<0, -x, x)"); // "\\begin{cases}-x & x < 0\\\\x & \\text{otherwise}\\end{cases}"
 ```
@@ -335,17 +352,18 @@ operators (`x + 1 < 2*x` parses as `(x+1) < (2*x)`) and are non-chaining.
 "locally constant" convention); `piecewise` differentiates branch-wise.
 
 ```ts
-import { Rational, Structure } from "mallory-math";
+import { Rational, Structure, Symbolic } from "mallory-math";
 
 // Exact evaluation over Rational arithmetic instead of floats -- throws for
 // anything not exactly representable (func/call2 nodes, non-integer pow
 // exponents), so callers should fall back to Symbolic.evaluate on catch:
-Symbolic.evaluateExact("1/3").toString(); // "1/3", not 0.333...
-Symbolic.evaluateExact("x+1/2", { x: new Rational(1n, 2n) }).toString(); // "1"
+Symbolic.evaluateExact("1/3").toString(); // => "1/3"
+Symbolic.evaluateExact("x+1/2", { x: new Rational(1n, 2n) }).toString(); // => "1"
 
 // Folds an Expr through an arbitrary Structure's own algebra instead of
 // native JS math, e.g. plotting over Z/7Z instead of the reals:
-Symbolic.evaluateOverStructure("3+5", Structure.integersModulo(7)); // 1 (8 mod 7)
+// 8 mod 7:
+Symbolic.evaluateOverStructure("3+5", Structure.integersModulo(7)); // => 1
 ```
 
 ## Multivariable calculus
@@ -356,8 +374,10 @@ import { DualNumber, VectorCalculus } from "mallory-math";
 // f(x, y) = x^2*y + y^3
 const f = (xs: DualNumber[]) => xs[0].pow(2).multiply(xs[1]).add(xs[1].pow(3));
 
-VectorCalculus.gradient(f, [1, 2]); // [4, 13] — exact, via DualNumber autodiff
-VectorCalculus.directionalDerivative(f, [1, 2], [3, 4]); // 12.8 — direction need not be a unit vector
+// exact, via DualNumber autodiff:
+VectorCalculus.gradient(f, [1, 2]); // => [4, 13]
+// direction need not be a unit vector:
+VectorCalculus.directionalDerivative(f, [1, 2], [3, 4]); // => 12.8
 VectorCalculus.hessian(f, [1, 2]); // [[4, 2], [2, 12]] — central differences of the exact gradient
 
 // F: R^2 -> R^2
@@ -369,7 +389,7 @@ const rot = (xs: DualNumber[]) => [xs[1].negate(), xs[0], DualNumber.constant(0)
 VectorCalculus.curl3D(rot, [0, 0, 0]); // [0, 0, 2]
 
 // exact multivariable partials from a string expression, via Symbolic:
-VectorCalculus.symbolicGradient("x^2*y + y^3", ["x", "y"], { x: 1, y: 2 }); // [4, 13]
+VectorCalculus.symbolicGradient("x^2*y + y^3", ["x", "y"], { x: 1, y: 2 }); // => [4, 13]
 ```
 
 `gradient`/`jacobian`/`divergence`/`curl3D` are exact (forward-mode autodiff);
@@ -403,10 +423,12 @@ See [`test/NumberTypes.test.ts`](../test/NumberTypes.test.ts).
 ```ts
 import { NumberTheory } from "mallory-math";
 
-NumberTheory.isProbablePrime(2n ** 61n - 1n); // true (Mersenne prime)
-NumberTheory.isProbablePrime(561n); // false (Carmichael number — not a false positive)
-NumberTheory.factorize(360n); // [[2n,3],[3n,2],[5n,1]]
-NumberTheory.crt([2n, 3n, 2n], [3n, 5n, 7n]); // { x: 23n, modulus: 105n }
+// a Mersenne prime:
+NumberTheory.isProbablePrime(2n ** 61n - 1n); // => true
+// a Carmichael number — not a false positive:
+NumberTheory.isProbablePrime(561n); // => false
+NumberTheory.factorize(360n); // => [[2n,3],[3n,2],[5n,1]]
+NumberTheory.crt([2n, 3n, 2n], [3n, 5n, 7n]); // => { x: 23n, modulus: 105n }
 ```
 
 Everything here is `bigint`-based, so it's exact for arbitrarily large inputs
@@ -420,10 +442,11 @@ import { Structure, GroupTheory } from "mallory-math";
 // GroupTheory composes with any Structure preset:
 const gf7 = Structure.integersModulo(7);
 const units = [1, 2, 3, 4, 5, 6];
-GroupTheory.isGroup(units, gf7.multiply, gf7.equality); // true — GF(7)'s multiplicative group
+// GF(7)'s multiplicative group:
+GroupTheory.isGroup(units, gf7.multiply, gf7.equality); // => true
 
 const { op, identity } = GroupTheory.cyclicGroup(4);
-GroupTheory.elementOrder(1, op, (a, b) => a === b, identity); // 4
+GroupTheory.elementOrder(1, op, (a, b) => a === b, identity); // => 4
 
 GroupTheory.symmetricGroup(3); // all 6 permutations of {0,1,2} as a group
 ```
@@ -436,10 +459,11 @@ non-abelian example and the Lagrange's-theorem cosets/index check.
 ```ts
 import { Numerical } from "mallory-math";
 
-Numerical.newton((x) => x * x - 2, 1); // √2, quadratic convergence
+// √2, quadratic convergence:
+Numerical.newton((x) => x * x - 2, 1); // => Math.SQRT2
 Numerical.brent((x) => x * x - 2, 0, 2); // hybrid bisection/secant/inverse-quadratic
 
-Numerical.simpson(Math.sin, 0, Math.PI); // ∫ sin = 2
+Numerical.simpson(Math.sin, 0, Math.PI); // => 2
 Numerical.gaussLegendre((x) => x ** 4, 0, 1); // exact for low-degree polynomials
 
 Numerical.rk4((_t, y) => [y[0]], [1], 0, 1, 0.01); // y' = y, y(0)=1 -> y(1) ≈ e
@@ -450,11 +474,11 @@ Numerical.rk4((_t, y) => [y[0]], [1], 0, 1, 0.01); // y' = y, y(0)=1 -> y(1) ≈
 ```ts
 import { SpecialFunctions, Distributions, HypothesisTests } from "mallory-math";
 
-SpecialFunctions.gamma(5); // 24  (4!)
+SpecialFunctions.gamma(5); // => 24
 SpecialFunctions.regularizedIncompleteBeta(0.5, 2, 3);
 
 const normal = Distributions.normal(0, 1);
-normal.cdf(0); // 0.5
+normal.cdf(0); // => 0.5
 normal.sample(); // draw from N(0,1)
 
 HypothesisTests.tTestOneSample([5.1, 4.9, 5.0, 5.2, 4.8], 5); // { statistic, pValue, ... }
@@ -471,7 +495,7 @@ import { FFT } from "mallory-math";
 
 FFT.fft([1, 0, 0, 0]); // flat spectrum (power-of-two length required)
 FFT.fftPadded([1, 2, 3]); // zero-pads to the next power of two
-FFT.convolve([1, 2, 3], [4, 5, 6]); // [4, 13, 28, 27, 18], via FFT
+FFT.convolve([1, 2, 3], [4, 5, 6]); // ≈ [4, 13, 28, 27, 18] as ComplexNumbers, via FFT
 ```
 
 ## Computational geometry
@@ -483,10 +507,11 @@ const cloud: Point[] = [[0,0],[1,1],[2,2],[2,0],[0,2],[1,0.5]];
 Geometry.convexHull(cloud); // the 4 outer corners; interior/collinear points drop out
 
 const square: Point[] = [[0,0],[4,0],[4,4],[0,4]];
-Geometry.pointInPolygon([2, 2], square); // true
+Geometry.pointInPolygon([2, 2], square); // => true
 
 const t = Transform2D.translation(1, 2).multiply(Transform2D.rotation(Math.PI / 2));
-t.apply([1, 0]); // rotate then translate -> [1, 3]
+// rotate then translate:
+t.apply([1, 0]); // => [1, 3]
 ```
 
 ## Graph algorithms
@@ -497,7 +522,8 @@ import { Graph } from "mallory-math";
 const g = new Graph<string>(true); // directed
 g.addEdge("a", "b", 1).addEdge("b", "c", 2).addEdge("a", "c", 10);
 
-g.shortestPath("a", "c"); // { distance: 3, path: ["a","b","c"] } — Dijkstra
+// Dijkstra:
+g.shortestPath("a", "c"); // => { distance: 3, path: ["a","b","c"] }
 g.minimumSpanningTree(); // Kruskal, on an undirected Graph
 g.topologicalSort(); // null if the graph has a cycle
 g.floydWarshall(); // { distances, order } — all-pairs shortest paths
