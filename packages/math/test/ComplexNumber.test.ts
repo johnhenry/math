@@ -200,3 +200,70 @@ test("static infinities", () => {
   assert.equal(ComplexNumber.NegativeInfinityI.iValue, -Infinity);
   assert.ok(Number.isNaN(ComplexNumber.NaCN.value));
 });
+
+test("hyperbolicTangent on reals matches Math.tanh", () => {
+  const t = new ComplexNumber(0.7).hyperbolicTangent();
+  assert.ok(Math.abs(t.value - Math.tanh(0.7)) < 1e-6 && Math.abs(t.iValue) < 1e-6);
+});
+
+test("hyperbolicTangent: tanh(z) = sinh(z)/cosh(z) for a genuinely complex z", () => {
+  const z = new ComplexNumber(1, 2);
+  const t = z.hyperbolicTangent();
+  const ratio = z.hyperbolicSine().divide(z.hyperbolicCosine());
+  assert.ok(Math.abs(t.value - ratio.value) < 1e-9 && Math.abs(t.iValue - ratio.iValue) < 1e-9);
+});
+
+test("inverse hyperbolic on reals matches Math", () => {
+  const asinh = new ComplexNumber(1).arcHyperbolicSine();
+  assert.ok(Math.abs(asinh.value - Math.asinh(1)) < 1e-6 && Math.abs(asinh.iValue) < 1e-6);
+
+  const acosh = new ComplexNumber(2).arcHyperbolicCosine();
+  assert.ok(Math.abs(acosh.value - Math.acosh(2)) < 1e-6 && Math.abs(acosh.iValue) < 1e-6);
+
+  const atanh = new ComplexNumber(0.5).arcHyperbolicTangent();
+  assert.ok(Math.abs(atanh.value - Math.atanh(0.5)) < 1e-6 && Math.abs(atanh.iValue) < 1e-6);
+});
+
+test("arcHyperbolicCosine(0) = i*pi/2 (principal branch)", () => {
+  const a = new ComplexNumber(0).arcHyperbolicCosine();
+  assert.ok(Math.abs(a.value) < 1e-9 && Math.abs(a.iValue - Math.PI / 2) < 1e-9);
+});
+
+test("inverse hyperbolic round-trips through their forward counterparts", () => {
+  const z = new ComplexNumber(0.3, 0.7);
+  const asinhBack = z.arcHyperbolicSine().hyperbolicSine();
+  assert.ok(Math.abs(asinhBack.value - z.value) < 1e-9 && Math.abs(asinhBack.iValue - z.iValue) < 1e-9);
+
+  const acoshBack = z.arcHyperbolicCosine().hyperbolicCosine();
+  assert.ok(Math.abs(acoshBack.value - z.value) < 1e-9 && Math.abs(acoshBack.iValue - z.iValue) < 1e-9);
+
+  const atanhBack = z.arcHyperbolicTangent().hyperbolicTangent();
+  assert.ok(Math.abs(atanhBack.value - z.value) < 1e-9 && Math.abs(atanhBack.iValue - z.iValue) < 1e-9);
+});
+
+test("valueOf: a purely real ComplexNumber coerces to a plain number", () => {
+  assert.equal(+new ComplexNumber(5, 0), 5);
+  assert.equal(new ComplexNumber(3, 0) + 1, 4);
+});
+
+test("valueOf: a genuinely complex ComplexNumber throws on implicit Number coercion", () => {
+  const z = new ComplexNumber(1, 2);
+  assert.throws(() => +z, TypeError);
+  assert.throws(() => {
+    // biome-ignore lint/suspicious/noExplicitAny: forcing numeric coercion on purpose
+    (z as any) * 2;
+  }, TypeError);
+});
+
+test("valueOf: explicit string coercion (hint \"string\") is unaffected by the coercion guard", () => {
+  const z = new ComplexNumber(1, 2);
+  assert.equal(String(z), "1+2*i");
+  assert.equal(`${z}`, "1+2*i");
+});
+
+test("valueOf: `+` concatenation uses hint \"default\", so it tries valueOf first and throws for non-real values too (not just arithmetic operators)", () => {
+  const z = new ComplexNumber(1, 2);
+  assert.throws(() => z + "", TypeError);
+  // A purely real ComplexNumber still concatenates fine, since valueOf succeeds for it.
+  assert.equal(new ComplexNumber(5, 0) + "", "5");
+});
