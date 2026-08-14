@@ -7,9 +7,7 @@ export const asyncFromArray = <T>(items: T[]): AsyncGenerator<T> =>
   })();
 
 /** Collect any (a)sync iterable into an array. */
-export const collect = async <T>(
-  iterable: AsyncIterable<T> | Iterable<T>
-): Promise<T[]> => {
+export const collect = async <T>(iterable: AsyncIterable<T> | Iterable<T>): Promise<T[]> => {
   const out: T[] = [];
   for await (const item of iterable) {
     out.push(item);
@@ -24,7 +22,7 @@ export const collect = async <T>(
 export const eventualEqual = async <T>(
   actual: AsyncIterable<T> | Iterable<T>,
   expected: T[],
-  message?: string
+  message?: string,
 ): Promise<void> => {
   assert.deepStrictEqual(await collect(actual), expected, message);
 };

@@ -1,5 +1,5 @@
-import { test } from "node:test";
 import assert from "node:assert/strict";
+import { test } from "node:test";
 import { AsyncChannel, CHANNEL_END, pause } from "../src/index.ts";
 
 const settled = async (p: Promise<unknown>): Promise<boolean> => {
@@ -64,7 +64,7 @@ test("multiple blocked puts release in FIFO order", async () => {
   const blocked = [2, 3, 4].map((n) =>
     channel.put(n).then(() => {
       resolved.push(n);
-    })
+    }),
   );
   await pause(10);
   assert.deepStrictEqual(resolved, [], "all over-capacity puts must wait");

@@ -1,4 +1,4 @@
-import { conjoinSync, conjoinAsync } from "./iterator-tools.ts";
+import { conjoinAsync, conjoinSync } from "./iterator-tools.ts";
 /**
  * "The" Empty Iterator
  *  Immediately finishes and yields nothing.

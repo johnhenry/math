@@ -1,10 +1,5 @@
-import {
-  reduceSync,
-  reduceAsync,
-  type ReducerStep,
-  type Transducer,
-} from "./iterator-tools.ts";
 import { abortable, type SignalOptions } from "./abort.ts";
+import { type ReducerStep, reduceAsync, reduceSync, type Transducer } from "./iterator-tools.ts";
 
 /**
  * The innermost reducer step ("emit"): pushes an emitted item onto the
@@ -32,11 +27,7 @@ export const transduce = <Source, Result>(
   reducer: (last: ReducerStep<never>) => ReducerStep<never>,
   lastreducer: ReducerStep<never>,
   init: unknown[],
-  reduce: (
-    itemCollection: Source,
-    step: ReducerStep<never>,
-    init: unknown[]
-  ) => Result
+  reduce: (itemCollection: Source, step: ReducerStep<never>, init: unknown[]) => Result,
 ): Result => reduce(itemCollection, reducer(lastreducer), init);
 
 /**
@@ -79,63 +70,36 @@ const composeFunctions =
  * ```
  */
 export function transduceAsync<A, B>(
-  t1: Transducer<A, B>
-): (
-  itemCollection: AsyncIterable<A> | Iterable<A>,
-  options?: SignalOptions
-) => AsyncGenerator<B>;
+  t1: Transducer<A, B>,
+): (itemCollection: AsyncIterable<A> | Iterable<A>, options?: SignalOptions) => AsyncGenerator<B>;
 export function transduceAsync<A, B, C>(
   t1: Transducer<A, B>,
-  t2: Transducer<B, C>
-): (
-  itemCollection: AsyncIterable<A> | Iterable<A>,
-  options?: SignalOptions
-) => AsyncGenerator<C>;
+  t2: Transducer<B, C>,
+): (itemCollection: AsyncIterable<A> | Iterable<A>, options?: SignalOptions) => AsyncGenerator<C>;
 export function transduceAsync<A, B, C, D>(
   t1: Transducer<A, B>,
   t2: Transducer<B, C>,
-  t3: Transducer<C, D>
-): (
-  itemCollection: AsyncIterable<A> | Iterable<A>,
-  options?: SignalOptions
-) => AsyncGenerator<D>;
+  t3: Transducer<C, D>,
+): (itemCollection: AsyncIterable<A> | Iterable<A>, options?: SignalOptions) => AsyncGenerator<D>;
 export function transduceAsync<A, B, C, D, E>(
   t1: Transducer<A, B>,
   t2: Transducer<B, C>,
   t3: Transducer<C, D>,
-  t4: Transducer<D, E>
-): (
-  itemCollection: AsyncIterable<A> | Iterable<A>,
-  options?: SignalOptions
-) => AsyncGenerator<E>;
+  t4: Transducer<D, E>,
+): (itemCollection: AsyncIterable<A> | Iterable<A>, options?: SignalOptions) => AsyncGenerator<E>;
 export function transduceAsync<A, B, C, D, E, F>(
   t1: Transducer<A, B>,
   t2: Transducer<B, C>,
   t3: Transducer<C, D>,
   t4: Transducer<D, E>,
-  t5: Transducer<E, F>
-): (
-  itemCollection: AsyncIterable<A> | Iterable<A>,
-  options?: SignalOptions
-) => AsyncGenerator<F>;
+  t5: Transducer<E, F>,
+): (itemCollection: AsyncIterable<A> | Iterable<A>, options?: SignalOptions) => AsyncGenerator<F>;
 export function transduceAsync(
   ...functions: Array<Transducer<any, any>>
-): (
-  itemCollection: AsyncIterable<unknown> | Iterable<unknown>,
-  options?: SignalOptions
-) => AsyncGenerator<unknown>;
-export function transduceAsync(
-  ...functions: Array<Transducer<any, any>>
-) {
-  return (
-    itemCollection: AsyncIterable<unknown> | Iterable<unknown>,
-    { signal }: SignalOptions = {}
-  ) =>
-    reduceAsync(
-      signal ? abortable(itemCollection, signal) : itemCollection,
-      composeFunctions(...functions)(emit),
-      []
-    );
+): (itemCollection: AsyncIterable<unknown> | Iterable<unknown>, options?: SignalOptions) => AsyncGenerator<unknown>;
+export function transduceAsync(...functions: Array<Transducer<any, any>>) {
+  return (itemCollection: AsyncIterable<unknown> | Iterable<unknown>, { signal }: SignalOptions = {}) =>
+    reduceAsync(signal ? abortable(itemCollection, signal) : itemCollection, composeFunctions(...functions)(emit), []);
 }
 
 /**
@@ -166,37 +130,32 @@ export function transduceAsync(
  * }
  * ```
  */
-export function transduceSync<A, B>(
-  t1: Transducer<A, B>
-): (itemCollection: Iterable<A>) => Generator<B>;
+export function transduceSync<A, B>(t1: Transducer<A, B>): (itemCollection: Iterable<A>) => Generator<B>;
 export function transduceSync<A, B, C>(
   t1: Transducer<A, B>,
-  t2: Transducer<B, C>
+  t2: Transducer<B, C>,
 ): (itemCollection: Iterable<A>) => Generator<C>;
 export function transduceSync<A, B, C, D>(
   t1: Transducer<A, B>,
   t2: Transducer<B, C>,
-  t3: Transducer<C, D>
+  t3: Transducer<C, D>,
 ): (itemCollection: Iterable<A>) => Generator<D>;
 export function transduceSync<A, B, C, D, E>(
   t1: Transducer<A, B>,
   t2: Transducer<B, C>,
   t3: Transducer<C, D>,
-  t4: Transducer<D, E>
+  t4: Transducer<D, E>,
 ): (itemCollection: Iterable<A>) => Generator<E>;
 export function transduceSync<A, B, C, D, E, F>(
   t1: Transducer<A, B>,
   t2: Transducer<B, C>,
   t3: Transducer<C, D>,
   t4: Transducer<D, E>,
-  t5: Transducer<E, F>
+  t5: Transducer<E, F>,
 ): (itemCollection: Iterable<A>) => Generator<F>;
 export function transduceSync(
   ...functions: Array<Transducer<any, any>>
 ): (itemCollection: Iterable<unknown>) => Generator<unknown>;
-export function transduceSync(
-  ...functions: Array<Transducer<any, any>>
-) {
-  return (itemCollection: Iterable<unknown>) =>
-    reduceSync(itemCollection, composeFunctions(...functions)(emit), []);
+export function transduceSync(...functions: Array<Transducer<any, any>>) {
+  return (itemCollection: Iterable<unknown>) => reduceSync(itemCollection, composeFunctions(...functions)(emit), []);
 }

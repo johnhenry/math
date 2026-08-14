@@ -262,7 +262,11 @@ test('valueOf: explicit string coercion (hint "string") is unaffected by the coe
 
 test('valueOf: `+` concatenation uses hint "default", so it tries valueOf first and throws for non-real values too (not just arithmetic operators)', () => {
   const z = new ComplexNumber(1, 2);
+  // `+ ""` (hint "default") is the point of this test -- a template literal uses
+  // hint "string" instead and would no longer exercise the valueOf path.
+  // biome-ignore lint/style/useTemplate: see comment above
   assert.throws(() => z + "", TypeError);
   // A purely real ComplexNumber still concatenates fine, since valueOf succeeds for it.
+  // biome-ignore lint/style/useTemplate: see comment above
   assert.equal(new ComplexNumber(5, 0) + "", "5");
 });

@@ -33,26 +33,22 @@
  * reduce-to-one-value.
  */
 
-import { isliceSync, isliceAsync } from "./itertools.ts";
 import { abortable, type SignalOptions } from "./abort.ts";
+import { isliceAsync, isliceSync } from "./itertools.ts";
 
 type MaybePromise<T> = T | Promise<T>;
 export type AnyAsyncIterable<T> = AsyncIterable<T> | Iterable<T>;
 
-const maybeAbortable = <T>(
-  iterable: AnyAsyncIterable<T>,
-  signal?: AbortSignal
-): AnyAsyncIterable<T> => (signal ? abortable(iterable, signal) : iterable);
+const maybeAbortable = <T>(iterable: AnyAsyncIterable<T>, signal?: AbortSignal): AnyAsyncIterable<T> =>
+  signal ? abortable(iterable, signal) : iterable;
 
 /**
  * True if any item satisfies predicate. Short-circuits on the first match.
  * @kind function
  * @name someSync
  */
-export const someSync = <T>(
-  predicate: (item: T) => boolean,
-  iterable: Iterable<T>
-): boolean => Iterator.from(iterable).some(predicate);
+export const someSync = <T>(predicate: (item: T) => boolean, iterable: Iterable<T>): boolean =>
+  Iterator.from(iterable).some(predicate);
 
 /**
  * Asynchronous dual of someSync. Short-circuits (a `return` inside
@@ -63,7 +59,7 @@ export const someSync = <T>(
 export const someAsync = async <T>(
   predicate: (item: T) => MaybePromise<boolean>,
   iterable: AnyAsyncIterable<T>,
-  { signal }: SignalOptions = {}
+  { signal }: SignalOptions = {},
 ): Promise<boolean> => {
   for await (const item of maybeAbortable(iterable, signal)) {
     if (await predicate(item)) return true;
@@ -77,10 +73,8 @@ export const someAsync = async <T>(
  * @kind function
  * @name everySync
  */
-export const everySync = <T>(
-  predicate: (item: T) => boolean,
-  iterable: Iterable<T>
-): boolean => Iterator.from(iterable).every(predicate);
+export const everySync = <T>(predicate: (item: T) => boolean, iterable: Iterable<T>): boolean =>
+  Iterator.from(iterable).every(predicate);
 
 /**
  * Asynchronous dual of everySync.
@@ -90,7 +84,7 @@ export const everySync = <T>(
 export const everyAsync = async <T>(
   predicate: (item: T) => MaybePromise<boolean>,
   iterable: AnyAsyncIterable<T>,
-  { signal }: SignalOptions = {}
+  { signal }: SignalOptions = {},
 ): Promise<boolean> => {
   for await (const item of maybeAbortable(iterable, signal)) {
     if (!(await predicate(item))) return false;
@@ -103,10 +97,8 @@ export const everyAsync = async <T>(
  * @kind function
  * @name findSync
  */
-export const findSync = <T>(
-  predicate: (item: T) => boolean,
-  iterable: Iterable<T>
-): T | undefined => Iterator.from(iterable).find(predicate);
+export const findSync = <T>(predicate: (item: T) => boolean, iterable: Iterable<T>): T | undefined =>
+  Iterator.from(iterable).find(predicate);
 
 /**
  * Asynchronous dual of findSync.
@@ -116,7 +108,7 @@ export const findSync = <T>(
 export const findAsync = async <T>(
   predicate: (item: T) => MaybePromise<boolean>,
   iterable: AnyAsyncIterable<T>,
-  { signal }: SignalOptions = {}
+  { signal }: SignalOptions = {},
 ): Promise<T | undefined> => {
   for await (const item of maybeAbortable(iterable, signal)) {
     if (await predicate(item)) return item;
@@ -129,10 +121,8 @@ export const findAsync = async <T>(
  * @kind function
  * @name forEachSync
  */
-export const forEachSync = <T>(
-  fn: (item: T) => unknown,
-  iterable: Iterable<T>
-): void => Iterator.from(iterable).forEach(fn);
+export const forEachSync = <T>(fn: (item: T) => unknown, iterable: Iterable<T>): void =>
+  Iterator.from(iterable).forEach(fn);
 
 /**
  * Asynchronous dual of forEachSync. Distinct from `run` (iterator-tools.ts)
@@ -146,7 +136,7 @@ export const forEachSync = <T>(
 export const forEachAsync = async <T>(
   fn: (item: T) => unknown,
   iterable: AnyAsyncIterable<T>,
-  { signal }: SignalOptions = {}
+  { signal }: SignalOptions = {},
 ): Promise<void> => {
   for await (const item of maybeAbortable(iterable, signal)) {
     await fn(item);
@@ -163,11 +153,8 @@ export const forEachAsync = async <T>(
  * @kind function
  * @name foldSync
  */
-export const foldSync = <T, Acc>(
-  fn: (acc: Acc, item: T) => Acc,
-  init: Acc,
-  iterable: Iterable<T>
-): Acc => Iterator.from(iterable).reduce(fn, init);
+export const foldSync = <T, Acc>(fn: (acc: Acc, item: T) => Acc, init: Acc, iterable: Iterable<T>): Acc =>
+  Iterator.from(iterable).reduce(fn, init);
 
 /**
  * Asynchronous dual of foldSync.
@@ -178,7 +165,7 @@ export const foldAsync = async <T, Acc>(
   fn: (acc: Acc, item: T) => MaybePromise<Acc>,
   init: Acc,
   iterable: AnyAsyncIterable<T>,
-  { signal }: SignalOptions = {}
+  { signal }: SignalOptions = {},
 ): Promise<Acc> => {
   let acc = init;
   for await (const item of maybeAbortable(iterable, signal)) {
@@ -192,10 +179,7 @@ export const foldAsync = async <T, Acc>(
  * @kind function
  * @name firstSync
  */
-export const firstSync = <T, D = undefined>(
-  iterable: Iterable<T>,
-  defaultValue?: D
-): T | D => {
+export const firstSync = <T, D = undefined>(iterable: Iterable<T>, defaultValue?: D): T | D => {
   const { value, done } = iterable[Symbol.iterator]().next();
   return done ? (defaultValue as D) : value;
 };
@@ -208,7 +192,7 @@ export const firstSync = <T, D = undefined>(
 export const firstAsync = async <T, D = undefined>(
   iterable: AsyncIterable<T>,
   defaultValue?: D,
-  { signal }: SignalOptions = {}
+  { signal }: SignalOptions = {},
 ): Promise<T | D> => {
   if (signal) {
     for await (const item of abortable(iterable, signal)) {
@@ -226,10 +210,7 @@ export const firstAsync = async <T, D = undefined>(
  * @kind function
  * @name lastSync
  */
-export const lastSync = <T, D = undefined>(
-  iterable: Iterable<T>,
-  defaultValue?: D
-): T | D => {
+export const lastSync = <T, D = undefined>(iterable: Iterable<T>, defaultValue?: D): T | D => {
   let result: T | D = defaultValue as D;
   for (const item of iterable) {
     result = item;
@@ -245,7 +226,7 @@ export const lastSync = <T, D = undefined>(
 export const lastAsync = async <T, D = undefined>(
   iterable: AnyAsyncIterable<T>,
   defaultValue?: D,
-  { signal }: SignalOptions = {}
+  { signal }: SignalOptions = {},
 ): Promise<T | D> => {
   let result: T | D = defaultValue as D;
   for await (const item of maybeAbortable(iterable, signal)) {
@@ -260,11 +241,7 @@ export const lastAsync = async <T, D = undefined>(
  * @kind function
  * @name nthSync
  */
-export const nthSync = <T, D = undefined>(
-  iterable: Iterable<T>,
-  n: number,
-  defaultValue?: D
-): T | D => {
+export const nthSync = <T, D = undefined>(iterable: Iterable<T>, n: number, defaultValue?: D): T | D => {
   for (const item of isliceSync(iterable, n, n + 1)) {
     return item;
   }
@@ -280,13 +257,9 @@ export const nthAsync = async <T, D = undefined>(
   iterable: AsyncIterable<T>,
   n: number,
   defaultValue?: D,
-  { signal }: SignalOptions = {}
+  { signal }: SignalOptions = {},
 ): Promise<T | D> => {
-  for await (const item of isliceAsync(
-    maybeAbortable(iterable, signal) as AsyncIterable<T>,
-    n,
-    n + 1
-  )) {
+  for await (const item of isliceAsync(maybeAbortable(iterable, signal) as AsyncIterable<T>, n, n + 1)) {
     return item;
   }
   return defaultValue as D;
@@ -301,10 +274,7 @@ export const nthAsync = async <T, D = undefined>(
  * @kind function
  * @name quantifySync
  */
-export const quantifySync = <T>(
-  iterable: Iterable<T>,
-  predicate: (item: T) => boolean = () => true
-): number => {
+export const quantifySync = <T>(iterable: Iterable<T>, predicate: (item: T) => boolean = () => true): number => {
   let count = 0;
   for (const item of iterable) {
     if (predicate(item)) count++;
@@ -320,7 +290,7 @@ export const quantifySync = <T>(
 export const quantifyAsync = async <T>(
   iterable: AnyAsyncIterable<T>,
   predicate: (item: T) => MaybePromise<boolean> = () => true,
-  { signal }: SignalOptions = {}
+  { signal }: SignalOptions = {},
 ): Promise<number> => {
   let count = 0;
   for await (const item of maybeAbortable(iterable, signal)) {
@@ -340,7 +310,7 @@ export const quantifyAsync = async <T>(
 export const minSync = <T, D = undefined>(
   iterable: Iterable<T>,
   keyFn: (item: T) => unknown = (x) => x,
-  defaultValue?: D
+  defaultValue?: D,
 ): T | D => {
   let best: T | undefined, bestKey: unknown;
   let found = false;
@@ -364,7 +334,7 @@ export const minAsync = async <T, D = undefined>(
   iterable: AnyAsyncIterable<T>,
   keyFn: (item: T) => unknown = (x) => x,
   defaultValue?: D,
-  { signal }: SignalOptions = {}
+  { signal }: SignalOptions = {},
 ): Promise<T | D> => {
   let best: T | undefined, bestKey: unknown;
   let found = false;
@@ -390,7 +360,7 @@ export const minAsync = async <T, D = undefined>(
 export const maxSync = <T, D = undefined>(
   iterable: Iterable<T>,
   keyFn: (item: T) => unknown = (x) => x,
-  defaultValue?: D
+  defaultValue?: D,
 ): T | D => {
   let best: T | undefined, bestKey: unknown;
   let found = false;
@@ -414,7 +384,7 @@ export const maxAsync = async <T, D = undefined>(
   iterable: AnyAsyncIterable<T>,
   keyFn: (item: T) => unknown = (x) => x,
   defaultValue?: D,
-  { signal }: SignalOptions = {}
+  { signal }: SignalOptions = {},
 ): Promise<T | D> => {
   let best: T | undefined, bestKey: unknown;
   let found = false;

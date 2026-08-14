@@ -1,6 +1,6 @@
-import { test } from "node:test";
 import assert from "node:assert/strict";
-import { teeSync, teeAsync, asyncFrom } from "../src/index.ts";
+import { test } from "node:test";
+import { asyncFrom, teeAsync, teeSync } from "../src/index.ts";
 import { eventualEqual } from "./helpers.ts";
 
 test("teeSync should produce results that mirror original", () => {

@@ -4,7 +4,6 @@ export const isIterator = (obj: unknown): obj is Iterable<unknown> =>
 export const isAsyncIterator = (obj: unknown): obj is AsyncIterable<unknown> =>
   typeof (obj as AsyncIterable<unknown>)?.[Symbol.asyncIterator] === "function";
 
-export const exhaustable = (obj: unknown): boolean =>
-  isIterator(obj) || isAsyncIterator(obj);
+export const exhaustable = (obj: unknown): boolean => isIterator(obj) || isAsyncIterator(obj);
 
 export default exhaustable;

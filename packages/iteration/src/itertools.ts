@@ -19,13 +19,8 @@
  * Python's itertools module and the documented design divergences.
  */
 
-import {
-  concatSync,
-  concatAsync,
-  zipSync,
-  zipAsync,
-} from "./iterator-tools.ts";
 import { isAsyncIterator } from "./is-iterator.ts";
+import { concatAsync, concatSync, zipAsync, zipSync } from "./iterator-tools.ts";
 
 /**
  * Yield items while predicate holds; stop (without consuming further) at
@@ -34,10 +29,7 @@ import { isAsyncIterator } from "./is-iterator.ts";
  * @kind function
  * @name takeWhileSync
  */
-export function* takeWhileSync<T>(
-  predicate: (item: T) => boolean,
-  iterable: Iterable<T>
-): Generator<T> {
+export function* takeWhileSync<T>(predicate: (item: T) => boolean, iterable: Iterable<T>): Generator<T> {
   for (const item of iterable) {
     if (!predicate(item)) return;
     yield item;
@@ -51,7 +43,7 @@ export function* takeWhileSync<T>(
  */
 export async function* takeWhileAsync<T>(
   predicate: (item: T) => boolean,
-  iterable: AsyncIterable<T> | Iterable<T>
+  iterable: AsyncIterable<T> | Iterable<T>,
 ): AsyncGenerator<T> {
   for await (const item of iterable) {
     if (!predicate(item)) return;
@@ -65,10 +57,7 @@ export async function* takeWhileAsync<T>(
  * @kind function
  * @name dropWhileSync
  */
-export function* dropWhileSync<T>(
-  predicate: (item: T) => boolean,
-  iterable: Iterable<T>
-): Generator<T> {
+export function* dropWhileSync<T>(predicate: (item: T) => boolean, iterable: Iterable<T>): Generator<T> {
   const it = iterable[Symbol.iterator]();
   let r = it.next();
   while (!r.done && predicate(r.value)) {
@@ -87,7 +76,7 @@ export function* dropWhileSync<T>(
  */
 export async function* dropWhileAsync<T>(
   predicate: (item: T) => boolean,
-  iterable: AsyncIterable<T>
+  iterable: AsyncIterable<T>,
 ): AsyncGenerator<T> {
   const it = iterable[Symbol.asyncIterator]();
   let r = await it.next();
@@ -106,10 +95,7 @@ export async function* dropWhileAsync<T>(
  * @kind function
  * @name compressSync
  */
-export function* compressSync<T>(
-  iterable: Iterable<T>,
-  selectors: Iterable<unknown>
-): Generator<T> {
+export function* compressSync<T>(iterable: Iterable<T>, selectors: Iterable<unknown>): Generator<T> {
   for (const [item, keep] of zipSync<unknown>(iterable, selectors)) {
     if (keep) yield item as T;
   }
@@ -122,7 +108,7 @@ export function* compressSync<T>(
  */
 export async function* compressAsync<T>(
   iterable: AsyncIterable<T> | Iterable<T>,
-  selectors: AsyncIterable<unknown> | Iterable<unknown>
+  selectors: AsyncIterable<unknown> | Iterable<unknown>,
 ): AsyncGenerator<T> {
   for await (const [item, keep] of zipAsync<unknown>(iterable, selectors)) {
     if (keep) yield item as T;
@@ -134,10 +120,7 @@ export async function* compressAsync<T>(
  * @kind function
  * @name windowedSync
  */
-export function* windowedSync<T>(
-  iterable: Iterable<T>,
-  n: number
-): Generator<T[]> {
+export function* windowedSync<T>(iterable: Iterable<T>, n: number): Generator<T[]> {
   const buf: T[] = [];
   for (const item of iterable) {
     buf.push(item);
@@ -151,10 +134,7 @@ export function* windowedSync<T>(
  * @kind function
  * @name windowedAsync
  */
-export async function* windowedAsync<T>(
-  iterable: AsyncIterable<T> | Iterable<T>,
-  n: number
-): AsyncGenerator<T[]> {
+export async function* windowedAsync<T>(iterable: AsyncIterable<T> | Iterable<T>, n: number): AsyncGenerator<T[]> {
   const buf: T[] = [];
   for await (const item of iterable) {
     buf.push(item);
@@ -179,9 +159,7 @@ export function* pairwiseSync<T>(iterable: Iterable<T>): Generator<[T, T]> {
  * @kind function
  * @name pairwiseAsync
  */
-export async function* pairwiseAsync<T>(
-  iterable: AsyncIterable<T> | Iterable<T>
-): AsyncGenerator<[T, T]> {
+export async function* pairwiseAsync<T>(iterable: AsyncIterable<T> | Iterable<T>): AsyncGenerator<[T, T]> {
   yield* windowedAsync(iterable, 2) as AsyncGenerator<[T, T]>;
 }
 
@@ -198,7 +176,7 @@ export async function* pairwiseAsync<T>(
  */
 export function* groupBySync<T, K = T>(
   iterable: Iterable<T>,
-  keyFn: (item: T) => K = (x) => x as unknown as K
+  keyFn: (item: T) => K = (x) => x as unknown as K,
 ): Generator<[K, T[]]> {
   const it = iterable[Symbol.iterator]();
   let r = it.next();
@@ -225,7 +203,7 @@ export function* groupBySync<T, K = T>(
  */
 export async function* groupByAsync<T, K = T>(
   iterable: AsyncIterable<T>,
-  keyFn: (item: T) => K = (x) => x as unknown as K
+  keyFn: (item: T) => K = (x) => x as unknown as K,
 ): AsyncGenerator<[K, T[]]> {
   const it = iterable[Symbol.asyncIterator]();
   let r = await it.next();
@@ -270,9 +248,7 @@ export const chainAsync = concatAsync;
  * @name flattenSync
  * @see chainSync
  */
-export function* flattenSync<T>(
-  iterableOfIterables: Iterable<Iterable<T>>
-): Generator<T> {
+export function* flattenSync<T>(iterableOfIterables: Iterable<Iterable<T>>): Generator<T> {
   for (const inner of iterableOfIterables) {
     yield* inner;
   }
@@ -285,9 +261,7 @@ export function* flattenSync<T>(
  * @see chainAsync
  */
 export async function* flattenAsync<T>(
-  iterableOfIterables:
-    | AsyncIterable<AsyncIterable<T> | Iterable<T>>
-    | Iterable<AsyncIterable<T> | Iterable<T>>
+  iterableOfIterables: AsyncIterable<AsyncIterable<T> | Iterable<T>> | Iterable<AsyncIterable<T> | Iterable<T>>,
 ): AsyncGenerator<T> {
   for await (const inner of iterableOfIterables) {
     yield* inner;
@@ -317,9 +291,7 @@ export function* cycleSync<T>(iterable: Iterable<T>): Generator<T> {
  * @kind function
  * @name cycleAsync
  */
-export async function* cycleAsync<T>(
-  iterable: AsyncIterable<T> | Iterable<T>
-): AsyncGenerator<T> {
+export async function* cycleAsync<T>(iterable: AsyncIterable<T> | Iterable<T>): AsyncGenerator<T> {
   const buffer: T[] = [];
   for await (const item of iterable) {
     buffer.push(item);
@@ -346,10 +318,7 @@ export function* repeatSync<T>(value: T, times = Infinity): Generator<T> {
  * @kind function
  * @name repeatAsync
  */
-export async function* repeatAsync<T>(
-  value: T,
-  times = Infinity
-): AsyncGenerator<T> {
+export async function* repeatAsync<T>(value: T, times = Infinity): AsyncGenerator<T> {
   for (let i = 0; i < times; i++) {
     yield value;
   }
@@ -363,7 +332,7 @@ export async function* repeatAsync<T>(
  */
 export function* uniqueSync<T, K = T>(
   iterable: Iterable<T>,
-  keyFn: (item: T) => K = (x) => x as unknown as K
+  keyFn: (item: T) => K = (x) => x as unknown as K,
 ): Generator<T> {
   const seen = new Set<K>();
   for (const item of iterable) {
@@ -382,7 +351,7 @@ export function* uniqueSync<T, K = T>(
  */
 export async function* uniqueAsync<T, K = T>(
   iterable: AsyncIterable<T> | Iterable<T>,
-  keyFn: (item: T) => K = (x) => x as unknown as K
+  keyFn: (item: T) => K = (x) => x as unknown as K,
 ): AsyncGenerator<T> {
   const seen = new Set<K>();
   for await (const item of iterable) {
@@ -402,13 +371,8 @@ export async function* uniqueAsync<T, K = T>(
  * @kind function
  * @name enumerateSync
  */
-export function* enumerateSync<T>(
-  iterable: Iterable<T>,
-  start = 0
-): Generator<[number, T]> {
-  yield* Iterator.from(iterable).map(
-    (value, index): [number, T] => [index + start, value]
-  );
+export function* enumerateSync<T>(iterable: Iterable<T>, start = 0): Generator<[number, T]> {
+  yield* Iterator.from(iterable).map((value, index): [number, T] => [index + start, value]);
 }
 
 /**
@@ -419,7 +383,7 @@ export function* enumerateSync<T>(
  */
 export async function* enumerateAsync<T>(
   iterable: AsyncIterable<T> | Iterable<T>,
-  start = 0
+  start = 0,
 ): AsyncGenerator<[number, T]> {
   let index = start;
   for await (const value of iterable) {
@@ -435,7 +399,7 @@ export async function* enumerateAsync<T>(
  */
 export function* starmapSync<Args extends unknown[], R>(
   fn: (...args: Args) => R,
-  iterableOfArgArrays: Iterable<Args>
+  iterableOfArgArrays: Iterable<Args>,
 ): Generator<R> {
   yield* Iterator.from(iterableOfArgArrays).map((args) => fn(...args));
 }
@@ -447,7 +411,7 @@ export function* starmapSync<Args extends unknown[], R>(
  */
 export async function* starmapAsync<Args extends unknown[], R>(
   fn: (...args: Args) => R,
-  iterableOfArgArrays: AsyncIterable<Args> | Iterable<Args>
+  iterableOfArgArrays: AsyncIterable<Args> | Iterable<Args>,
 ): AsyncGenerator<R> {
   for await (const args of iterableOfArgArrays) {
     yield fn(...args);
@@ -463,13 +427,8 @@ export async function* starmapAsync<Args extends unknown[], R>(
  * @param fillValue value used once an input is exhausted
  * @param iteratorList iterables to zip
  */
-export function* zipLongestSync<T, F>(
-  fillValue: F,
-  ...iteratorList: Array<Iterable<T>>
-): Generator<Array<T | F>> {
-  const generators = iteratorList.map((iterator) =>
-    iterator[Symbol.iterator]()
-  );
+export function* zipLongestSync<T, F>(fillValue: F, ...iteratorList: Array<Iterable<T>>): Generator<Array<T | F>> {
+  const generators = iteratorList.map((iterator) => iterator[Symbol.iterator]());
   while (true) {
     const result: Array<T | F> = [];
     let anyNotDone = false;
@@ -500,7 +459,7 @@ export async function* zipLongestAsync<T, F>(
   const generators = iteratorList.map((iterator) =>
     isAsyncIterator(iterator)
       ? (iterator as AsyncIterable<T>)[Symbol.asyncIterator]()
-      : (iterator as Iterable<T>)[Symbol.iterator]()
+      : (iterator as Iterable<T>)[Symbol.iterator](),
   );
   while (true) {
     const results = await Promise.all(generators.map((g) => g.next()));
@@ -518,10 +477,7 @@ export async function* zipLongestAsync<T, F>(
  * @kind function
  * @name isliceSync
  */
-export function* isliceSync<T>(
-  iterable: Iterable<T>,
-  ...args: Array<number | null | undefined>
-): Generator<T> {
+export function* isliceSync<T>(iterable: Iterable<T>, ...args: Array<number | null | undefined>): Generator<T> {
   let start = 0,
     stop: number | null | undefined = Infinity,
     step = 1;

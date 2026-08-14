@@ -63,12 +63,7 @@ export class AsyncChannel<T = unknown> {
    * @kind function
    * @name constructor
    */
-  constructor({
-    cache = [],
-    limit = Infinity,
-    transform = ($: T) => $,
-    debug,
-  }: AsyncChannelOptions<T> = {}) {
+  constructor({ cache = [], limit = Infinity, transform = ($: T) => $, debug }: AsyncChannelOptions<T> = {}) {
     this.limit = limit;
     this.cache = cache.slice(0, limit);
     this.transform = transform;
@@ -99,7 +94,7 @@ export class AsyncChannel<T = unknown> {
    * @name put
    */
   async put(item: T, ...debug: unknown[]): Promise<void> {
-    this.debug && this.debug("put", item, ...debug);
+    this.debug?.("put", item, ...debug);
     const value = await this.transform(item);
     if (this.promise) {
       this.resolve?.(value);
@@ -119,7 +114,7 @@ export class AsyncChannel<T = unknown> {
    * @name take
    */
   async take(...debug: unknown[]): Promise<T | typeof CHANNEL_END> {
-    this.debug && this.debug("take", ...debug);
+    this.debug?.("take", ...debug);
     if (this.cache.length) {
       const value = this.cache.shift() as T | typeof CHANNEL_END;
       this.drainPutters();
@@ -135,9 +130,7 @@ export class AsyncChannel<T = unknown> {
       release();
       return value;
     }
-    const { promise, resolve, reject } = InvertedPromise<
-      T | typeof CHANNEL_END
-    >();
+    const { promise, resolve, reject } = InvertedPromise<T | typeof CHANNEL_END>();
     this.promise = promise;
     this.resolve = resolve;
     this.reject = reject;
@@ -153,7 +146,7 @@ export class AsyncChannel<T = unknown> {
    * @name break
    */
   async break(...debug: unknown[]): Promise<void> {
-    this.debug && this.debug("break", ...debug);
+    this.debug?.("break", ...debug);
     if (this.promise) {
       await this.resolve?.(CHANNEL_END);
     } else if (this.putters.length > 0) {
@@ -170,7 +163,7 @@ export class AsyncChannel<T = unknown> {
    * @name throw
    */
   async throw(message?: string, ...debug: unknown[]): Promise<void> {
-    this.debug && this.debug("throw", ...debug);
+    this.debug?.("throw", ...debug);
     if (this.promise) {
       await this.reject?.(new Error(message));
     } else if (this.putters.length > 0) {
@@ -195,9 +188,7 @@ export class AsyncChannel<T = unknown> {
    * @name toString
    */
   toString(): string {
-    return `AsyncChannel {${this.pending() ? "pending" : ""}} [${
-      this.cache.length
-    }/${this.limit}]`;
+    return `AsyncChannel {${this.pending() ? "pending" : ""}} [${this.cache.length}/${this.limit}]`;
   }
   /**
    * Return Asynchronous Channel's iterator

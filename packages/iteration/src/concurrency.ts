@@ -5,7 +5,7 @@
  * consumer exit upstream via iterator.return().
  */
 
-import { throwIfAborted, type SignalOptions } from "./abort.ts";
+import { type SignalOptions, throwIfAborted } from "./abort.ts";
 
 export interface MapConcurrentOptions extends SignalOptions {
   /** Maximum number of `fn` invocations in flight at once (required, >= 1). */
@@ -20,9 +20,7 @@ export interface MapConcurrentOptions extends SignalOptions {
 const abortErrorOf = (signal: AbortSignal): unknown =>
   signal.reason ?? new DOMException("This operation was aborted", "AbortError");
 
-const getIterator = <T>(
-  iterable: AsyncIterable<T> | Iterable<T>
-): AsyncIterator<T> | Iterator<T> =>
+const getIterator = <T>(iterable: AsyncIterable<T> | Iterable<T>): AsyncIterator<T> | Iterator<T> =>
   Symbol.asyncIterator in Object(iterable)
     ? (iterable as AsyncIterable<T>)[Symbol.asyncIterator]()
     : (iterable as Iterable<T>)[Symbol.iterator]();
@@ -46,7 +44,7 @@ const getIterator = <T>(
 export const mapConcurrentAsync = async function* <In, Out>(
   fn: (item: In) => Out | Promise<Out>,
   iterable: AsyncIterable<In> | Iterable<In>,
-  { concurrency, ordered = true, signal }: MapConcurrentOptions
+  { concurrency, ordered = true, signal }: MapConcurrentOptions,
 ): AsyncGenerator<Out> {
   if (!(typeof concurrency === "number" && concurrency >= 1)) {
     throw new RangeError("mapConcurrentAsync: concurrency must be >= 1");
@@ -62,8 +60,7 @@ export const mapConcurrentAsync = async function* <In, Out>(
       })
     : undefined;
   aborted?.catch(() => {});
-  const race = <T>(promise: Promise<T>): Promise<T> =>
-    aborted ? Promise.race([promise, aborted]) : promise;
+  const race = <T>(promise: Promise<T>): Promise<T> => (aborted ? Promise.race([promise, aborted]) : promise);
 
   let sourceDone = false;
   try {
@@ -136,7 +133,7 @@ export const mapConcurrentAsync = async function* <In, Out>(
  */
 export const prefetchAsync = async function* <T>(
   n: number,
-  iterable: AsyncIterable<T> | Iterable<T>
+  iterable: AsyncIterable<T> | Iterable<T>,
 ): AsyncGenerator<T> {
   if (n <= 0) {
     yield* iterable;

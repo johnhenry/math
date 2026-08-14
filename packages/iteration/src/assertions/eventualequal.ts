@@ -23,7 +23,7 @@ export default async (
   actual: unknown,
   expected: unknown,
   message: string = DefaultMessage,
-  operator = "eventualequal"
+  operator = "eventualequal",
 ): Promise<string | TestError> => {
   if (await eventualequal(actual, expected)) {
     return message;

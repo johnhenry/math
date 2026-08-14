@@ -20,7 +20,7 @@ export const withEmitter = <T, C extends AsyncChannel<T>>(
   emitter: EmitterLike,
   data = "data",
   end = "end",
-  error = "error"
+  error = "error",
 ): C => {
   emitter.addListener(data, channel.put.bind(channel));
   emitter.addListener(end, channel.break.bind(channel));
@@ -33,16 +33,9 @@ export const withEmitter = <T, C extends AsyncChannel<T>>(
  * @kind function
  * @name withWebSocket
  */
-export const withWebSocket = <T, C extends AsyncChannel<T>>(
-  channel: C,
-  websocket: WebSocketLike
-): C => {
-  websocket.onmessage = channel.put.bind(channel) as (
-    event: unknown
-  ) => unknown;
+export const withWebSocket = <T, C extends AsyncChannel<T>>(channel: C, websocket: WebSocketLike): C => {
+  websocket.onmessage = channel.put.bind(channel) as (event: unknown) => unknown;
   websocket.onclose = channel.break.bind(channel);
-  websocket.onerror = channel.throw.bind(channel) as (
-    event?: unknown
-  ) => unknown;
+  websocket.onerror = channel.throw.bind(channel) as (event?: unknown) => unknown;
   return channel;
 };
