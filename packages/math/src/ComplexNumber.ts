@@ -420,6 +420,10 @@ export class ComplexNumber {
     );
   }
 
+  hyperbolicTangent(): ComplexNumber {
+    return this.hyperbolicSine().divide(this.hyperbolicCosine());
+  }
+
   arcSine(): ComplexNumber {
     const inner = ComplexNumber.I.multiply(this).add(new ComplexNumber(1, 0).subtract(this.square()).squareRoot());
     return ComplexNumber.I.neg().multiply(inner.logarithm());
@@ -435,5 +439,53 @@ export class ComplexNumber {
     const left = new ComplexNumber(1, 0).subtract(iThis).logarithm();
     const right = new ComplexNumber(1, 0).add(iThis).logarithm();
     return ComplexNumber.I.divide(2).multiply(left.subtract(right));
+  }
+
+  /** `asinh(z) = log(z + sqrt(z^2 + 1))`. */
+  arcHyperbolicSine(): ComplexNumber {
+    const inner = this.add(this.square().add(1).squareRoot());
+    return inner.logarithm();
+  }
+
+  /**
+   * `acosh(z) = log(z + sqrt(z+1)*sqrt(z-1))` — the numerically-careful
+   * factored form, not the naive `log(z + sqrt(z^2-1))`. The two are
+   * algebraically identical but the factored form keeps the two square
+   * roots' branch cuts separate (one for `z+1`, one for `z-1`), which
+   * matches the principal-branch convention every serious complex `acosh`
+   * implementation uses (e.g. the C99/IEEE 754-2008 `cacosh` reference
+   * algorithm) — the naive form can pick the wrong branch/sign near its
+   * own cut along the real axis below 1.
+   */
+  arcHyperbolicCosine(): ComplexNumber {
+    const inner = this.add(this.add(1).squareRoot().multiply(this.subtract(1).squareRoot()));
+    return inner.logarithm();
+  }
+
+  /** `atanh(z) = 0.5 * log((1+z)/(1-z))`. */
+  arcHyperbolicTangent(): ComplexNumber {
+    const numerator = new ComplexNumber(1, 0).add(this);
+    const denominator = new ComplexNumber(1, 0).subtract(this);
+    return numerator.divide(denominator).logarithm().divide(2);
+  }
+
+  /**
+   * Coercion safety: a genuinely complex value (nonzero imaginary part)
+   * cannot be implicitly converted to a `Number` — without this override,
+   * `+z`/`z * 2`/etc. on a non-real `ComplexNumber` silently produce `NaN`
+   * (the default `Object`-to-primitive path falls through to parsing
+   * `toString()`'s `"a+bi"` output as a number), which is exactly the kind
+   * of silent-wrong-answer failure this library avoids elsewhere. A purely
+   * real `ComplexNumber` (iValue === 0) still converts safely, matching
+   * `ℝ ⊂ ℂ`.
+   */
+  valueOf(): number {
+    if (this.iValue !== 0) {
+      throw new TypeError(
+        `Cannot implicitly convert a non-real ComplexNumber (${this.toString()}) to a Number -- ` +
+          "use .value/.re for the real part, .magnitude() for the modulus, or an explicit .toString().",
+      );
+    }
+    return this.value;
   }
 }
