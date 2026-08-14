@@ -1,0 +1,32 @@
+{
+  "name": "@johnhenry/mallory-iteration",
+  "version": "0.0.0",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts",
+    "./pop-quiz/asserteventualequal": "./src/assertions/eventualequal.ts",
+    "./tee": "./src/tee.ts",
+    "./transduce": "./src/transduce.ts",
+    "./transducers": "./src/transducers.ts",
+    "./iterator-tools": "./src/iterator-tools.ts",
+    "./itertools": "./src/itertools.ts",
+    "./consumers": "./src/consumers.ts",
+    "./empty-iterator": "./src/empty-iterator.ts",
+    "./channel-decorators": "./src/channel-decorators.ts",
+    "./async-channel": "./src/async-channel.ts",
+    "./abort": "./src/abort.ts",
+    "./concurrency": "./src/concurrency.ts",
+    "./count": "./src/count.ts",
+    "./exhaust": "./src/exhaust.ts",
+    "./is-iterator": "./src/is-iterator.ts"
+  },
+  "publish": {
+    "exclude": [
+      "test",
+      "docs",
+      "scripts",
+      "api",
+      "**/*.test.ts"
+    ]
+  }
+}
