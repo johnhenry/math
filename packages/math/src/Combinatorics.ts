@@ -10,12 +10,7 @@
  * well before n reaches 20.
  */
 
-import {
-  combinations,
-  combinationsWithReplacement,
-  permutations,
-  product,
-} from "./CombinatoricsGenerators.ts";
+import { combinations, combinationsWithReplacement, permutations, product } from "./CombinatoricsGenerators.ts";
 
 const big = (x: bigint | number): bigint => (typeof x === "bigint" ? x : BigInt(x));
 
