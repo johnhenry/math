@@ -1,34 +1,42 @@
-import { test } from "node:test";
 import assert from "node:assert/strict";
+import { test } from "node:test";
 import {
-  someSync,
-  someAsync,
-  everySync,
   everyAsync,
-  findSync,
+  everySync,
   findAsync,
-  forEachSync,
-  forEachAsync,
-  foldSync,
-  foldAsync,
-  firstSync,
+  findSync,
   firstAsync,
-  lastSync,
+  firstSync,
+  foldAsync,
+  foldSync,
+  forEachAsync,
+  forEachSync,
   lastAsync,
-  nthSync,
-  nthAsync,
-  quantifySync,
-  quantifyAsync,
-  minSync,
-  minAsync,
-  maxSync,
+  lastSync,
   maxAsync,
+  maxSync,
+  minAsync,
+  minSync,
+  nthAsync,
+  nthSync,
+  quantifyAsync,
+  quantifySync,
+  someAsync,
+  someSync,
 } from "../src/index.ts";
 import { asyncFromArray } from "./helpers.ts";
 
 test("someSync/someAsync", async () => {
-  assert.strictEqual(someSync((x: number) => x > 2, [1, 2, 3]), true, "should be true when a match exists");
-  assert.strictEqual(someSync((x: number) => x > 5, [1, 2, 3]), false, "should be false when no match exists");
+  assert.strictEqual(
+    someSync((x: number) => x > 2, [1, 2, 3]),
+    true,
+    "should be true when a match exists",
+  );
+  assert.strictEqual(
+    someSync((x: number) => x > 5, [1, 2, 3]),
+    false,
+    "should be false when no match exists",
+  );
   assert.strictEqual(await someAsync((x: number) => x > 2, asyncFromArray([1, 2, 3])), true, "async: match exists");
   assert.strictEqual(await someAsync((x: number) => x > 5, asyncFromArray([1, 2, 3])), false, "async: no match");
 
@@ -55,20 +63,36 @@ test("someSync/someAsync", async () => {
 });
 
 test("everySync/everyAsync", async () => {
-  assert.strictEqual(everySync((x: number) => x > 0, [1, 2, 3]), true, "should be true when all match");
-  assert.strictEqual(everySync((x: number) => x > 1, [1, 2, 3]), false, "should be false when one fails");
+  assert.strictEqual(
+    everySync((x: number) => x > 0, [1, 2, 3]),
+    true,
+    "should be true when all match",
+  );
+  assert.strictEqual(
+    everySync((x: number) => x > 1, [1, 2, 3]),
+    false,
+    "should be false when one fails",
+  );
   assert.strictEqual(await everyAsync((x: number) => x > 0, asyncFromArray([1, 2, 3])), true, "async: all match");
   assert.strictEqual(await everyAsync((x: number) => x > 1, asyncFromArray([1, 2, 3])), false, "async: one fails");
 });
 
 test("findSync/findAsync", async () => {
-  assert.strictEqual(findSync((x: number) => x > 1, [1, 2, 3]), 2, "should return the first match");
-  assert.strictEqual(findSync((x: number) => x > 5, [1, 2, 3]), undefined, "should return undefined when no match");
+  assert.strictEqual(
+    findSync((x: number) => x > 1, [1, 2, 3]),
+    2,
+    "should return the first match",
+  );
+  assert.strictEqual(
+    findSync((x: number) => x > 5, [1, 2, 3]),
+    undefined,
+    "should return undefined when no match",
+  );
   assert.strictEqual(await findAsync((x: number) => x > 1, asyncFromArray([1, 2, 3])), 2, "async: first match");
   assert.strictEqual(
     await findAsync((x: number) => x > 5, asyncFromArray([1, 2, 3])),
     undefined,
-    "async: undefined when no match"
+    "async: undefined when no match",
   );
 });
 
@@ -86,12 +110,12 @@ test("foldSync/foldAsync", async () => {
   assert.strictEqual(
     foldSync((a: number, b: number) => a + b, 0, [1, 2, 3, 4]),
     10,
-    "should sum with a numeric accumulator"
+    "should sum with a numeric accumulator",
   );
   assert.strictEqual(
     await foldAsync((a: number, b: number) => a + b, 0, asyncFromArray([1, 2, 3, 4])),
     10,
-    "async: should sum with a numeric accumulator"
+    "async: should sum with a numeric accumulator",
   );
 });
 
@@ -117,26 +141,38 @@ test("nthSync/nthAsync", async () => {
   assert.strictEqual(
     await nthAsync(asyncFromArray([10, 20]), 5, "oob"),
     "oob",
-    "async: defaultValue when out of range"
+    "async: defaultValue when out of range",
   );
 });
 
 test("quantifySync/quantifyAsync", async () => {
   assert.strictEqual(quantifySync([1, 2, 3]), 3, "default predicate should count every item");
-  assert.strictEqual(quantifySync([1, 2, 3, 4], (x) => x % 2 === 0), 2, "should count only matching items");
+  assert.strictEqual(
+    quantifySync([1, 2, 3, 4], (x) => x % 2 === 0),
+    2,
+    "should count only matching items",
+  );
   assert.strictEqual(await quantifyAsync(asyncFromArray([1, 2, 3])), 3, "async: default counts every item");
   assert.strictEqual(
     await quantifyAsync(asyncFromArray([1, 2, 3, 4]), (x) => x % 2 === 0),
     2,
-    "async: counts only matching items"
+    "async: counts only matching items",
   );
 });
 
 test("minSync/maxSync/minAsync/maxAsync", async () => {
   assert.strictEqual(minSync([3, 1, 2]), 1, "should return the minimum item");
   assert.strictEqual(maxSync([3, 1, 2]), 3, "should return the maximum item");
-  assert.strictEqual(minSync(["abc", "a", "ab"], (s) => s.length), "a", "should support a keyFn for min");
-  assert.strictEqual(maxSync(["abc", "a", "ab"], (s) => s.length), "abc", "should support a keyFn for max");
+  assert.strictEqual(
+    minSync(["abc", "a", "ab"], (s) => s.length),
+    "a",
+    "should support a keyFn for min",
+  );
+  assert.strictEqual(
+    maxSync(["abc", "a", "ab"], (s) => s.length),
+    "abc",
+    "should support a keyFn for max",
+  );
   assert.strictEqual(minSync([], undefined, "empty"), "empty", "should return defaultValue when empty");
   assert.strictEqual(maxSync([], undefined, "empty"), "empty", "should return defaultValue when empty");
   assert.strictEqual(await minAsync(asyncFromArray([3, 1, 2])), 1, "async: minimum item");

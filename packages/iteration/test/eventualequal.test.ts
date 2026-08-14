@@ -1,11 +1,8 @@
-import { test } from "node:test";
 import assert from "node:assert/strict";
-import { asyncFrom } from "../src/index.ts";
+import { test } from "node:test";
+import assertEventualEqual, { DefaultMessage, TestError } from "../src/assertions/eventualequal.ts";
 import { eventualequal } from "../src/eventualequal.ts";
-import assertEventualEqual, {
-  TestError,
-  DefaultMessage,
-} from "../src/assertions/eventualequal.ts";
+import { asyncFrom } from "../src/index.ts";
 
 test("eventualequal resolves true for eventually-equal async iterables", async () => {
   const a = asyncFrom(1, 2, 3);
@@ -13,7 +10,7 @@ test("eventualequal resolves true for eventually-equal async iterables", async (
   assert.strictEqual(
     await eventualequal(a, b),
     true,
-    "eventualequal should pass if given arguments are eventually equal"
+    "eventualequal should pass if given arguments are eventually equal",
   );
 });
 

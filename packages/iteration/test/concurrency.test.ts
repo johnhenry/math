@@ -1,6 +1,6 @@
-import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mapConcurrentAsync, prefetchAsync, pause } from "../src/index.ts";
+import { test } from "node:test";
+import { mapConcurrentAsync, pause, prefetchAsync } from "../src/index.ts";
 
 const instrumentedSource = <T>(items: T[], delay = 0) => {
   const state = { closed: false, pulled: 0 };
@@ -28,7 +28,7 @@ test("mapConcurrentAsync (ordered) preserves input order", async () => {
       return i * 10;
     },
     [0, 1, 2, 3, 4],
-    { concurrency: 5 }
+    { concurrency: 5 },
   )) {
     out.push(value);
   }
@@ -44,7 +44,7 @@ test("mapConcurrentAsync (unordered) yields in completion order", async () => {
       return i;
     },
     [0, 1, 2],
-    { concurrency: 3, ordered: false }
+    { concurrency: 3, ordered: false },
   )) {
     out.push(value);
   }
@@ -64,7 +64,7 @@ test("mapConcurrentAsync never exceeds the concurrency limit", async () => {
       return i;
     },
     [1, 2, 3, 4, 5, 6, 7, 8],
-    { concurrency: 3 }
+    { concurrency: 3 },
   )) {
     out.push(value);
   }
@@ -85,7 +85,7 @@ test("mapConcurrentAsync requires a valid concurrency", async () => {
         void _;
       }
     })(),
-    RangeError
+    RangeError,
   );
 });
 
@@ -111,12 +111,12 @@ test("mapConcurrentAsync propagates fn errors and closes the source", async () =
           return x;
         },
         iterable,
-        { concurrency: 2 }
+        { concurrency: 2 },
       )) {
         void _;
       }
     })(),
-    /boom/
+    /boom/,
   );
   await pause(30);
   assert.strictEqual(state.closed, true, "source must be closed after fn error");
@@ -132,12 +132,12 @@ test("mapConcurrentAsync aborts promptly even while fn hangs", async () => {
       for await (const _ of mapConcurrentAsync(
         () => new Promise<never>(() => {}), // hangs forever
         iterable,
-        { concurrency: 2, signal: controller.signal }
+        { concurrency: 2, signal: controller.signal },
       )) {
         void _;
       }
     })(),
-    (err: unknown) => err instanceof Error && err.name === "AbortError"
+    (err: unknown) => err instanceof Error && err.name === "AbortError",
   );
   assert.ok(Date.now() - start < 500, "abort must be prompt, not wait on fn");
   await pause(20);
@@ -169,9 +169,12 @@ test("prefetchAsync reads ahead of a slow consumer (bounded)", async () => {
 
 test("prefetchAsync(0) degenerates to plain iteration", async () => {
   const out: number[] = [];
-  for await (const value of prefetchAsync(0, (async function* () {
-    yield* [1, 2, 3];
-  })())) {
+  for await (const value of prefetchAsync(
+    0,
+    (async function* () {
+      yield* [1, 2, 3];
+    })(),
+  )) {
     out.push(value);
   }
   assert.deepStrictEqual(out, [1, 2, 3]);

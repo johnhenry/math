@@ -22,10 +22,10 @@
  * exclusion is explicit and grep-able, never silent).
  */
 import assert from "node:assert/strict";
-import { test } from "node:test";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { test } from "node:test";
 import { pathToFileURL } from "node:url";
 
 const HERE = new URL(".", import.meta.url).pathname;
@@ -68,7 +68,9 @@ function docEqual(actual: unknown, expected: unknown): boolean {
     return Math.abs(actual - expected) <= 1e-9 * Math.max(1, Math.abs(expected));
   }
   if (Array.isArray(expected)) {
-    return Array.isArray(actual) && actual.length === expected.length && expected.every((e, i) => docEqual(actual[i], e));
+    return (
+      Array.isArray(actual) && actual.length === expected.length && expected.every((e, i) => docEqual(actual[i], e))
+    );
   }
   if (expected !== null && typeof expected === "object") {
     if (actual === null || typeof actual !== "object") return false;
@@ -119,11 +121,11 @@ function materialize(block: DocBlock): string {
 test("every COOKBOOK.md ```ts block runs, and every `// =>` documented value matches", async (t) => {
   const blocks = extractBlocks(readFileSync(COOKBOOK, "utf8"));
   assert.ok(blocks.length >= 15, `expected a substantial cookbook, found only ${blocks.length} ts blocks`);
-  const checkCount = blocks.reduce(
-    (n, b) => n + b.code.split("\n").filter((l) => CHECK_RE.test(l)).length,
-    0,
+  const checkCount = blocks.reduce((n, b) => n + b.code.split("\n").filter((l) => CHECK_RE.test(l)).length, 0);
+  assert.ok(
+    checkCount >= 20,
+    `expected >= 20 checked (// =>) doc values, found ${checkCount} -- conversions have regressed`,
   );
-  assert.ok(checkCount >= 20, `expected >= 20 checked (// =>) doc values, found ${checkCount} -- conversions have regressed`);
 
   const dir = mkdtempSync(join(tmpdir(), "mallory-cookbook-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));

@@ -26,11 +26,7 @@ export { HALT as HAULT };
  * transducers.ts).
  */
 export interface ReducerStep<in In> {
-  (
-    buffer: unknown[],
-    item: In,
-    iterator?: Iterable<In> | AsyncIterable<In>
-  ): unknown[] | Halt;
+  (buffer: unknown[], item: In, iterator?: Iterable<In> | AsyncIterable<In>): unknown[] | Halt;
   complete?: (buffer: unknown[]) => unknown[];
 }
 
@@ -60,13 +56,8 @@ export type Transducer<In, Out> = (next: ReducerStep<Out>) => ReducerStep<In>;
  * })();
  * ```
  */
-export const pause = <T = undefined>(
-  milliseconds: number,
-  value?: T
-): Promise<T> =>
-  new Promise((resolve) =>
-    setTimeout(resolve as (value?: T) => void, milliseconds, value)
-  );
+export const pause = <T = undefined>(milliseconds: number, value?: T): Promise<T> =>
+  new Promise((resolve) => setTimeout(resolve as (value?: T) => void, milliseconds, value));
 
 /**
  * Streaming reduce for iterators -- the engine under transduceSync.
@@ -104,7 +95,7 @@ export const reduceSync = function* <In, Out = unknown>(
   iterator: Iterable<In>,
   step: ReducerStep<In>,
   init: unknown[] = [],
-  ignore_halt = false
+  ignore_halt = false,
 ): Generator<Out> {
   for (const item of iterator) {
     const next = step(init, item, iterator);
@@ -142,7 +133,7 @@ export const reduceAsync = async function* <In, Out = unknown>(
   iterator: AsyncIterable<In> | Iterable<In>,
   step: ReducerStep<In>,
   init: unknown[] = [],
-  ignore_halt = false
+  ignore_halt = false,
 ): AsyncGenerator<Out> {
   for await (const item of iterator) {
     const next = step(init, item, iterator);
@@ -170,9 +161,7 @@ export const reduceAsync = async function* <In, Out = unknown>(
  * @param iterators iterators
  * @returns iterator generating sequence of combined from given iterables; empty iterator if nothing is passed
  */
-export const concatSync = function* <T>(
-  ...iterators: Array<Iterable<T>>
-): Generator<T> {
+export const concatSync = function* <T>(...iterators: Array<Iterable<T>>): Generator<T> {
   for (const iterator of iterators) {
     yield* iterator;
   }
@@ -186,10 +175,7 @@ export const concatSync = function* <T>(
  * @param itemList items to be appended
  * @returns copy of initial iterator with items appended
  */
-export const conjoinSync = function* <T>(
-  iterator?: Iterable<T>,
-  ...itemList: T[]
-): Generator<T> {
+export const conjoinSync = function* <T>(iterator?: Iterable<T>, ...itemList: T[]): Generator<T> {
   if (iterator) {
     yield* iterator;
   }
@@ -203,9 +189,7 @@ export const conjoinSync = function* <T>(
  * @param iterators iterators
  * @returns iterator generating sequence of combined from given iterables; empty iterator if nothing is passed
  */
-export const concatAsync = async function* <T>(
-  ...iterators: Array<AsyncIterable<T> | Iterable<T>>
-): AsyncGenerator<T> {
+export const concatAsync = async function* <T>(...iterators: Array<AsyncIterable<T> | Iterable<T>>): AsyncGenerator<T> {
   for (const iterator of iterators) {
     yield* iterator;
   }
@@ -236,12 +220,8 @@ export const conjoinAsync = async function* <T>(
  * @param iteratorList iterators
  * @returns an iterator who's members are the members of the given iterators zipped sequencially
  */
-export const zipSync = function* <T>(
-  ...iteratorList: Array<Iterable<T>>
-): Generator<T[]> {
-  const generators = iteratorList.map((iterator) =>
-    iterator[Symbol.iterator]()
-  );
+export const zipSync = function* <T>(...iteratorList: Array<Iterable<T>>): Generator<T[]> {
+  const generators = iteratorList.map((iterator) => iterator[Symbol.iterator]());
   outer: while (true) {
     const result: T[] = [];
     for (const generator of generators) {
@@ -271,7 +251,7 @@ export const zipAsync = async function* <T>(
   const generators = iteratorList.map((iterator) =>
     isAsyncIterator(iterator)
       ? (iterator as AsyncIterable<T>)[Symbol.asyncIterator]()
-      : (iterator as Iterable<T>)[Symbol.iterator]()
+      : (iterator as Iterable<T>)[Symbol.iterator](),
   );
   while (true) {
     const results = await Promise.all(generators.map((g) => g.next()));
@@ -291,7 +271,7 @@ export const zipAsync = async function* <T>(
  */
 export const run = async <T>(
   program: AsyncIterable<T> | Iterable<T>,
-  render: (output: T) => unknown = console.log
+  render: (output: T) => unknown = console.log,
 ): Promise<void> => {
   for await (const output of program) {
     await render(output);

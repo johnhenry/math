@@ -1,13 +1,6 @@
-import { test } from "node:test";
 import assert from "node:assert/strict";
-import {
-  countSync,
-  countAsync,
-  countBigSync,
-  countBigAsync,
-  syncFrom,
-  asyncFrom,
-} from "../src/index.ts";
+import { test } from "node:test";
+import { asyncFrom, countAsync, countBigAsync, countBigSync, countSync, syncFrom } from "../src/index.ts";
 import { eventualEqual } from "./helpers.ts";
 
 // Regression: countSync et al. used to only be reachable via a `count`

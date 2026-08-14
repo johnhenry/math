@@ -1,20 +1,20 @@
-import { test } from "node:test";
 import assert from "node:assert/strict";
+import { test } from "node:test";
 import {
-  someAsync,
   everyAsync,
   findAsync,
+  firstAsync,
   foldAsync,
   forEachAsync,
-  firstAsync,
   lastAsync,
-  nthAsync,
-  minAsync,
   maxAsync,
+  minAsync,
+  nthAsync,
+  pause,
   quantifyAsync,
+  someAsync,
   transduceAsync,
   transducers,
-  pause,
 } from "../src/index.ts";
 
 const { map } = transducers;
@@ -40,8 +40,7 @@ const slowSource = (delay = 20) => {
   return { iterable, state };
 };
 
-const isAbortError = (err: unknown): boolean =>
-  err instanceof Error && err.name === "AbortError";
+const isAbortError = (err: unknown): boolean => err instanceof Error && err.name === "AbortError";
 
 test("someAsync rejects with AbortError on mid-stream abort and closes the source", async () => {
   const { iterable, state } = slowSource(15);
@@ -50,7 +49,7 @@ test("someAsync rejects with AbortError on mid-stream abort and closes the sourc
   await assert.rejects(
     someAsync((x: number) => x > 1e9, iterable, { signal: controller.signal }),
     isAbortError,
-    "must reject with an AbortError"
+    "must reject with an AbortError",
   );
   // Give the fire-and-forget return() a beat to land.
   await pause(60);
@@ -62,11 +61,26 @@ test("consumers reject immediately on an already-aborted signal", async () => {
   const signal = AbortSignal.abort();
   const opts = { signal };
   const src = () => slowSource(5).iterable;
-  await assert.rejects(someAsync(() => true, src(), opts), isAbortError);
-  await assert.rejects(everyAsync(() => true, src(), opts), isAbortError);
-  await assert.rejects(findAsync(() => true, src(), opts), isAbortError);
-  await assert.rejects(forEachAsync(() => {}, src(), opts), isAbortError);
-  await assert.rejects(foldAsync((a: number) => a, 0, src(), opts), isAbortError);
+  await assert.rejects(
+    someAsync(() => true, src(), opts),
+    isAbortError,
+  );
+  await assert.rejects(
+    everyAsync(() => true, src(), opts),
+    isAbortError,
+  );
+  await assert.rejects(
+    findAsync(() => true, src(), opts),
+    isAbortError,
+  );
+  await assert.rejects(
+    forEachAsync(() => {}, src(), opts),
+    isAbortError,
+  );
+  await assert.rejects(
+    foldAsync((a: number) => a, 0, src(), opts),
+    isAbortError,
+  );
   await assert.rejects(firstAsync(src(), undefined, opts), isAbortError);
   await assert.rejects(lastAsync(src(), undefined, opts), isAbortError);
   await assert.rejects(nthAsync(src(), 1, undefined, opts), isAbortError);
@@ -83,7 +97,7 @@ test("abort rejects with the signal's custom reason when one is given", async ()
   await assert.rejects(
     lastAsync(iterable, undefined, { signal: controller.signal }),
     (err: unknown) => err === reason,
-    "must reject with the exact abort reason"
+    "must reject with the exact abort reason",
   );
 });
 
@@ -100,10 +114,7 @@ test("consumers still work (and ignore the signal) when never aborted", async ()
   assert.strictEqual(await minAsync(arr(), undefined, undefined, opts), 1);
   assert.strictEqual(await maxAsync(arr(), undefined, undefined, opts), 3);
   assert.strictEqual(await quantifyAsync(arr(), undefined, opts), 3);
-  assert.strictEqual(
-    await foldAsync((a: number, b: number) => a + b, 0, arr(), opts),
-    6
-  );
+  assert.strictEqual(await foldAsync((a: number, b: number) => a + b, 0, arr(), opts), 6);
 });
 
 test("transduceAsync accepts {signal}: rejects mid-stream and closes the source", async () => {
@@ -119,7 +130,7 @@ test("transduceAsync accepts {signal}: rejects mid-stream and closes the source"
       }
     })(),
     isAbortError,
-    "iteration must reject with an AbortError"
+    "iteration must reject with an AbortError",
   );
   assert.ok(seen.length >= 1, "items before the abort must still have been emitted");
   await pause(60);
@@ -132,7 +143,7 @@ test("transduceAsync without a signal is unchanged", async () => {
   for await (const value of pipeline(
     (async function* () {
       yield* [1, 2, 3];
-    })()
+    })(),
   )) {
     seen.push(value);
   }

@@ -22,7 +22,6 @@
  * synchronous throughout.
  */
 
-
 function* productFromPools<T>(pools: T[][]): Generator<T[]> {
   if (pools.some((pool) => pool.length === 0)) return;
   const indices = pools.map(() => 0);
@@ -47,10 +46,7 @@ export function* product<T>(...iterables: Array<Iterable<T>>): Generator<T[]> {
   yield* productFromPools(iterables.map((it) => [...it]));
 }
 
-function* permutationsFromPool<T>(
-  pool: T[],
-  r?: number | null
-): Generator<T[]> {
+function* permutationsFromPool<T>(pool: T[], r?: number | null): Generator<T[]> {
   const n = pool.length;
   if (r === undefined || r === null) r = n;
   if (r > n || r < 0) return;
@@ -83,10 +79,7 @@ function* permutationsFromPool<T>(
  * r-length permutations of `iterable` (default r = pool length). Mirrors
  * Python's itertools.permutations(iterable, r).
  */
-export function* permutations<T>(
-  iterable: Iterable<T>,
-  r?: number
-): Generator<T[]> {
+export function* permutations<T>(iterable: Iterable<T>, r?: number): Generator<T[]> {
   yield* permutationsFromPool([...iterable], r);
 }
 
@@ -116,17 +109,11 @@ function* combinationsFromPool<T>(pool: T[], r: number): Generator<T[]> {
  * r-length combinations of `iterable`, in sorted (input) order, without
  * replacement. Mirrors Python's itertools.combinations(iterable, r).
  */
-export function* combinations<T>(
-  iterable: Iterable<T>,
-  r: number
-): Generator<T[]> {
+export function* combinations<T>(iterable: Iterable<T>, r: number): Generator<T[]> {
   yield* combinationsFromPool([...iterable], r);
 }
 
-function* combinationsWithReplacementFromPool<T>(
-  pool: T[],
-  r: number
-): Generator<T[]> {
+function* combinationsWithReplacementFromPool<T>(pool: T[], r: number): Generator<T[]> {
   const n = pool.length;
   if (n === 0 && r > 0) return;
   const indices: number[] = new Array(r).fill(0);
@@ -152,9 +139,6 @@ function* combinationsWithReplacementFromPool<T>(
  * r-length combinations of `iterable`, with replacement. Mirrors Python's
  * itertools.combinations_with_replacement(iterable, r).
  */
-export function* combinationsWithReplacement<T>(
-  iterable: Iterable<T>,
-  r: number
-): Generator<T[]> {
+export function* combinationsWithReplacement<T>(iterable: Iterable<T>, r: number): Generator<T[]> {
   yield* combinationsWithReplacementFromPool([...iterable], r);
 }

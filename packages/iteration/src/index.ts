@@ -1,16 +1,17 @@
+export * from "./abort.ts";
+export * from "./async-channel.ts";
+export * from "./concurrency.ts";
+export * from "./consumers.ts";
+export * from "./count.ts";
+export * from "./empty-iterator.ts";
 export * from "./exhaust.ts";
 export * from "./is-iterator.ts";
+export * from "./iterator-tools.ts";
+export * from "./itertools.ts";
 export * from "./tee.ts";
 export * from "./transduce.ts";
-export * from "./iterator-tools.ts";
-export * from "./empty-iterator.ts";
-export * from "./async-channel.ts";
-export * from "./count.ts";
-export * from "./itertools.ts";
-export * from "./consumers.ts";
-export * from "./abort.ts";
-export * from "./concurrency.ts";
 
-import * as transducers from "./transducers.ts";
 import * as channelDecorators from "./channel-decorators.ts";
-export { transducers, channelDecorators };
+import * as transducers from "./transducers.ts";
+
+export { channelDecorators, transducers };

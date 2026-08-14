@@ -40,7 +40,7 @@ export const throwIfAborted = (signal?: AbortSignal): void => {
  */
 export const abortable = async function* <T>(
   iterable: AsyncIterable<T> | Iterable<T>,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): AsyncGenerator<T> {
   if (!signal) {
     yield* iterable;
@@ -62,10 +62,7 @@ export const abortable = async function* <T>(
   let done = false;
   try {
     while (true) {
-      const result = await Promise.race([
-        Promise.resolve(it.next()),
-        aborted,
-      ]);
+      const result = await Promise.race([Promise.resolve(it.next()), aborted]);
       if (result.done) {
         done = true;
         return;

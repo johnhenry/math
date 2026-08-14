@@ -1,6 +1,6 @@
-import { test } from "node:test";
 import assert from "node:assert/strict";
-import { zipSync, zipAsync } from "../src/index.ts";
+import { test } from "node:test";
+import { zipAsync, zipSync } from "../src/index.ts";
 import { asyncFromArray, eventualEqual } from "./helpers.ts";
 
 // Regression: zipAsync was the missing dual of zipSync -- there was no way
@@ -13,7 +13,7 @@ test("zipAsync mirrors zipSync (regression: zipAsync did not exist)", async () =
       [2, "b"],
       [3, "c"],
     ],
-    "zipSync baseline behavior"
+    "zipSync baseline behavior",
   );
   await eventualEqual(zipAsync<number | string>(asyncFromArray([1, 2, 3]), ["a", "b", "c"]), [
     [1, "a"],

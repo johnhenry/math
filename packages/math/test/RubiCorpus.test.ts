@@ -27,10 +27,10 @@
  * per the Woxi exception discipline (no silent skips).
  */
 import assert from "node:assert/strict";
-import { test } from "node:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { Symbolic, NotIntegrableError, type Expr } from "../src/index.ts";
+import { test } from "node:test";
+import { type Expr, NotIntegrableError, Symbolic } from "../src/index.ts";
 
 interface RubiProblem {
   source: string;
@@ -97,7 +97,10 @@ function checkDerivativeIdentity(integrand: Expr, derivative: Expr, params: read
 const MIN_COMPARABLE_POINTS = 4;
 
 test(`tier 1: d/dx of Rubi's antiderivative matches the integrand (${CORPUS.problems.length} corpus problems)`, () => {
-  assert.ok(CORPUS.problems.length >= 700, `fixture shrank to ${CORPUS.problems.length} problems — regenerate or investigate`);
+  assert.ok(
+    CORPUS.problems.length >= 700,
+    `fixture shrank to ${CORPUS.problems.length} problems — regenerate or investigate`,
+  );
   let verified = 0;
   let insufficientDomain = 0;
   const failures: string[] = [];
@@ -165,7 +168,9 @@ test("tier 2: where Symbolic.integrate accepts a low-step problem, its OWN antid
     try {
       derivative = Symbolic.differentiate(own, problem.variable);
     } catch (e) {
-      failures.push(`${problem.source}#${problem.index}: differentiating our own antiderivative threw: ${(e as Error).message}`);
+      failures.push(
+        `${problem.source}#${problem.index}: differentiating our own antiderivative threw: ${(e as Error).message}`,
+      );
       continue;
     }
     const outcome = checkDerivativeIdentity(integrand, derivative, problem.params);
@@ -179,7 +184,11 @@ test("tier 2: where Symbolic.integrate accepts a low-step problem, its OWN antid
     }
   }
 
-  assert.deepEqual(failures.slice(0, 10), [], `${failures.length} of our own antiderivatives are wrong (first 10 shown)`);
+  assert.deepEqual(
+    failures.slice(0, 10),
+    [],
+    `${failures.length} of our own antiderivatives are wrong (first 10 shown)`,
+  );
   // integrate() declining is fine; SUCCEEDING WRONGLY is the only failure.
   // But require a floor so a regression to decline-everything can't pass
   // silently. The floor is the MEASURED baseline at corpus-generation time
@@ -192,5 +201,7 @@ test("tier 2: where Symbolic.integrate accepts a low-step problem, its OWN antid
     integrated >= 5,
     `integrate() verified only ${integrated}/${attempted} low-step problems (declined ${declined}) — coverage regressed below the measured baseline of 7`,
   );
-  console.log(`[rubi tier 2] ${integrated} integrated+verified, ${declined} honestly declined, of ${attempted} low-step problems`);
+  console.log(
+    `[rubi tier 2] ${integrated} integrated+verified, ${declined} honestly declined, of ${attempted} low-step problems`,
+  );
 });

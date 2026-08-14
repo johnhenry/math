@@ -250,20 +250,23 @@ test("valueOf: a genuinely complex ComplexNumber throws on implicit Number coerc
   const z = new ComplexNumber(1, 2);
   assert.throws(() => +z, TypeError);
   assert.throws(() => {
-    // biome-ignore lint/suspicious/noExplicitAny: forcing numeric coercion on purpose
     (z as any) * 2;
   }, TypeError);
 });
 
-test("valueOf: explicit string coercion (hint \"string\") is unaffected by the coercion guard", () => {
+test('valueOf: explicit string coercion (hint "string") is unaffected by the coercion guard', () => {
   const z = new ComplexNumber(1, 2);
   assert.equal(String(z), "1+2*i");
   assert.equal(`${z}`, "1+2*i");
 });
 
-test("valueOf: `+` concatenation uses hint \"default\", so it tries valueOf first and throws for non-real values too (not just arithmetic operators)", () => {
+test('valueOf: `+` concatenation uses hint "default", so it tries valueOf first and throws for non-real values too (not just arithmetic operators)', () => {
   const z = new ComplexNumber(1, 2);
+  // `+ ""` (hint "default") is the point of this test -- a template literal uses
+  // hint "string" instead and would no longer exercise the valueOf path.
+  // biome-ignore lint/style/useTemplate: see comment above
   assert.throws(() => z + "", TypeError);
   // A purely real ComplexNumber still concatenates fine, since valueOf succeeds for it.
+  // biome-ignore lint/style/useTemplate: see comment above
   assert.equal(new ComplexNumber(5, 0) + "", "5");
 });

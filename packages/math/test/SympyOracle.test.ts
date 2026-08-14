@@ -18,10 +18,10 @@
  *   nix-shell -p "python3.withPackages(ps: [ps.sympy])" --run "which python3"
  */
 import assert from "node:assert/strict";
-import { test } from "node:test";
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
-import { Symbolic, type Expr } from "../src/index.ts";
+import { test } from "node:test";
+import { type Expr, Symbolic } from "../src/index.ts";
 
 const HERE = new URL(".", import.meta.url).pathname;
 const ORACLE = join(HERE, "../scripts/sympy_oracle.py");
@@ -86,7 +86,10 @@ function assertPointwiseAgreement(
     compared++;
     assert.ok(close(m, s), `${label}: point #${i}: mallory=${m} sympy=${s}`);
   }
-  assert.ok(compared >= minComparable, `${label}: only ${compared} comparable points (need ${minComparable}) — domain drift?`);
+  assert.ok(
+    compared >= minComparable,
+    `${label}: only ${compared} comparable points (need ${minComparable}) — domain drift?`,
+  );
 }
 
 const X_POINTS: Point[] = [-1.7, -0.6, 0.3, 0.9, 1.4, 2.2].map((x) => ({ x }));
@@ -187,9 +190,16 @@ test("solve agrees with sympy.solve as real solution SETS (order-independent)", 
       .filter((v) => Number.isFinite(v))
       .sort((a, b) => a - b);
     const sympy = r.roots as number[];
-    assert.equal(mallory.length, sympy.length, `solve ${exprs[i]}: mallory found ${JSON.stringify(mallory)}, sympy ${JSON.stringify(sympy)}`);
+    assert.equal(
+      mallory.length,
+      sympy.length,
+      `solve ${exprs[i]}: mallory found ${JSON.stringify(mallory)}, sympy ${JSON.stringify(sympy)}`,
+    );
     for (let j = 0; j < mallory.length; j++) {
-      assert.ok(close(mallory[j] as number, sympy[j] as number), `solve ${exprs[i]}: root #${j}: mallory=${mallory[j]} sympy=${sympy[j]}`);
+      assert.ok(
+        close(mallory[j] as number, sympy[j] as number),
+        `solve ${exprs[i]}: root #${j}: mallory=${mallory[j]} sympy=${sympy[j]}`,
+      );
     }
   }
 });
@@ -223,7 +233,9 @@ test("taylor agrees with sympy.series near the expansion center", { skip: SKIP_R
   }
 });
 
-test("simplify preserves semantics: sympy evaluates the ORIGINAL, mallory the SIMPLIFIED", { skip: SKIP_REASON }, () => {
+test("simplify preserves semantics: sympy evaluates the ORIGINAL, mallory the SIMPLIFIED", {
+  skip: SKIP_REASON,
+}, () => {
   const exprs = ["a*b + b*a", "x + x + 2*x", "(x+1)^2 - (x^2 + 2*x + 1)", "sin(x)^2 + cos(x)^2 + x", "x*1 + 0*y + x^1"];
   const points: Point[] = [
     { x: 0.7, y: -1.2, a: 2.5, b: -0.4 },
@@ -283,7 +295,9 @@ function usesVar(e: Expr): boolean {
   return false;
 }
 
-test("property leg: random Expr trees agree with sympy on evaluate AND differentiate (seeded)", { skip: SKIP_REASON }, () => {
+test("property leg: random Expr trees agree with sympy on evaluate AND differentiate (seeded)", {
+  skip: SKIP_REASON,
+}, () => {
   const BASE_SEED = Number(process.env.MALLORY_SYMPY_FUZZ_SEED ?? 20260813);
   const CASES = Number(process.env.MALLORY_SYMPY_FUZZ_CASES ?? 40);
   const points: Point[] = [-1.6, -0.8, -0.2, 0.5, 1.1, 1.9].map((x) => ({ x }));
@@ -319,7 +333,10 @@ test("property leg: random Expr trees agree with sympy on evaluate AND different
     }
     cases.push({ seed, expr, derivative });
   }
-  assert.ok(cases.length >= CASES * 0.5, `property leg only kept ${cases.length}/${CASES} cases (${discarded} discarded) — generator drift?`);
+  assert.ok(
+    cases.length >= CASES * 0.5,
+    `property leg only kept ${cases.length}/${CASES} cases (${discarded} discarded) — generator drift?`,
+  );
 
   const jobs = cases.flatMap((c) => [
     { op: "eval", expr: c.expr, points },

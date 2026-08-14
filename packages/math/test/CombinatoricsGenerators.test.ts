@@ -1,12 +1,6 @@
-import { test } from "node:test";
 import assert from "node:assert/strict";
-import {
-  Combinatorics,
-  combinations,
-  combinationsWithReplacement,
-  permutations,
-  product,
-} from "../src/index.ts";
+import { test } from "node:test";
+import { Combinatorics, combinations, combinationsWithReplacement, permutations, product } from "../src/index.ts";
 
 test("product", () => {
   assert.deepStrictEqual(
@@ -17,13 +11,9 @@ test("product", () => {
       [2, 3],
       [2, 4],
     ],
-    "should yield the cartesian product, last iterable varying fastest"
+    "should yield the cartesian product, last iterable varying fastest",
   );
-  assert.deepStrictEqual(
-    [...product()],
-    [[]],
-    "product of zero iterables should yield one empty tuple"
-  );
+  assert.deepStrictEqual([...product()], [[]], "product of zero iterables should yield one empty tuple");
 });
 
 test("permutations", () => {
@@ -37,7 +27,7 @@ test("permutations", () => {
       [3, 1, 2],
       [3, 2, 1],
     ],
-    "should yield all full-length permutations"
+    "should yield all full-length permutations",
   );
   assert.deepStrictEqual(
     [...permutations([1, 2, 3], 2)],
@@ -49,7 +39,7 @@ test("permutations", () => {
       [3, 1],
       [3, 2],
     ],
-    "should yield all r-length permutations"
+    "should yield all r-length permutations",
   );
   assert.deepStrictEqual([...permutations([1, 2, 3], 0)], [[]], "r=0 should yield one empty tuple");
 });
@@ -62,7 +52,7 @@ test("combinations", () => {
       [1, 3],
       [2, 3],
     ],
-    "should yield all r-length combinations without replacement"
+    "should yield all r-length combinations without replacement",
   );
   assert.deepStrictEqual([...combinations([1, 2], 5)], [], "r > n should yield nothing");
   assert.deepStrictEqual([...combinations([1, 2, 3], 0)], [[]], "r=0 should yield one empty tuple");
@@ -76,7 +66,7 @@ test("combinationsWithReplacement", () => {
       [1, 2],
       [2, 2],
     ],
-    "should yield all r-length combinations, allowing repeats"
+    "should yield all r-length combinations, allowing repeats",
   );
 });
 
@@ -87,11 +77,7 @@ test("binomial counts exactly what combinations enumerates", () => {
   const pool = [1, 2, 3, 4, 5, 6];
   for (let r = 0; r <= pool.length; r++) {
     const enumerated = [...Combinatorics.combinations(pool, r)].length;
-    assert.equal(
-      BigInt(enumerated),
-      Combinatorics.binomial(pool.length, r),
-      `binomial(${pool.length}, ${r})`,
-    );
+    assert.equal(BigInt(enumerated), Combinatorics.binomial(pool.length, r), `binomial(${pool.length}, ${r})`);
   }
 });
 
@@ -110,9 +96,7 @@ test("permutationsCount counts exactly what permutations enumerates", () => {
 test("combinationsWithReplacement matches binomial(n + r - 1, r)", () => {
   const pool = [1, 2, 3, 4];
   for (let r = 1; r <= 4; r++) {
-    const enumerated = [
-      ...Combinatorics.combinationsWithReplacement(pool, r),
-    ].length;
+    const enumerated = [...Combinatorics.combinationsWithReplacement(pool, r)].length;
     assert.equal(
       BigInt(enumerated),
       Combinatorics.binomial(pool.length + r - 1, r),

@@ -45,8 +45,8 @@ export const take =
   <In>(limit: number): Transducer<In, In> =>
   (conjoin) => {
     let amount = 0;
-    return (init, item) =>
-      amount < limit ? (amount++, conjoin(init, item)) : HALT;
+    // biome-ignore lint/complexity/noCommaOperator: deliberate single-expression step function
+    return (init, item) => (amount < limit ? (amount++, conjoin(init, item)) : HALT);
   };
 
 /**
@@ -62,8 +62,8 @@ export const drop =
   <In>(limit: number): Transducer<In, In> =>
   (conjoin) => {
     let amount = 0;
-    return (init, item) =>
-      amount >= limit ? (amount++, conjoin(init, item)) : (amount++, init);
+    // biome-ignore lint/complexity/noCommaOperator: deliberate single-expression step function
+    return (init, item) => (amount >= limit ? (amount++, conjoin(init, item)) : (amount++, init));
   };
 
 /**
@@ -105,8 +105,7 @@ export const group =
       return init;
     };
     step.complete = (init) => {
-      const out =
-        partition.length > 0 ? conjoin(init, partition.splice(0)) : init;
+      const out = partition.length > 0 ? conjoin(init, partition.splice(0)) : init;
       const buffer = out === HALT ? init : out;
       return conjoin.complete ? conjoin.complete(buffer) : buffer;
     };
@@ -125,8 +124,8 @@ export const group =
 export const accumulate =
   <In, Acc = In>(
     func: (accumulated: Acc, item: In) => Acc = (a, b) =>
-      (a as unknown as number) + (b as unknown as number) as unknown as Acc,
-    initial: Acc = 0 as unknown as Acc
+      ((a as unknown as number) + (b as unknown as number)) as unknown as Acc,
+    initial: Acc = 0 as unknown as Acc,
   ): Transducer<In, Acc> =>
   (conjoin) =>
   (init, item) => {

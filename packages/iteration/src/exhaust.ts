@@ -1,11 +1,9 @@
-import { isIterator, isAsyncIterator } from "./is-iterator.ts";
+import { isAsyncIterator, isIterator } from "./is-iterator.ts";
 
 export const exhaustSync = <T>(iterator: Iterable<T>): T[] => {
   return [...iterator];
 };
-export const exhaustAsync = async <T>(
-  asyncIterator: AsyncIterable<T>
-): Promise<T[]> => {
+export const exhaustAsync = async <T>(asyncIterator: AsyncIterable<T>): Promise<T[]> => {
   const r: T[] = [];
   for await (const o of asyncIterator) {
     r.push(o);
