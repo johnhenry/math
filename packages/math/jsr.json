@@ -1,0 +1,17 @@
+{
+  "name": "@johnhenry/mallory-math",
+  "version": "0.8.0",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "publish": {
+    "exclude": [
+      "test",
+      "docs",
+      "scripts",
+      "api",
+      "**/*.test.ts"
+    ]
+  }
+}

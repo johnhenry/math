@@ -56,3 +56,42 @@ jobs:
         run: node scripts/publish-workspaces.mjs
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  # JSR dual-publish (issue #13) — same pattern as mallory-plus's release.yml
+  # jsr-release job: OIDC Trusted Publishing (no secret; each package on
+  # jsr.io links this repo as its publisher — one-time manual setup, done
+  # 2026-08-13), continue-on-error per package so an already-published
+  # version or a JSR outage never blocks (or is blocked by) npm publishing.
+  jsr-publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # JSR OIDC trusted publishing
+    steps:
+      - uses: actions/checkout@v4
+
+      # jsr.json is committed with the current version, but the publish-time
+      # source of truth is package.json — sync here so the two can never
+      # drift (the same no-hand-edited-versions rule as mallory-plus's
+      # sync-jsr-configs.mjs).
+      - name: Sync jsr.json versions from package.json
+        run: |
+          for dir in packages/math packages/iteration; do
+            node -e "
+              const fs = require('fs');
+              const pkg = JSON.parse(fs.readFileSync('$dir/package.json', 'utf8'));
+              const jsr = JSON.parse(fs.readFileSync('$dir/jsr.json', 'utf8'));
+              jsr.version = pkg.version;
+              fs.writeFileSync('$dir/jsr.json', JSON.stringify(jsr, null, 2) + '\n');
+            "
+          done
+
+      - name: Publish to JSR
+        continue-on-error: true
+        run: |
+          for dir in packages/math packages/iteration; do
+            echo "::group::jsr publish — $dir"
+            (cd "$dir" && npx --yes jsr publish --allow-slow-types --allow-dirty) || \
+              echo "::warning title=JSR publish skipped/failed::$dir (already published at this version, or trusted publishing not configured)"
+            echo "::endgroup::"
+          done
