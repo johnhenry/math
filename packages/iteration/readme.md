@@ -14,9 +14,9 @@ Requires **Node.js 22.12+** (or an equivalent Iterator-Helpers-capable engine).
 
 > **Provenance.** This library was previously published as `async-itertools`; the 1.x releases
 > and the "2.0" milestones referenced below (transducer rewrite, cancellation, bounded
-> concurrency, backpressure) describe that history under the old name. It now ships fresh as
+> concurrency, backpressure) describe that history under the old name. It now ships as
 > `mallory-iteration`, part of the [Mallory](https://github.com/johnhenry/mallory) family,
-> starting at version 0.0.0.
+> continuing that lineage at version 2.0.0.
 
 ## What's new in 2.0
 
