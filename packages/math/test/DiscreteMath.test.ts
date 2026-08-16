@@ -122,6 +122,49 @@ test("topological sort of a DAG (null on cycle)", () => {
   assert.equal(cyclic.topologicalSort(), null);
 });
 
+test("strongly connected components (Tarjan) on a directed graph", () => {
+  const g = new Graph<string>(true);
+  g.addEdge("a", "b").addEdge("b", "c").addEdge("c", "a"); // a 3-cycle: one SCC
+  g.addVertex("d"); // isolated: its own SCC
+  g.addEdge("e", "f"); // no cycle back: two singleton SCCs, not merged
+  const sccs = g.stronglyConnectedComponents().map((c) => [...c].sort());
+  assert.equal(sccs.length, 4);
+  assert.ok(sccs.some((c) => c.length === 3 && c.join() === ["a", "b", "c"].join()));
+  assert.ok(sccs.some((c) => c.join() === "d"));
+  assert.ok(sccs.some((c) => c.join() === "e"));
+  assert.ok(sccs.some((c) => c.join() === "f"));
+});
+
+test("strongly connected components on a digraph with a one-way bridge between two cycles", () => {
+  const g = new Graph<number>(true);
+  g.addEdge(1, 2).addEdge(2, 3).addEdge(3, 1); // SCC {1,2,3}
+  g.addEdge(3, 4); // one-way bridge, does not merge the SCCs
+  g.addEdge(4, 5).addEdge(5, 4); // SCC {4,5}
+  const sccs = g
+    .stronglyConnectedComponents()
+    .map((c) => [...c].sort((a, b) => a - b))
+    .sort((a, b) => a[0]! - b[0]!);
+  assert.deepEqual(sccs, [
+    [1, 2, 3],
+    [4, 5],
+  ]);
+});
+
+test("strongly connected components on an undirected graph reduce to connectedComponents", () => {
+  const g = new Graph<number>(); // undirected
+  g.addEdge(1, 2).addEdge(3, 4).addVertex(5);
+  const scc = g
+    .stronglyConnectedComponents()
+    .map((c) => [...c].sort((a, b) => a - b))
+    .sort((a, b) => a[0]! - b[0]!);
+  const cc = g
+    .connectedComponents()
+    .map((c) => [...c].sort((a, b) => a - b))
+    .sort((a, b) => a[0]! - b[0]!);
+  assert.deepEqual(scc, cc);
+  assert.deepEqual(scc, [[1, 2], [3, 4], [5]]);
+});
+
 test("minimum spanning tree (Kruskal)", () => {
   const g = new Graph<string>();
   g.addEdge("a", "b", 1).addEdge("b", "c", 2).addEdge("a", "c", 3).addEdge("c", "d", 4);
