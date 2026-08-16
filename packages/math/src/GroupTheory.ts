@@ -147,6 +147,47 @@ export class GroupTheory {
     };
   }
 
+  /**
+   * The dihedral group Dₙ (order 2n): symmetries of a regular n-gon, as
+   * permutations of its n vertices `{0, …, n-1}`. n rotations `ρₖ: i ↦ (i+k)
+   * mod n` plus n reflections `σₖ: i ↦ (k-i) mod n` (reflecting through the
+   * axis fixing vertex k/2 when k is even, or the edge midpoint between
+   * ⌊k/2⌋ and ⌈k/2⌉ when k is odd). For n=3 this is exactly (element-for-
+   * element, not just isomorphic) {@link symmetricGroup}(3) — the two
+   * constructions coincide since S₃ has only 6 permutations total, matching
+   * D₃'s own order 2·3=6.
+   */
+  static dihedralGroup(n: number): Array<Permutation<number>> {
+    const domain = Array.from({ length: n }, (_, i) => i);
+    const mod = (x: number) => ((x % n) + n) % n;
+    const rotations = Array.from(
+      { length: n },
+      (_, k) =>
+        new Permutation(
+          domain,
+          domain.map((i) => mod(i + k)),
+        ),
+    );
+    const reflections = Array.from(
+      { length: n },
+      (_, k) =>
+        new Permutation(
+          domain,
+          domain.map((i) => mod(k - i)),
+        ),
+    );
+    return [...rotations, ...reflections];
+  }
+
+  /**
+   * The stabilizer of `x` under a group action: the elements of `group`
+   * fixing `x`. Complements {@link orbit} — the orbit-stabilizer theorem
+   * (`|orbit(x)| · |stabilizer(x)| = |G|`) holds for any finite group action.
+   */
+  static stabilizer<T, X>(x: X, group: readonly T[], action: (g: T, x: X) => X, eqX: Eq<X>): T[] {
+    return group.filter((g) => eqX(action(g, x), x));
+  }
+
   /** The symmetric group Sₙ: every permutation of `{0, …, n-1}`. */
   static symmetricGroup(n: number): Array<Permutation<number>> {
     const domain = Array.from({ length: n }, (_, i) => i);

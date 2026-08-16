@@ -199,6 +199,24 @@ export class Polygon extends Vector<Point> {
     return false;
   }
 
+  /**
+   * A regular n-gon: `n` vertices evenly spaced on a circle of `radius`
+   * around `center`, starting at `startAngle` (default `-pi/2`, i.e. the
+   * first vertex points straight up — the conventional orientation for a
+   * polygon drawn on a screen y-down or math y-up axis alike) and
+   * proceeding counterclockwise in standard math convention.
+   */
+  static regular(n: number, radius = 1, center: Point = Vector.fromArray([0, 0]), startAngle = -Math.PI / 2): Polygon {
+    if (n < 3) throw new Error(`Polygon.regular: n must be at least 3, got ${n}`);
+    const cx = center.x as number;
+    const cy = center.y as number;
+    const vertices = Array.from({ length: n }, (_, i) => {
+      const theta = startAngle + (2 * Math.PI * i) / n;
+      return Vector.fromArray([cx + radius * Math.cos(theta), cy + radius * Math.sin(theta)]) as Point;
+    });
+    return new Polygon(...vertices);
+  }
+
   /** A clone of the polygon (deep-clones nested vertex vectors by default). */
   override clone(deep = true): Polygon {
     const out = new Polygon(this.length);
