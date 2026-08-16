@@ -106,6 +106,38 @@ test("symmetric group S3 is a non-abelian group of order 6", () => {
   assert.equal(GroupTheory.isAbelian(s3, op, eq), false);
 });
 
+test("dihedral group D4 is a non-abelian group of order 8; D3 coincides element-for-element with S3", () => {
+  const d4 = GroupTheory.dihedralGroup(4);
+  assert.equal(d4.length, 8);
+  const op = (a: Permutation<number>, b: Permutation<number>) => Permutation.compose(a, b);
+  const eq = (a: Permutation<number>, b: Permutation<number>) => Permutation.equal(a, b);
+  assert.equal(GroupTheory.isGroup(d4, op, eq), true);
+  assert.equal(GroupTheory.isAbelian(d4, op, eq), false);
+
+  const d3 = GroupTheory.dihedralGroup(3);
+  const s3 = GroupTheory.symmetricGroup(3);
+  assert.equal(d3.length, 6);
+  assert.equal(s3.length, 6);
+  // Same set of permutations, not just isomorphic -- S3 has only 6
+  // permutations of {0,1,2} total, and D3's rotations+reflections produce
+  // exactly those 6 (verified via a standalone script before writing this).
+  assert.ok(d3.every((d) => s3.some((s) => eq(d, s))));
+  assert.ok(s3.every((s) => d3.some((d) => eq(d, s))));
+});
+
+test("orbit-stabilizer theorem holds for D4 acting on the 4 vertices of a square", () => {
+  const d4 = GroupTheory.dihedralGroup(4);
+  const action = (g: Permutation<number>, x: number) => g.apply(x);
+  const eqX = (a: number, b: number) => a === b;
+  const orbit = GroupTheory.orbit(0, d4, action, eqX);
+  // D4 is vertex-transitive: every vertex reachable from vertex 0.
+  assert.deepEqual([...orbit].sort(), [0, 1, 2, 3]);
+  const stab = GroupTheory.stabilizer(0, d4, action, eqX);
+  // |orbit(x)| * |stabilizer(x)| = |G|
+  assert.equal(orbit.length * stab.length, d4.length);
+  assert.equal(stab.length, 2, "identity + the reflection fixing vertex 0");
+});
+
 test("GroupTheory composes with a Structure (units of Z/7)", () => {
   const gf7 = Structure.integersModulo(7);
   const units = [1, 2, 3, 4, 5, 6];

@@ -51,3 +51,31 @@ test("edge and clone", () => {
   (c.vertex(0) as Vector<number>)[0] = 99;
   assert.equal(p.vertex(0)[0], 0, "deep clone independent");
 });
+
+test("Polygon.regular: hexagon area/perimeter match the closed-form n-gon formulas", () => {
+  const hex = Polygon.regular(6, 1);
+  assert.equal(hex.vertexCount, 6);
+  assert.ok(close(hex.area(), 0.5 * 6 * Math.sin((2 * Math.PI) / 6)), "area = (1/2)*n*r^2*sin(2*pi/n)");
+  assert.ok(close(hex.perimeter(), 6 * 2 * Math.sin(Math.PI / 6)), "perimeter = n*2*r*sin(pi/n)");
+  assert.equal(hex.isConvex(), true);
+});
+
+test("Polygon.regular: startAngle=-pi/2 (default) points the first vertex straight up", () => {
+  const square = Polygon.regular(4, 1);
+  assert.ok(close(square.vertex(0)[0] as number, 0));
+  assert.ok(close(square.vertex(0)[1] as number, -1));
+});
+
+test("Polygon.regular: radius and center are honored", () => {
+  const tri = Polygon.regular(3, 2, pt(5, 5));
+  for (let i = 0; i < 3; i++) {
+    const v = tri.vertex(i);
+    const dx = (v[0] as number) - 5;
+    const dy = (v[1] as number) - 5;
+    assert.ok(close(Math.sqrt(dx * dx + dy * dy), 2), `vertex ${i} is at radius 2 from center`);
+  }
+});
+
+test("Polygon.regular: rejects n < 3", () => {
+  assert.throws(() => Polygon.regular(2));
+});

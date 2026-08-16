@@ -52,6 +52,17 @@ export { GroupTheory } from "./GroupTheory.ts";
 // Combinatorics & number theory
 export { Interval } from "./Interval.ts";
 export { IntUtils } from "./IntUtils.ts";
+export {
+  HEX_AXIAL_DIRECTIONS,
+  type HexDirection,
+  hexNeighbor,
+  hexNeighbors,
+  type TriDirection,
+  triNeighbor,
+  triNeighbors,
+  triOrientation,
+  type TriOrientation,
+} from "./Lattice.ts";
 export { Logic } from "./Logic.ts";
 export {
   type EigenResult,
