@@ -1,11 +1,18 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { HEX_AXIAL_DIRECTIONS, hexNeighbor, hexNeighbors, triNeighbor, triNeighbors, triOrientation } from "../src/Lattice.ts";
+import {
+  HEX_AXIAL_DIRECTIONS,
+  hexNeighbor,
+  hexNeighbors,
+  triNeighbor,
+  triNeighbors,
+  triOrientation,
+} from "../src/Lattice.ts";
 
 test("hexNeighbor: all 6 directions are reciprocal (direction d then (d+3)%6 returns to start)", () => {
   for (let d = 0; d < 6; d++) {
     const [nq, nr] = hexNeighbor(2, 3, d as 0 | 1 | 2 | 3 | 4 | 5);
-    const [bq, br] = hexNeighbor(nq, nr, (((d + 3) % 6) as 0 | 1 | 2 | 3 | 4 | 5));
+    const [bq, br] = hexNeighbor(nq, nr, ((d + 3) % 6) as 0 | 1 | 2 | 3 | 4 | 5);
     assert.equal(bq, 2, `direction ${d} did not reciprocate (q)`);
     assert.equal(br, 3, `direction ${d} did not reciprocate (r)`);
   }

@@ -69,16 +69,19 @@ export function triNeighbor(x: number, y: number, direction: TriDirection): read
   if (direction === "left") return [x - 1, y];
   if (direction === "right") return [x + 1, y];
   if (direction === "top") {
-    if (orientation !== "up") throw new Error(`triNeighbor: "top" is only valid on an "up" cell, (${x},${y}) is "down".`);
+    if (orientation !== "up")
+      throw new Error(`triNeighbor: "top" is only valid on an "up" cell, (${x},${y}) is "down".`);
     return [x, y + 1];
   }
-  if (orientation !== "down") throw new Error(`triNeighbor: "bottom" is only valid on a "down" cell, (${x},${y}) is "up".`);
+  if (orientation !== "down")
+    throw new Error(`triNeighbor: "bottom" is only valid on a "down" cell, (${x},${y}) is "up".`);
   return [x, y - 1];
 }
 
 /** Every edge-sharing neighbor of triangular cell `(x, y)`, in the direction order valid for its own orientation. */
 export function triNeighbors(x: number, y: number): Array<readonly [number, number]> {
   const orientation = triOrientation(x, y);
-  const directions: readonly TriDirection[] = orientation === "up" ? ["left", "right", "top"] : ["left", "right", "bottom"];
+  const directions: readonly TriDirection[] =
+    orientation === "up" ? ["left", "right", "top"] : ["left", "right", "bottom"];
   return directions.map((d) => triNeighbor(x, y, d));
 }

@@ -58,10 +58,10 @@ export {
   hexNeighbor,
   hexNeighbors,
   type TriDirection,
+  type TriOrientation,
   triNeighbor,
   triNeighbors,
   triOrientation,
-  type TriOrientation,
 } from "./Lattice.ts";
 export { Logic } from "./Logic.ts";
 export {

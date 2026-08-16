@@ -160,8 +160,22 @@ export class GroupTheory {
   static dihedralGroup(n: number): Array<Permutation<number>> {
     const domain = Array.from({ length: n }, (_, i) => i);
     const mod = (x: number) => ((x % n) + n) % n;
-    const rotations = Array.from({ length: n }, (_, k) => new Permutation(domain, domain.map((i) => mod(i + k))));
-    const reflections = Array.from({ length: n }, (_, k) => new Permutation(domain, domain.map((i) => mod(k - i))));
+    const rotations = Array.from(
+      { length: n },
+      (_, k) =>
+        new Permutation(
+          domain,
+          domain.map((i) => mod(i + k)),
+        ),
+    );
+    const reflections = Array.from(
+      { length: n },
+      (_, k) =>
+        new Permutation(
+          domain,
+          domain.map((i) => mod(k - i)),
+        ),
+    );
     return [...rotations, ...reflections];
   }
 
