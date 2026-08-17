@@ -56,3 +56,36 @@ test("PolynomialRing.equal ignores trailing zero padding", () => {
   assert.ok(R.equal([1, 2], [1, 2, 0, 0]));
   assert.ok(!R.equal([1, 2], [1, 3]));
 });
+
+test("derivative/antiderivative stay linear-time on large degree (perf regression)", () => {
+  // Regression test for issue #41: derivative/antiderivative used to compute
+  // each coefficient's `i` factor via a fresh repeated-addition loop from
+  // scratch (O(i) work per coefficient => O(n^2) total for a degree-n
+  // polynomial) instead of an O(1)-per-coefficient running accumulator.
+  //
+  // Measured locally: degree 30000 took ~650-800ms pre-fix (quadratic) vs.
+  // a few ms post-fix (linear). The 300ms bound below has generous headroom
+  // over the fixed implementation even on much slower CI hardware, while
+  // still being far below what the quadratic implementation would take.
+  const R = new PolynomialRing(Structure.realField());
+  const degree = 30000;
+  const p = Array.from({ length: degree + 1 }, (_, i) => i + 1);
+
+  const t0 = performance.now();
+  const d = R.derivative(p);
+  const derivativeMs = performance.now() - t0;
+  assert.ok(derivativeMs < 300, `derivative(degree ${degree}) took ${derivativeMs.toFixed(1)}ms, expected < 300ms`);
+  assert.equal(d.length, degree);
+  assert.equal(d[0], 2); // d/dx of c0 + c1 x + ... at x^0 term is 1*c1 = 1*2 = 2
+
+  const t1 = performance.now();
+  const a = R.antiderivative(p);
+  const antiderivativeMs = performance.now() - t1;
+  assert.ok(
+    antiderivativeMs < 300,
+    `antiderivative(degree ${degree}) took ${antiderivativeMs.toFixed(1)}ms, expected < 300ms`,
+  );
+  assert.equal(a.length, degree + 2);
+  assert.equal(a[0], 0); // zero constant of integration
+  assert.equal(a[1], p[0]); // c0 / 1 = c0
+});

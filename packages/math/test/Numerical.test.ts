@@ -98,6 +98,28 @@ test("chi-square and student-t cdfs", () => {
   assert.ok(close(Distributions.studentT(5).cdf(0), 0.5, 1e-9));
 });
 
+test("binomial cdf doesn't rebuild the distribution per summation step (perf regression)", () => {
+  // Regression test for issue #41: cdf used to call Distributions.binomial(n, p)
+  // (rebuilding the whole distribution object, including its logChoose closure)
+  // once per step of its summation instead of reusing the pmf computed once
+  // when the distribution was created.
+  const originalBinomial = Distributions.binomial;
+  let factoryCalls = 0;
+  Distributions.binomial = ((...args: Parameters<typeof originalBinomial>) => {
+    factoryCalls++;
+    return originalBinomial(...args);
+  }) as typeof Distributions.binomial;
+  try {
+    const b = Distributions.binomial(50, 0.5);
+    factoryCalls = 0; // only count calls made while summing the cdf below
+    const result = b.cdf(50);
+    assert.ok(close(result, 1, 1e-6));
+    assert.equal(factoryCalls, 0, "cdf must not call Distributions.binomial again per summation step");
+  } finally {
+    Distributions.binomial = originalBinomial;
+  }
+});
+
 test("hypothesis tests", () => {
   // one-sample t-test: sample clearly above 0
   const r = HypothesisTests.tTestOneSample([2, 3, 4, 5, 6], 0);
