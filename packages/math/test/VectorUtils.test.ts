@@ -120,9 +120,95 @@ test("modes handles single, multi and empty", () => {
   assert.deepEqual([...VU.modes(v<number>())], []);
 });
 
+test("perf regression: modes/flatten/flattenSD/recursiveSequence stay roughly linear at scale", () => {
+  // Guards against reintroducing the quadratic-or-worse patterns fixed for
+  // issue #37 (Array#includes rescans, splice-heavy in-place edits, repeated
+  // merge+clone, and spreading the whole accumulator on every push). These
+  // were measured at 1-25+ seconds for n in the low thousands before the fix;
+  // a generous bound here still catches a regression to that complexity class.
+  const n = 6000;
+
+  const modesInput = Vector.fromArray(Array.from({ length: n }, (_, i) => i % 1500));
+  let t0 = performance.now();
+  const modesResult = VU.modes(modesInput);
+  assert.ok(performance.now() - t0 < 1000, "modes should be roughly linear");
+  assert.deepEqual([...modesResult].sort((a, b) => a - b), Array.from({ length: 1500 }, (_, i) => i));
+
+  const nested = Vector.fromArray(Array.from({ length: n }, (_, i) => v(i, i + 1)));
+  t0 = performance.now();
+  const flatResult = VU.flatten(nested);
+  assert.ok(performance.now() - t0 < 1000, "flatten should be roughly linear");
+  assert.equal(flatResult.length, n * 2);
+  assert.equal(flatResult[0], 0);
+  assert.equal(flatResult[flatResult.length - 1], n);
+
+  t0 = performance.now();
+  const flattenSDResult = VU.flattenSD(nested);
+  assert.ok(performance.now() - t0 < 1000, "flattenSD should be roughly linear");
+  assert.deepEqual([...flattenSDResult], [...flatResult]);
+
+  t0 = performance.now();
+  const seq = VU.recursiveSequence<number>(
+    [0, 1],
+    (s) => s.length,
+    (s) => (s as ArrayLike<number>).length >= n,
+    true,
+  );
+  assert.ok(performance.now() - t0 < 1000, "recursiveSequence(keep=true) should be roughly linear");
+  assert.equal(seq.length, n);
+});
+
 test("flatten ragged / flattenSD", () => {
   const ragged = Vector.fromArray<unknown>([1, v(2, v(3, 4)), 5]);
   assert.deepEqual([...VU.flatten(ragged)], [1, 2, 3, 4, 5]);
+
+  const sameDepth = mat([
+    [1, 2],
+    [3, 4],
+    [5, 6],
+  ]);
+  assert.deepEqual([...VU.flattenSD(sameDepth)], [1, 2, 3, 4, 5, 6]);
+
+  // Vector-first-element check: a flat (already non-nested) vector passes through unchanged.
+  assert.deepEqual([...VU.flattenSD(v(1, 2, 3))], [1, 2, 3]);
+  assert.deepEqual([...VU.flattenSD(v<number>())], []);
+});
+
+test("flattenSDLevels honors `depth` (bug fix: was calling flatten, ignoring depth)", () => {
+  // A depth-2 same-depth nested vector: each leaf pair is wrapped one extra level,
+  // e.g. outer[0] = [[1,2]] rather than [1,2].
+  const outer = Vector.fromArray<unknown>([
+    Vector.fromArray<unknown>([v(1, 2)]),
+    Vector.fromArray<unknown>([v(3, 4)]),
+    Vector.fromArray<unknown>([v(5, 6)]),
+    Vector.fromArray<unknown>([v(7, 8)]),
+  ]);
+  assert.equal(VU.nestedDepthSD(outer), 2);
+
+  // Peeling only 1 level must NOT fully flatten — this is exactly what the
+  // bug broke: calling `flatten` (unlimited) instead of `flattenSD` (one
+  // level) made every depth >= 1 produce the fully-flat result.
+  const peeled = VU.flattenSDLevels(outer, 1);
+  assert.deepEqual(deep(peeled), [
+    [1, 2],
+    [3, 4],
+    [5, 6],
+    [7, 8],
+  ]);
+
+  // Peeling all the way (depth omitted -> uses nestedDepthSD) does fully flatten.
+  const full = VU.flattenSDLevels(outer);
+  assert.deepEqual([...full], [1, 2, 3, 4, 5, 6, 7, 8]);
+
+  // Real-usage shape (kroneckerProduct style): a depth-1 structure flattened
+  // with an over-specified depth=2 must still fully flatten (the second,
+  // extra call to flattenSD on an already-flat vector is a no-op).
+  const depth1 = mat([
+    [0, 1],
+    [10, 11],
+    [20, 21],
+  ]);
+  assert.deepEqual([...VU.flattenSDLevels(depth1, 2)], [0, 1, 10, 11, 20, 21]);
 });
 
 test("collapse (sum) and count/matches", () => {
