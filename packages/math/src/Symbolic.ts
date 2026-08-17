@@ -4,6 +4,7 @@
  * integration, Taylor expansion, polynomial equation solving/factoring,
  * limits, LaTeX rendering, and numeric evaluation.
  */
+import { FUNC_DERIVATIVE_RULES } from "./differentiation-rules.ts";
 import { MatrixMath } from "./MatrixMath.ts";
 import { Numerical } from "./Numerical.ts";
 import { Rational } from "./Rational.ts";
@@ -1214,123 +1215,7 @@ function diffTraced(e: Expr, x: string, steps: DifferentiationStep[]): Expr {
       rule = `Chain Rule (${e.name})`;
       const u = e.arg;
       const du = diffTraced(u, x, steps);
-      switch (e.name) {
-        case "sin":
-          result = mul(fn("cos", u), du);
-          break;
-        case "cos":
-          result = neg(mul(fn("sin", u), du));
-          break;
-        case "tan":
-          result = div(du, pow(fn("cos", u), num(2)));
-          break;
-        case "exp":
-          result = mul(fn("exp", u), du);
-          break;
-        case "ln":
-          result = div(du, u);
-          break;
-        case "sqrt":
-          result = div(du, mul(num(2), fn("sqrt", u)));
-          break;
-        case "asin":
-          result = div(du, fn("sqrt", sub(num(1), pow(u, num(2)))));
-          break;
-        case "acos":
-          result = neg(div(du, fn("sqrt", sub(num(1), pow(u, num(2))))));
-          break;
-        case "atan":
-          result = div(du, add(num(1), pow(u, num(2))));
-          break;
-        case "sinh":
-          result = mul(fn("cosh", u), du);
-          break;
-        case "cosh":
-          result = mul(fn("sinh", u), du);
-          break;
-        case "tanh":
-          result = div(du, pow(fn("cosh", u), num(2)));
-          break;
-        case "cot":
-          result = neg(mul(pow(fn("csc", u), num(2)), du));
-          break;
-        case "sec":
-          result = mul(mul(fn("sec", u), fn("tan", u)), du);
-          break;
-        case "csc":
-          result = neg(mul(mul(fn("csc", u), fn("cot", u)), du));
-          break;
-        case "asinh":
-          result = div(du, fn("sqrt", add(pow(u, num(2)), num(1))));
-          break;
-        case "acosh":
-          result = div(du, fn("sqrt", sub(pow(u, num(2)), num(1))));
-          break;
-        case "atanh":
-          result = div(du, sub(num(1), pow(u, num(2))));
-          break;
-        case "coth":
-          result = neg(mul(pow(fn("csch", u), num(2)), du));
-          break;
-        case "sech":
-          result = neg(mul(mul(fn("sech", u), fn("tanh", u)), du));
-          break;
-        case "csch":
-          result = neg(mul(mul(fn("csch", u), fn("coth", u)), du));
-          break;
-        case "acot":
-          result = neg(div(du, add(num(1), pow(u, num(2)))));
-          break;
-        case "asec":
-          result = div(du, mul(fn("abs", u), fn("sqrt", sub(pow(u, num(2)), num(1)))));
-          break;
-        case "acsc":
-          result = neg(div(du, mul(fn("abs", u), fn("sqrt", sub(pow(u, num(2)), num(1))))));
-          break;
-        case "acoth":
-          result = div(du, sub(num(1), pow(u, num(2))));
-          break;
-        case "asech":
-          result = neg(div(du, mul(u, fn("sqrt", sub(num(1), pow(u, num(2)))))));
-          break;
-        case "acsch":
-          result = neg(div(du, mul(fn("abs", u), fn("sqrt", add(num(1), pow(u, num(2)))))));
-          break;
-        case "abs":
-          result = mul(fn("sign", u), du);
-          break;
-        case "log10":
-          result = div(du, mul(u, fn("ln", num(10))));
-          break;
-        case "log2":
-          result = div(du, mul(u, fn("ln", num(2))));
-          break;
-        case "cbrt":
-          result = div(du, mul(num(3), pow(fn("cbrt", u), num(2))));
-          break;
-        case "floor":
-        case "ceil":
-        case "round":
-        case "sign":
-        case "trunc":
-          result = num(0);
-          break;
-        case "expm1":
-          result = mul(fn("exp", u), du);
-          break;
-        case "log1p":
-          result = div(du, add(num(1), u));
-          break;
-        case "sigmoid":
-          result = mul(mul(fn("sigmoid", u), sub(num(1), fn("sigmoid", u))), du);
-          break;
-        case "erf":
-          result = mul(mul(div(num(2), fn("sqrt", num(Math.PI))), fn("exp", neg(pow(u, num(2))))), du);
-          break;
-        case "relu":
-          result = mul(div(add(num(1), fn("sign", u)), num(2)), du);
-          break;
-      }
+      result = FUNC_DERIVATIVE_RULES[e.name](u, du);
       break;
     }
     case "call2": {
@@ -1424,88 +1309,7 @@ function diff(e: Expr, x: string): Expr {
     case "func": {
       const u = e.arg;
       const du = diff(u, x);
-      const name = e.name;
-      switch (name) {
-        case "sin":
-          return mul(fn("cos", u), du);
-        case "cos":
-          return neg(mul(fn("sin", u), du));
-        case "tan":
-          return div(du, pow(fn("cos", u), num(2)));
-        case "exp":
-          return mul(fn("exp", u), du);
-        case "ln":
-          return div(du, u);
-        case "sqrt":
-          return div(du, mul(num(2), fn("sqrt", u)));
-        case "asin":
-          return div(du, fn("sqrt", sub(num(1), pow(u, num(2)))));
-        case "acos":
-          return neg(div(du, fn("sqrt", sub(num(1), pow(u, num(2))))));
-        case "atan":
-          return div(du, add(num(1), pow(u, num(2))));
-        case "sinh":
-          return mul(fn("cosh", u), du);
-        case "cosh":
-          return mul(fn("sinh", u), du);
-        case "tanh":
-          return div(du, pow(fn("cosh", u), num(2)));
-        case "cot":
-          return neg(mul(pow(fn("csc", u), num(2)), du));
-        case "sec":
-          return mul(mul(fn("sec", u), fn("tan", u)), du);
-        case "csc":
-          return neg(mul(mul(fn("csc", u), fn("cot", u)), du));
-        case "asinh":
-          return div(du, fn("sqrt", add(pow(u, num(2)), num(1))));
-        case "acosh":
-          return div(du, fn("sqrt", sub(pow(u, num(2)), num(1))));
-        case "atanh":
-          return div(du, sub(num(1), pow(u, num(2))));
-        case "coth":
-          return neg(mul(pow(fn("csch", u), num(2)), du));
-        case "sech":
-          return neg(mul(mul(fn("sech", u), fn("tanh", u)), du));
-        case "csch":
-          return neg(mul(mul(fn("csch", u), fn("coth", u)), du));
-        case "acot":
-          return neg(div(du, add(num(1), pow(u, num(2)))));
-        case "asec":
-          return div(du, mul(fn("abs", u), fn("sqrt", sub(pow(u, num(2)), num(1)))));
-        case "acsc":
-          return neg(div(du, mul(fn("abs", u), fn("sqrt", sub(pow(u, num(2)), num(1))))));
-        case "acoth":
-          return div(du, sub(num(1), pow(u, num(2))));
-        case "asech":
-          return neg(div(du, mul(u, fn("sqrt", sub(num(1), pow(u, num(2)))))));
-        case "acsch":
-          return neg(div(du, mul(fn("abs", u), fn("sqrt", add(num(1), pow(u, num(2)))))));
-        case "abs":
-          return mul(fn("sign", u), du);
-        case "log10":
-          return div(du, mul(u, fn("ln", num(10))));
-        case "log2":
-          return div(du, mul(u, fn("ln", num(2))));
-        case "cbrt":
-          return div(du, mul(num(3), pow(fn("cbrt", u), num(2))));
-        case "floor":
-        case "ceil":
-        case "round":
-        case "sign":
-        case "trunc":
-          return num(0);
-        case "expm1":
-          return mul(fn("exp", u), du);
-        case "log1p":
-          return div(du, add(num(1), u));
-        case "sigmoid":
-          return mul(mul(fn("sigmoid", u), sub(num(1), fn("sigmoid", u))), du);
-        case "erf":
-          return mul(mul(div(num(2), fn("sqrt", num(Math.PI))), fn("exp", neg(pow(u, num(2))))), du);
-        case "relu":
-          return mul(div(add(num(1), fn("sign", u)), num(2)), du);
-      }
-      throw new Error(`Unhandled function: ${name}`);
+      return FUNC_DERIVATIVE_RULES[e.name](u, du);
     }
     case "call2": {
       const l = e.left;

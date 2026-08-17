@@ -24,6 +24,7 @@ export {
   type TestResult,
 } from "./Distributions.ts";
 export { DualNumber } from "./DualNumber.ts";
+export { FUNC_DERIVATIVE_RULES, type FuncDerivativeRule } from "./differentiation-rules.ts";
 // Expression evaluation
 export { Environment } from "./Environment.ts";
 export { Expression } from "./Expression.ts";
