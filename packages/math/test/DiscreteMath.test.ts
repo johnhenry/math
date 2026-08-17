@@ -102,6 +102,43 @@ test("dijkstra shortest path", () => {
   assert.deepEqual(path, ["a", "b", "c", "d"]);
 });
 
+// Regression test for https://github.com/johnhenry/mallory/issues/38 — dijkstra/shortestPath
+// used to do a linear "find min unvisited vertex" scan on every iteration (O(V^2)), which
+// measured at 9-12s on a 20,000-node chain graph. A heap-based implementation should stay
+// well under a second. The threshold below is generous (2s) to avoid flakiness on slow CI
+// hardware while still failing hard on any regression back to quadratic behavior.
+test("dijkstra/shortestPath scale to large graphs (O((V+E) log V), not O(V^2))", () => {
+  const N = 20_000;
+  const g = new Graph<number>(true);
+  for (let i = 0; i < N - 1; i++) g.addEdge(i, i + 1, 1);
+  // A cheap shortcut edge lets us confirm the heap-based search still finds the *true*
+  // shortest path (not just "whatever a quadratic scan would also have found").
+  g.addEdge(100, N - 100, 1);
+
+  const shortestPathStart = performance.now();
+  const { distance, path } = g.shortestPath(0, N - 1);
+  const shortestPathElapsed = performance.now() - shortestPathStart;
+
+  // 0 -> ... -> 100 (100 hops) + shortcut (1) + (N-100) -> ... -> (N-1) (99 hops)
+  assert.equal(distance, 100 + 1 + (N - 1 - (N - 100)));
+  assert.equal(path[0], 0);
+  assert.equal(path[path.length - 1], N - 1);
+  assert.ok(path.includes(100) && path.includes(N - 100), "path uses the shortcut, not the naive chain");
+  assert.ok(
+    shortestPathElapsed < 2000,
+    `shortestPath on ${N} nodes took ${shortestPathElapsed.toFixed(1)}ms (expected well under 2000ms; naive O(V^2) took 9-12s)`,
+  );
+
+  const dijkstraStart = performance.now();
+  const dist = g.dijkstra(0);
+  const dijkstraElapsed = performance.now() - dijkstraStart;
+  assert.equal(dist.get(N - 1), 200, "distances still correct on the large graph");
+  assert.ok(
+    dijkstraElapsed < 2000,
+    `dijkstra on ${N} nodes took ${dijkstraElapsed.toFixed(1)}ms (expected well under 2000ms; naive O(V^2) took 9-12s)`,
+  );
+});
+
 test("connected components and cycle detection", () => {
   const g = new Graph<number>();
   g.addEdge(1, 2).addEdge(3, 4).addVertex(5);
