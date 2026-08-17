@@ -56,6 +56,38 @@ test("factorize (Pollard rho) and eulerPhi", () => {
   assert.equal(NT.eulerPhi(36), 12n);
 });
 
+test("factorize/pollardRho on degenerate inputs terminate (regression for #36)", () => {
+  // 1's factorization is the empty product -- no factors, not a hang.
+  assert.deepEqual(NT.factorize(1), []);
+  assert.deepEqual(NT.factorize(1n), []);
+  // 0 has no well-defined prime factorization: every prime "divides" it with
+  // no finite exponent. Previously this hung forever (0n % p === 0n and
+  // 0n / p === 0n loop endlessly); it must now throw instead of hanging.
+  assert.throws(() => NT.factorize(0), RangeError);
+  assert.throws(() => NT.factorize(0n), RangeError);
+  // Negative numbers factor by absolute value.
+  assert.deepEqual(NT.factorize(-1), []);
+  assert.deepEqual(NT.factorize(-12), [
+    [2n, 2],
+    [3n, 1],
+  ]);
+  // A lone prime factor.
+  assert.deepEqual(NT.factorize(2), [[2n, 1]]);
+  assert.deepEqual(NT.factorize(17), [[17n, 1]]);
+
+  // pollardRho has no non-trivial factor to find for n <= 1 -- previously
+  // pollardRho(1n) hung forever (gcd collapses to 1 for every c); it must
+  // now throw instead of hanging.
+  assert.throws(() => NT.pollardRho(1n), RangeError);
+  assert.throws(() => NT.pollardRho(0n), RangeError);
+  assert.throws(() => NT.pollardRho(-5n), RangeError);
+  // Normal composite input still works.
+  assert.equal(NT.pollardRho(91n) === 7n || NT.pollardRho(91n) === 13n, true);
+
+  // eulerPhi(0) shares factorize's root cause and must also throw, not hang.
+  assert.throws(() => NT.eulerPhi(0), RangeError);
+});
+
 test("Legendre and Jacobi symbols", () => {
   assert.equal(NT.legendreSymbol(2, 7), 1); // 2 is a QR mod 7 (3^2=2)
   assert.equal(NT.legendreSymbol(3, 7), -1);
