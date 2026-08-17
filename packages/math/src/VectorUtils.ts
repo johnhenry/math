@@ -180,7 +180,12 @@ export class VectorUtils {
   ): Vector<T> {
     const out = Vector.fromArray(seeds);
     if (keep) {
-      while (!endCondition(out)) out.push(formula([...out]));
+      // Pass the accumulator directly (not a fresh copy each time): the
+      // "caller's seeds untouched" guarantee only needs to protect the
+      // original `seeds` array (already copied into `out` above), not this
+      // internal accumulator. Spreading `out` on every push made this loop
+      // quadratic for large results.
+      while (!endCondition(out)) out.push(formula(out));
     } else {
       const window = [...seeds];
       while (!endCondition(window)) {
@@ -314,62 +319,82 @@ export class VectorUtils {
     const modes = new Vector<T>();
     if (list.length === 0) return modes;
 
-    const counted: T[] = [];
-    const counts: Array<{ value: T; occurences: number }> = [];
+    // Single linear pass with a Map (SameValueZero equality, matching the old
+    // Array#includes-based lookup) instead of an O(n) `includes` scan plus an
+    // O(n) `count` rescan per unique value.
+    const counts = new Map<T, number>();
+    const order: T[] = [];
     for (const value of list) {
-      if (!counted.includes(value)) {
-        counts.push({ value, occurences: VectorUtils.count(list, value) });
-        counted.push(value);
+      const occurences = counts.get(value);
+      if (occurences === undefined) {
+        counts.set(value, 1);
+        order.push(value);
+      } else {
+        counts.set(value, occurences + 1);
       }
     }
-    counts.sort((a, b) => b.occurences - a.occurences);
 
-    const highCount = counts[0].occurences;
-    for (const c of counts) {
-      if (c.occurences < highCount) break;
-      modes.push(c.value);
+    let highCount = 0;
+    for (const value of order) {
+      const occurences = counts.get(value) as number;
+      if (occurences > highCount) highCount = occurences;
+    }
+    for (const value of order) {
+      if (counts.get(value) === highCount) modes.push(value);
     }
     return modes;
   }
 
   /** Fully flatten a nested vector of arbitrary, possibly ragged depth. */
   static flatten(vector: Vector<unknown>): Vector<unknown> {
-    const out = vector.clone();
-    while (!VectorUtils.isFlat(out)) {
-      for (let i = 0; i < out.length; i++) {
-        const el = out[i];
+    // A single depth-first pass into a fresh output vector. The previous
+    // implementation repeatedly spliced elements into/out of a shared vector
+    // in place (`removeElement`/`addElement` are O(n) each), making it
+    // severely superlinear; this walk visits each leaf exactly once.
+    const out = new Vector<unknown>();
+    const walk = (v: Vector<unknown>): void => {
+      for (const el of v) {
         if (el instanceof Vector) {
-          const temp = el.clone();
-          out.removeElement(i);
-          for (const e of temp) {
-            out.addElement(e, i);
-            i++;
-          }
-          i--;
+          walk(el);
+        } else {
+          out.push(el);
         }
       }
-    }
+    };
+    walk(vector);
     return out;
   }
 
   /** Flatten one level of a vector whose elements share the same depth. */
   static flattenSD(vector: Vector<unknown>): Vector<unknown> {
-    const out = vector.clone();
-    if (out.length === 0) return new Vector<unknown>();
-    if (!(out[0] instanceof Vector)) return out;
+    if (vector.length === 0) return new Vector<unknown>();
+    if (!(vector[0] instanceof Vector)) return vector.clone();
 
-    while (out.length > 1) {
-      out[0] = VectorUtils.merge(out[0], out[1]).clone();
-      out.removeElement(1);
+    // One linear pass, spreading each vector element's own elements straight
+    // into a fresh output vector (matching `merge`'s vector+scalar behavior
+    // for any non-vector siblings). The previous implementation repeatedly
+    // called `merge` + deep `clone` on the ever-growing accumulator, an O(n)
+    // operation per element, making the whole pass quadratic.
+    const out = new Vector<unknown>();
+    for (const el of vector) {
+      if (el instanceof Vector) {
+        for (const e of el) out.push(e);
+      } else {
+        out.push(el);
+      }
     }
-    return out[0] as Vector<unknown>;
+    return out;
   }
 
   /** Flatten a same-depth vector by `depth` levels (fully if `depth` is 0). */
   static flattenSDLevels(vector: Vector<unknown>, depth = 0): Vector<unknown> {
     let out = vector.clone();
     const level = depth > 0 ? depth : VectorUtils.nestedDepthSD(vector);
-    for (let i = 0; i < level; i++) out = VectorUtils.flatten(out);
+    // Bug fix: this called `flatten` (unlimited, fully recursive), which made
+    // every `depth >= 1` produce the same fully-flat result on the first
+    // iteration — silently ignoring `depth`. `flattenSD` only peels one level
+    // per call, which is what "by `depth` levels" actually requires.
+    for (let i = 0; i < level; i++) out = VectorUtils.flattenSD(out);
     return out;
   }
 
