@@ -73,6 +73,98 @@ test("Permutation compose and commute", () => {
   assert.equal(Permutation.commute(a, a.inverse()), true);
 });
 
+// ---- issue #40 perf-fix differential/regression tests -----------------------
+// Independent "naive" reference implementations mirroring the pre-fix
+// algorithms (O(n^2) dedupe + O(n) linear-scan apply for compose; O(p)
+// repeated composition for power), used to cross-check the fixed O(n) compose
+// and O(log p) power against known-correct-but-slow originals.
+
+function naiveApply<T>(domain: T[], coDomain: T[], element: T): T {
+  for (let i = 0; i < domain.length; i++) {
+    if (element === domain[i]) return coDomain[i] as T;
+  }
+  return element;
+}
+
+function naiveComposeReference<T>(sigma: Permutation<T>, tao: Permutation<T>): Permutation<T> {
+  const newDomain = sigma.domain.concat(tao.domain);
+  for (let i = 0; i < newDomain.length; i++) {
+    if (newDomain.lastIndexOf(newDomain[i] as T) !== i) {
+      newDomain.splice(newDomain.lastIndexOf(newDomain[i] as T), 1);
+      i--;
+    }
+  }
+  const newCoDomain = newDomain.map((x) =>
+    naiveApply(sigma.domain, sigma.coDomain, naiveApply(tao.domain, tao.coDomain, x)),
+  );
+  return new Permutation(newDomain, newCoDomain);
+}
+
+function naivePowerReference<T>(perm: Permutation<T>, pow: number): Permutation<T> {
+  if (pow === 0) return Permutation.Identity as Permutation<T>;
+  if (pow === -1) return perm.inverse();
+  let base = perm;
+  let p = pow;
+  if (pow < -1) {
+    base = perm.inverse();
+    p = -pow;
+  }
+  let result = base;
+  while (p > 1) {
+    result = naiveComposeReference(result, base);
+    p--;
+  }
+  return result;
+}
+
+test("Permutation.compose differential test against naive O(n^2) reference", () => {
+  // Simple deterministic PRNG so failures are reproducible without a fast-check dependency.
+  let seed = 42;
+  const rand = () => {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return seed / 0x7fffffff;
+  };
+  for (let trial = 0; trial < 30; trial++) {
+    const n = 3 + Math.floor(rand() * 6);
+    const domain = Array.from({ length: n }, (_, i) => i);
+    const shuffled1 = [...domain].sort(() => rand() - 0.5);
+    const shuffled2 = [...domain].sort(() => rand() - 0.5);
+    const sigma = new Permutation(domain, shuffled1);
+    const tao = new Permutation(domain, shuffled2);
+    const fast = Permutation.compose(sigma, tao);
+    const naive = naiveComposeReference(sigma, tao);
+    for (const x of domain) assert.equal(fast.apply(x), naive.apply(x), `compose mismatch at x=${x} (trial ${trial})`);
+    assert.deepEqual([...fast.domain].sort(), [...naive.domain].sort());
+  }
+});
+
+test("Permutation.power differential test against naive O(p) reference", () => {
+  const n = 7;
+  const domain = Array.from({ length: n }, (_, i) => i);
+  const coDomain = domain.map((x) => (x + 1) % n); // n-cycle
+  const perm = new Permutation(domain, coDomain);
+  for (const p of [0, 1, 2, 3, 5, 8, 13, 21, -1, -2, -5, -8]) {
+    const fast = perm.power(p);
+    const naive = naivePowerReference(perm, p);
+    for (const x of domain) assert.equal(fast.apply(x), naive.apply(x), `power(${p}) mismatch at x=${x}`);
+  }
+});
+
+test("perf regression: Permutation.power(10000) completes near-instantly via binary exponentiation (issue #40)", () => {
+  // Guards against reintroducing the O(p) repeated-composition bug: the old
+  // algorithm ran p-1 sequential compose() calls, taking multiple seconds for
+  // p in the tens of thousands at this permutation size. Binary exponentiation
+  // needs only ~log2(p) compose() calls.
+  const n = 50;
+  const domain = Array.from({ length: n }, (_, i) => i);
+  const coDomain = domain.map((x) => (x + 1) % n);
+  const perm = new Permutation(domain, coDomain);
+  const t0 = performance.now();
+  const result = perm.power(10000);
+  assert.ok(performance.now() - t0 < 500, "power(10000) should take O(log p) compositions, not O(p)");
+  assert.equal(result.apply(0), 10000 % n);
+});
+
 test("Cycle transpositions of a length <2 cycle is empty, not garbage (bug fix)", () => {
   assert.deepEqual(new Cycle(["x"]).transpositions(), []);
   assert.deepEqual(new Cycle([]).transpositions(), []);

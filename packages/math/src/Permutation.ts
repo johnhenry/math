@@ -15,6 +15,10 @@ import { NumberTheory } from "./NumberTheory.ts";
 export class Permutation<T = unknown> {
   private readonly _domain: T[];
   private readonly _coDomain: T[];
+  // Lazily-built domain -> codomain lookup, cached on first use. The instance is otherwise
+  // immutable (domain/coDomain are never mutated after construction), so this is safe to cache
+  // for the lifetime of the object.
+  private _lookup: Map<T, T> | null = null;
 
   constructor(input: T[], output: T[]) {
     if (input.length !== output.length) {
@@ -32,12 +36,18 @@ export class Permutation<T = unknown> {
     return [...this._coDomain];
   }
 
+  /** The domain -> codomain lookup map, built once (on first access) and reused thereafter. */
+  private get lookup(): Map<T, T> {
+    if (this._lookup === null) {
+      this._lookup = new Map(this._domain.map((d, i) => [d, this._coDomain[i] as T]));
+    }
+    return this._lookup;
+  }
+
   /** Map an element through the permutation (identity outside the domain). */
   apply(element: T): T {
-    for (let i = 0; i < this._domain.length; i++) {
-      if (element === this._domain[i]) return this._coDomain[i] as T;
-    }
-    return element;
+    const map = this.lookup;
+    return map.has(element) ? (map.get(element) as T) : element;
   }
 
   /** The inverse permutation (swap domain and codomain). */
@@ -45,7 +55,7 @@ export class Permutation<T = unknown> {
     return new Permutation(this.coDomain, this.domain);
   }
 
-  /** Raise the permutation to an integer power. */
+  /** Raise the permutation to an integer power, via binary exponentiation (`O(log p)` compositions). */
   power(pow: number): Permutation<T> {
     if (pow === 0) return Permutation.Identity as Permutation<T>;
     if (pow === 1) return this;
@@ -58,12 +68,14 @@ export class Permutation<T = unknown> {
       p = -pow;
     }
 
-    let result = base;
-    while (p > 1) {
-      result = Permutation.compose(result, base);
-      p--;
+    // Repeated squaring: result accumulates the product of base^(2^i) for each set bit of p.
+    let result: Permutation<T> | undefined;
+    while (p > 0) {
+      if (p % 2 === 1) result = result === undefined ? base : Permutation.compose(result, base);
+      p = Math.floor(p / 2);
+      if (p > 0) base = Permutation.compose(base, base);
     }
-    return result;
+    return result as Permutation<T>;
   }
 
   toString(): string {
@@ -108,13 +120,9 @@ export class Permutation<T = unknown> {
 
   /** Compose two permutations: `(sigma ∘ tao)(x) = sigma(tao(x))`. */
   static compose<T>(sigma: Permutation<T>, tao: Permutation<T>): Permutation<T> {
-    const newDomain = sigma.domain.concat(tao.domain);
-    for (let i = 0; i < newDomain.length; i++) {
-      if (newDomain.lastIndexOf(newDomain[i] as T) !== i) {
-        newDomain.splice(newDomain.lastIndexOf(newDomain[i] as T), 1);
-        i--;
-      }
-    }
+    // Set preserves insertion order and dedupes in O(n), matching the old O(n^2)
+    // lastIndexOf/splice loop's "first occurrence wins" semantics exactly.
+    const newDomain = Array.from(new Set(sigma.domain.concat(tao.domain)));
     const newCoDomain = newDomain.map((x) => sigma.apply(tao.apply(x)));
     return new Permutation(newDomain, newCoDomain);
   }
