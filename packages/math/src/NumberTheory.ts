@@ -144,6 +144,10 @@ export class NumberTheory {
   /** A single non-trivial factor of composite `n` via Pollard's rho (Brent). */
   static pollardRho(n: bigint | number): bigint {
     const num = big(n);
+    // n <= 1 has no non-trivial factor to find: `f(v) = (v*v+c) % 1n` collapses
+    // to 0 for every c, so `d = gcd(0, 1) = 1n` forever and the loop below never
+    // terminates. Reject degenerate inputs up front instead of hanging.
+    if (num <= 1n) throw new RangeError("NumberTheory.pollardRho: n must be greater than 1");
     if (num % 2n === 0n) return 2n;
     for (let c = 1n; ; c++) {
       let x = 2n;
@@ -162,6 +166,11 @@ export class NumberTheory {
   /** Full prime factorisation as sorted `[prime, exponent]` pairs. */
   static factorize(n: bigint | number): Array<[bigint, number]> {
     let num = babs(big(n));
+    // 0 has no well-defined prime factorization (every prime divides it, with
+    // no finite exponent) -- unlike 1, whose factorization is the empty
+    // product. Without this guard `0n % p === 0n` and `0n / p === 0n` forever,
+    // so the trial-division loop below never terminates.
+    if (num === 0n) throw new RangeError("NumberTheory.factorize: n must be non-zero");
     const counts = new Map<bigint, number>();
     const add = (p: bigint) => counts.set(p, (counts.get(p) ?? 0) + 1);
 
