@@ -127,10 +127,17 @@ export const accumulate =
       ((a as unknown as number) + (b as unknown as number)) as unknown as Acc,
     initial: Acc = 0 as unknown as Acc,
   ): Transducer<In, Acc> =>
-  (conjoin) =>
-  (init, item) => {
-    initial = func(initial, item);
-    return conjoin(init, initial);
+  (conjoin) => {
+    // Fresh per (conjoin) invocation -- i.e. per transduce run, matching
+    // every other stateful transducer in this file (take's `amount`,
+    // group's `partition`, etc). Mutating the outer `initial` parameter
+    // directly here would carry accumulated state over into the *next*
+    // transduce run that reuses this same accumulate(...) instance.
+    let accumulated = initial;
+    return (init, item) => {
+      accumulated = func(accumulated, item);
+      return conjoin(init, accumulated);
+    };
   };
 
 /**

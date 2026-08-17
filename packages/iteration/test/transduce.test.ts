@@ -57,6 +57,30 @@ test("transducer:accumulate", () => {
   assert.deepStrictEqual([...sum(original)], [10], "should accumulate changes in successive items");
 });
 
+// Regression: accumulate() mutated its outer `initial` parameter directly,
+// so that state carried over into the *next* transduce run reusing the
+// same accumulate(...) instance -- unlike every other stateful transducer
+// in this file (take/drop/group/etc), whose state resets per run.
+test("transducer:accumulate resets its running total on each separate transduce run (regression)", () => {
+  const runningSum = accumulate((a: number, b: number) => a + b, 0);
+  const pipeline = transduceSync(runningSum);
+
+  assert.deepStrictEqual([...pipeline([1, 2, 3])], [1, 3, 6], "first run should accumulate from a clean slate");
+  assert.deepStrictEqual(
+    [...pipeline([1, 2, 3])],
+    [1, 3, 6],
+    "second run reusing the same accumulate(...) instance must also start fresh, not continue from 6",
+  );
+
+  // Also true across two independently-built pipelines sharing one instance.
+  const secondPipeline = transduceSync(runningSum);
+  assert.deepStrictEqual(
+    [...secondPipeline([10, 20])],
+    [10, 30],
+    "a freshly-built pipeline reusing the same accumulate(...) instance must also start fresh",
+  );
+});
+
 // Regression: the old numeric `reject(limit)` (skip first N items) was
 // renamed to `drop(limit)` to free up `reject` for a predicate-based
 // complement to `filter`, matching Python's itertools.filterfalse.

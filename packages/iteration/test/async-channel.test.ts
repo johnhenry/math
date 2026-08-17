@@ -107,6 +107,31 @@ test("break does not overtake blocked producers", async () => {
   assert.deepStrictEqual(seen, [1, 2], "blocked item must arrive before CHANNEL_END");
 });
 
+// Regression: put() awaited `transform(item)` before reserving its place in
+// the channel, so whichever concurrent put() call's transform happened to
+// resolve first won the race to land in the cache -- even if it was called
+// *after* another put() whose transform simply took longer. Delivery order
+// must track call order, not transform-resolution order.
+test("concurrent put() calls with varying transform delays deliver in call order (FIFO)", async () => {
+  const channel = new AsyncChannel<number>({
+    // The first-called item (1) has the slowest transform, and the
+    // last-called item (3) resolves instantly -- a race-prone
+    // implementation would let 3 land in the cache before 1 or 2.
+    transform: async (item: number) => {
+      await pause(item === 1 ? 30 : item === 2 ? 15 : 0);
+      return item;
+    },
+  });
+  const puts = [channel.put(1), channel.put(2), channel.put(3)];
+  await Promise.all(puts);
+
+  const seen: number[] = [];
+  seen.push((await channel.take()) as number);
+  seen.push((await channel.take()) as number);
+  seen.push((await channel.take()) as number);
+  assert.deepStrictEqual(seen, [1, 2, 3], "values must land in put() call order, not transform-resolution order");
+});
+
 test("CHANNEL_END is exposed and take() surfaces it after break()", async () => {
   const channel = new AsyncChannel<number>();
   await channel.break();

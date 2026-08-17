@@ -40,14 +40,23 @@ export const teeSync =
     };
 
     return buffers.map(function* (_, i) {
-      for (;;) {
-        const x = next(i);
+      try {
+        for (;;) {
+          const x = next(i);
 
-        if (x === DONE) {
-          break;
+          if (x === DONE) {
+            break;
+          }
+
+          yield x;
         }
-
-        yield x;
+      } finally {
+        // Runs on natural completion *and* on early exit (e.g. a consumer
+        // `break`s out of a `for...of`, which calls this generator's own
+        // .return(), which runs this finally block) -- without it, an
+        // early-exiting consumer left the shared source iterator (and
+        // whatever resource it holds) never closed.
+        source.return?.();
       }
     });
   };
@@ -76,14 +85,20 @@ export const teeAsync =
     };
 
     return buffers.map(async function* (_, i) {
-      for (;;) {
-        const x = await next(i);
+      try {
+        for (;;) {
+          const x = await next(i);
 
-        if (x === DONE) {
-          break;
+          if (x === DONE) {
+            break;
+          }
+
+          yield x;
         }
-
-        yield x;
+      } finally {
+        // See teeSync's matching finally: runs on natural completion *and*
+        // on early exit, so the shared source iterator is always closed.
+        await source.return?.();
       }
     });
   };

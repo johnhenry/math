@@ -41,3 +41,45 @@ test("teeSync/teeAsync should support more than 2 outputs", async () => {
   await eventualEqual(ab!, original, "teeAsync 3-way: 2nd output");
   await eventualEqual(ac!, original, "teeAsync 3-way: 3rd output");
 });
+
+// Regression: neither generator called source.return() when a consumer
+// stopped iterating early (e.g. `break`), leaking the underlying
+// iterator/resource. A `for...of`/`for await...of` `break` calls the
+// generator's own .return(), which must now propagate to the shared source.
+test("teeSync calls source.return() when a consumer exits early", () => {
+  let returnCalls = 0;
+  let pulled = 0;
+  const source: Iterator<number> = {
+    next: () => (pulled < 5 ? { value: pulled++, done: false } : { value: undefined, done: true }),
+    return(value?: unknown) {
+      returnCalls++;
+      return { value, done: true } as IteratorResult<number>;
+    },
+  };
+  const iterable: Iterable<number> = { [Symbol.iterator]: () => source };
+
+  const [stream] = teeSync(1)(iterable);
+  for (const item of stream!) {
+    if (item === 1) break; // exit before the source is exhausted
+  }
+  assert.strictEqual(returnCalls, 1, "breaking out of iteration early must call source.return()");
+});
+
+test("teeAsync calls source.return() when a consumer exits early", async () => {
+  let returnCalls = 0;
+  let pulled = 0;
+  const source: AsyncIterator<number> = {
+    next: async () => (pulled < 5 ? { value: pulled++, done: false } : { value: undefined, done: true }),
+    return: async (value?: unknown) => {
+      returnCalls++;
+      return { value, done: true } as IteratorResult<number>;
+    },
+  };
+  const iterable: AsyncIterable<number> = { [Symbol.asyncIterator]: () => source };
+
+  const [stream] = teeAsync(1)(iterable);
+  for await (const item of stream!) {
+    if (item === 1) break; // exit before the source is exhausted
+  }
+  assert.strictEqual(returnCalls, 1, "breaking out of async iteration early must call source.return()");
+});

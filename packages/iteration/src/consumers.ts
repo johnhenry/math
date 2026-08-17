@@ -43,6 +43,14 @@ const maybeAbortable = <T>(iterable: AnyAsyncIterable<T>, signal?: AbortSignal):
   signal ? abortable(iterable, signal) : iterable;
 
 /**
+ * True for a numeric NaN key. `NaN < x` and `NaN > x` are always false, so
+ * without an explicit check a NaN key silently falls out of every
+ * comparison instead of poisoning the result -- see minSync/maxSync.
+ * @ignore
+ */
+const isNaNKey = (key: unknown): boolean => typeof key === "number" && Number.isNaN(key);
+
+/**
  * True if any item satisfies predicate. Short-circuits on the first match.
  * @kind function
  * @name someSync
@@ -304,6 +312,9 @@ export const quantifyAsync = async <T>(
  * if the iterable is empty. Necessarily consumes the entire iterable.
  * Mirrors Python's builtin min(iterable, key=..., default=...), but
  * returns undefined rather than throwing when empty and no default is given.
+ * A NaN key anywhere in the iterable poisons the result to NaN, matching
+ * `Math.min`'s own NaN-poisoning convention (rather than silently dropping
+ * out of every comparison and returning an unrelated wrong item).
  * @kind function
  * @name minSync
  */
@@ -314,19 +325,23 @@ export const minSync = <T, D = undefined>(
 ): T | D => {
   let best: T | undefined, bestKey: unknown;
   let found = false;
+  let sawNaN = false;
   for (const item of iterable) {
     const key = keyFn(item);
+    if (isNaNKey(key)) sawNaN = true;
     if (!found || (key as number) < (bestKey as number)) {
       best = item;
       bestKey = key;
       found = true;
     }
   }
+  if (sawNaN) return NaN as unknown as T | D;
   return found ? (best as T) : (defaultValue as D);
 };
 
 /**
- * Asynchronous dual of minSync; keyFn may be async.
+ * Asynchronous dual of minSync; keyFn may be async. Same NaN-poisoning
+ * convention as minSync.
  * @kind function
  * @name minAsync
  */
@@ -338,14 +353,17 @@ export const minAsync = async <T, D = undefined>(
 ): Promise<T | D> => {
   let best: T | undefined, bestKey: unknown;
   let found = false;
+  let sawNaN = false;
   for await (const item of maybeAbortable(iterable, signal)) {
     const key = await keyFn(item);
+    if (isNaNKey(key)) sawNaN = true;
     if (!found || (key as number) < (bestKey as number)) {
       best = item;
       bestKey = key;
       found = true;
     }
   }
+  if (sawNaN) return NaN as unknown as T | D;
   return found ? (best as T) : (defaultValue as D);
 };
 
@@ -353,7 +371,7 @@ export const minAsync = async <T, D = undefined>(
  * The item with the maximum key (default: the item itself), or defaultValue
  * if the iterable is empty. Mirrors Python's builtin
  * max(iterable, key=..., default=...); see minSync for the
- * undefined-vs-throw divergence.
+ * undefined-vs-throw divergence and the NaN-poisoning convention.
  * @kind function
  * @name maxSync
  */
@@ -364,19 +382,23 @@ export const maxSync = <T, D = undefined>(
 ): T | D => {
   let best: T | undefined, bestKey: unknown;
   let found = false;
+  let sawNaN = false;
   for (const item of iterable) {
     const key = keyFn(item);
+    if (isNaNKey(key)) sawNaN = true;
     if (!found || (key as number) > (bestKey as number)) {
       best = item;
       bestKey = key;
       found = true;
     }
   }
+  if (sawNaN) return NaN as unknown as T | D;
   return found ? (best as T) : (defaultValue as D);
 };
 
 /**
- * Asynchronous dual of maxSync; keyFn may be async.
+ * Asynchronous dual of maxSync; keyFn may be async. Same NaN-poisoning
+ * convention as minSync.
  * @kind function
  * @name maxAsync
  */
@@ -388,13 +410,16 @@ export const maxAsync = async <T, D = undefined>(
 ): Promise<T | D> => {
   let best: T | undefined, bestKey: unknown;
   let found = false;
+  let sawNaN = false;
   for await (const item of maybeAbortable(iterable, signal)) {
     const key = await keyFn(item);
+    if (isNaNKey(key)) sawNaN = true;
     if (!found || (key as number) > (bestKey as number)) {
       best = item;
       bestKey = key;
       found = true;
     }
   }
+  if (sawNaN) return NaN as unknown as T | D;
   return found ? (best as T) : (defaultValue as D);
 };
