@@ -132,7 +132,10 @@ test("perf regression: modes/flatten/flattenSD/recursiveSequence stay roughly li
   let t0 = performance.now();
   const modesResult = VU.modes(modesInput);
   assert.ok(performance.now() - t0 < 1000, "modes should be roughly linear");
-  assert.deepEqual([...modesResult].sort((a, b) => a - b), Array.from({ length: 1500 }, (_, i) => i));
+  assert.deepEqual(
+    [...modesResult].sort((a, b) => a - b),
+    Array.from({ length: 1500 }, (_, i) => i),
+  );
 
   const nested = Vector.fromArray(Array.from({ length: n }, (_, i) => v(i, i + 1)));
   t0 = performance.now();
