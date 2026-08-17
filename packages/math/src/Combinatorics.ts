@@ -98,12 +98,30 @@ export class Combinatorics {
     return dp[K];
   }
 
+  /**
+   * Full row of Stirling numbers of the second kind: `S(n, j)` for every `j` from `0` to `n`,
+   * built in a single `O(n²)` DP pass (same recurrence as {@link stirlingSecond}, but computed
+   * once for all columns instead of re-running the whole table per column).
+   */
+  private static stirlingSecondRow(n: number): bigint[] {
+    const dp: bigint[] = new Array(n + 1).fill(0n);
+    dp[0] = 1n; // S(0, 0) = 1
+    for (let i = 1; i <= n; i++) {
+      for (let j = i; j >= 1; j--) {
+        dp[j] = BigInt(j) * dp[j] + dp[j - 1];
+      }
+      dp[0] = 0n; // S(i, 0) = 0 for i > 0
+    }
+    return dp;
+  }
+
   /** The `n`th Bell number — the total number of partitions of an `n`-set (`Σₖ S(n, k)`). */
   static bell(n: bigint | number): bigint {
     const N = Number(big(n));
     if (N < 0) throw new RangeError("bell is undefined for negative numbers");
+    const row = Combinatorics.stirlingSecondRow(N);
     let total = 0n;
-    for (let k = 0; k <= N; k++) total += Combinatorics.stirlingSecond(N, k);
+    for (let k = 0; k <= N; k++) total += row[k] as bigint;
     return total;
   }
 
