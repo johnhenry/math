@@ -1,0 +1,56 @@
+{
+  "name": "mallory-math-prototype-patch",
+  "version": "0.1.0",
+  "description": "OPT-IN, collision-checked Number.prototype patch adding mallory-math's ComplexNumber fluent arithmetic to plain numbers. Never merged into core mallory-math -- see the README before using.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./global": {
+      "types": "./dist/global.d.ts",
+      "import": "./dist/global.js"
+    }
+  },
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "prepare": "npm run build",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test --experimental-strip-types 'test/**/*.test.ts'",
+    "lint": "biome lint .",
+    "format": "biome format --write .",
+    "check": "biome check .",
+    "check:fix": "biome check --write .",
+    "prepublishOnly": "npm run typecheck && npm run check && npm test && npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/johnhenry/mallory.git",
+    "directory": "packages/math-prototype-patch"
+  },
+  "keywords": [
+    "complex-number",
+    "number-prototype",
+    "monkey-patch",
+    "typescript"
+  ],
+  "author": "John Henry",
+  "license": "MIT",
+  "dependencies": {
+    "mallory-math": "^0.11.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.9.0"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  }
+}
