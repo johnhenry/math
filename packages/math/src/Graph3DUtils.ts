@@ -72,10 +72,9 @@ export class Graph3DUtils {
     yStep = 1,
   ): Vector<Vector<T>> {
     const xValues = VectorUtils.arithmeticSequence(xMin, xMax, xStep);
-    return VectorUtils.transform(xValues, (x) => {
-      const yValues = VectorUtils.arithmeticSequence(yMin, yMax, yStep);
-      return VectorUtils.transform(yValues, (y) => binaryOperation(x, y));
-    });
+    // yValues is loop-invariant across the x loop — compute it once, not per x.
+    const yValues = VectorUtils.arithmeticSequence(yMin, yMax, yStep);
+    return VectorUtils.transform(xValues, (x) => VectorUtils.transform(yValues, (y) => binaryOperation(x, y)));
   }
 
   /**
@@ -89,10 +88,15 @@ export class Graph3DUtils {
     maxes: readonly number[],
     steps: readonly number[],
   ): Vector<unknown> {
+    // Each dimension's sequence of values is loop-invariant across the recursion
+    // (it depends only on `dim`, not on `prefix`) — compute all of them once
+    // up front instead of recomputing per recursive call.
+    const dimValues = mins.map((min, dim) =>
+      VectorUtils.arithmeticSequence(min, maxes[dim] as number, steps[dim] as number),
+    );
     const recurse = (dim: number, prefix: number[]): unknown => {
       if (dim >= mins.length) return nOperation(prefix);
-      const values = VectorUtils.arithmeticSequence(mins[dim] as number, maxes[dim] as number, steps[dim] as number);
-      return VectorUtils.transform(values, (v) => recurse(dim + 1, [...prefix, v]));
+      return VectorUtils.transform(dimValues[dim] as Vector<number>, (v) => recurse(dim + 1, [...prefix, v]));
     };
     return recurse(0, []) as Vector<unknown>;
   }

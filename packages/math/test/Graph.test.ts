@@ -4,6 +4,7 @@ import { Graph3DUtils } from "../src/Graph3DUtils.ts";
 import { GraphUtils } from "../src/GraphUtils.ts";
 import { Polygon } from "../src/Polygon.ts";
 import { Vector } from "../src/Vector.ts";
+import { VectorUtils } from "../src/VectorUtils.ts";
 
 const pt = (...xs: number[]) => Vector.fromArray(xs);
 const mat = <T>(rows: T[][]) => Vector.fromArray(rows.map((r) => Vector.fromArray(r)));
@@ -79,6 +80,42 @@ test("polygonToMesh3D fan-triangulates", () => {
 test("create3DPrism produces a 12-face tube", () => {
   const mesh = Graph3DUtils.create3DPrism(pt(0, 0, 0), pt(1, 0, 0));
   assert.equal(mesh.faces.length, 12);
+});
+
+test("dualRangeVector computes its arithmetic sequences once each (perf regression)", () => {
+  // Regression test for issue #41: dualRangeVector used to recompute the
+  // yValues sequence inside the x loop instead of hoisting it out, so a
+  // single call did xCount+1 arithmeticSequence calls instead of 2.
+  let calls = 0;
+  const original = VectorUtils.arithmeticSequence;
+  VectorUtils.arithmeticSequence = ((...args: Parameters<typeof original>) => {
+    calls++;
+    return original(...args);
+  }) as typeof VectorUtils.arithmeticSequence;
+  try {
+    Graph3DUtils.dualRangeVector((x, y) => x + y, 0, 50, 1, 0, 50, 1);
+  } finally {
+    VectorUtils.arithmeticSequence = original;
+  }
+  assert.equal(calls, 2, "exactly one call for xValues and one for yValues, regardless of grid size");
+});
+
+test("nRangeVector computes each dimension's sequence once (perf regression)", () => {
+  // Regression test for issue #41: nRangeVector used to recompute each
+  // dimension's arithmeticSequence inside the recursion (once per sibling
+  // branch) instead of once per dimension up front.
+  let calls = 0;
+  const original = VectorUtils.arithmeticSequence;
+  VectorUtils.arithmeticSequence = ((...args: Parameters<typeof original>) => {
+    calls++;
+    return original(...args);
+  }) as typeof VectorUtils.arithmeticSequence;
+  try {
+    Graph3DUtils.nRangeVector((coords) => coords.reduce((a, b) => a + b, 0), [0, 0, 0], [10, 10, 10], [1, 1, 1]);
+  } finally {
+    VectorUtils.arithmeticSequence = original;
+  }
+  assert.equal(calls, 3, "exactly one call per dimension, regardless of how many grid points that produces");
 });
 
 test("pointMatrixToMesh3D uses alpha1 for the first sweep (bug fix)", () => {

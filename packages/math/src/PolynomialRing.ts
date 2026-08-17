@@ -130,34 +130,36 @@ export class PolynomialRing<T> {
     return this.makeMonic(x);
   }
 
-  /** `n` copies of the structure's `one`, added together (`n` as an element of the structure). */
-  private natural(n: number): T {
-    let result = this.structure.zero;
-    for (let k = 0; k < n; k++) result = this.structure.add(result, this.structure.one);
-    return result;
-  }
-
-  /** The derivative polynomial (`i·c_i`, via repeated addition — well-defined over any ring). */
+  /**
+   * The derivative polynomial (`i·c_i`, well-defined over any ring: `i` is
+   * built up as a running "`n` copies of the structure's `one`, added
+   * together" accumulator rather than being reconstructed from scratch for
+   * each coefficient — that would cost O(i) additions per coefficient, i.e.
+   * O(n²) additions overall for a degree-n polynomial).
+   */
   derivative(p: T[]): T[] {
     const trimmed = this.trim(p);
     const out: T[] = [];
+    let n = this.structure.zero; // accumulates to `i` as an element of the structure
     for (let i = 1; i < trimmed.length; i++) {
-      let term = this.structure.zero;
-      for (let k = 0; k < i; k++) term = this.structure.add(term, trimmed[i] as T);
-      out.push(term);
+      n = this.structure.add(n, this.structure.one);
+      out.push(this.structure.multiply(n, trimmed[i] as T));
     }
     return this.trim(out);
   }
 
   /**
    * An antiderivative with zero constant of integration (`c_i / (i+1)`, via the
-   * structure's `reciprocal`).
+   * structure's `reciprocal`). `i+1` is built up as a running accumulator (see
+   * {@link derivative}) instead of being reconstructed from scratch per term.
    */
   antiderivative(p: T[]): T[] {
     const trimmed = this.trim(p);
     const out: T[] = [this.structure.zero];
+    let n = this.structure.zero; // accumulates to `i+1` as an element of the structure
     for (let i = 0; i < trimmed.length; i++) {
-      out.push(this.structure.multiply(trimmed[i] as T, this.structure.reciprocal(this.natural(i + 1))));
+      n = this.structure.add(n, this.structure.one);
+      out.push(this.structure.multiply(trimmed[i] as T, this.structure.reciprocal(n)));
     }
     return this.trim(out);
   }

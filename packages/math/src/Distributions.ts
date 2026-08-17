@@ -139,14 +139,15 @@ export class Distributions {
 
   static binomial(n: number, p: number, rng: () => number = Math.random): DiscreteDistribution {
     const logChoose = (k: number) => SF.lnGamma(n + 1) - SF.lnGamma(k + 1) - SF.lnGamma(n - k + 1);
+    const pmf = (k: number): number =>
+      k < 0 || k > n || !Number.isInteger(k) ? 0 : Math.exp(logChoose(k) + k * Math.log(p) + (n - k) * Math.log(1 - p));
     return {
-      pmf: (k) =>
-        k < 0 || k > n || !Number.isInteger(k)
-          ? 0
-          : Math.exp(logChoose(k) + k * Math.log(p) + (n - k) * Math.log(1 - p)),
+      pmf,
       cdf: (k) => {
+        // Reuse the single pmf closure above instead of rebuilding a whole new
+        // binomial distribution (and its logChoose closure) on every step.
         let s = 0;
-        for (let i = 0; i <= Math.floor(k); i++) s += Distributions.binomial(n, p).pmf(i);
+        for (let i = 0; i <= Math.floor(k); i++) s += pmf(i);
         return Math.min(1, s);
       },
       mean: () => n * p,
