@@ -73,6 +73,15 @@ test("Permutation compose and commute", () => {
   assert.equal(Permutation.commute(a, a.inverse()), true);
 });
 
+test("Cycle transpositions of a length <2 cycle is empty, not garbage (bug fix)", () => {
+  assert.deepEqual(new Cycle(["x"]).transpositions(), []);
+  assert.deepEqual(new Cycle([]).transpositions(), []);
+  assert.deepEqual(new Cycle(["x"]).transpositionsAlt(), []);
+  assert.deepEqual(new Cycle([]).transpositionsAlt(), []);
+  // sanity check: a real cycle still decomposes normally
+  assert.equal(new Cycle([1, 2, 3]).transpositions().length, 2);
+});
+
 test("Cycle <-> Permutation round trip", () => {
   const c = new Cycle([1, 2, 3]);
   const p = c.toPermutation();

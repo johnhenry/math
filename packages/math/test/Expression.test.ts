@@ -20,6 +20,16 @@ test("Environment: mutable and immutable bindings", () => {
   assert.equal(env.retrieve("unknown"), "unknown", "unknown key resolves to itself");
 });
 
+test("Environment: retrieveDeep on an empty environment falls back to symbolic passthrough (bug fix)", () => {
+  const env = new Environment();
+  assert.equal(env.retrieveDeep("x"), "x");
+  // assignDeep/assignImmutableDeep call retrieveDeep internally, so this was
+  // silently a no-op on a fresh environment's very first assignDeep call.
+  assert.equal(env.assignDeep("x", "y"), true);
+  assert.equal(env.existKey("x"), true);
+  assert.equal(env.retrieve("x"), "y");
+});
+
 test("Environment: assigning undefined removes; clone is independent", () => {
   const env = new Environment();
   env.assign("a", 1);

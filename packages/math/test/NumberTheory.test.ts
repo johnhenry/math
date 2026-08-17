@@ -170,6 +170,20 @@ test("orbit-stabilizer theorem holds for D4 acting on the 4 vertices of a square
   assert.equal(stab.length, 2, "identity + the reflection fixing vertex 0");
 });
 
+test("closure of the empty generating set is the trivial subgroup [identity] (bug fix)", () => {
+  const eq = (a: number, b: number) => a === b;
+  // Without an identity to seed from, there's nothing to recover it from.
+  assert.deepEqual(
+    GroupTheory.closure([], (a: number, b: number) => a + b, eq),
+    [],
+  );
+  // Supplying identity explicitly yields the trivial subgroup.
+  assert.deepEqual(
+    GroupTheory.closure([], (a: number, b: number) => a + b, eq, 0),
+    [0],
+  );
+});
+
 test("GroupTheory composes with a Structure (units of Z/7)", () => {
   const gf7 = Structure.integersModulo(7);
   const units = [1, 2, 3, 4, 5, 6];

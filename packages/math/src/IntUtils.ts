@@ -138,37 +138,32 @@ export class IntUtils {
     return negative ? `negative ${joined}` : joined;
   }
 
-  /** Ordinal words: "twenty-first", "one-hundredth", … */
+  // Irregular ordinal suffixes for the last word of a words-string (one..twelve
+  // don't all follow the plain "+th" rule: eight/nine/twelve drop a letter).
+  private static readonly ORDINAL_IRREGULARS: Record<string, string> = {
+    one: "first",
+    two: "second",
+    three: "third",
+    four: "fourth",
+    five: "fifth",
+    eight: "eighth",
+    nine: "ninth",
+    twelve: "twelfth",
+  };
+
+  /** Ordinal words: "twenty-first", "one-hundredth", "twentieth", "eighth", … */
   static toWordsOrdinal(num: number | string): string {
     const originalString = IntUtils.toWords(num);
-    let numString = originalString;
+    const lastHyphen = originalString.lastIndexOf("-");
+    const prefix = lastHyphen === -1 ? "" : originalString.substring(0, lastHyphen + 1);
+    const lastWord = lastHyphen === -1 ? originalString : originalString.substring(lastHyphen + 1);
 
-    const lastWord = numString.substr(numString.lastIndexOf("-"));
-    numString = numString.substring(0, numString.lastIndexOf("-"));
-    switch (lastWord) {
-      case "-one":
-        return `${numString}-first`;
-      case "-two":
-        return `${numString}-second`;
-      case "-three":
-        return `${numString}-third`;
-      case "-four":
-        return `${numString}-fourth`;
-      case "-five":
-        return `${numString}-fifth`;
-    }
-    switch (originalString) {
-      case "one":
-        return `${numString}first`;
-      case "two":
-        return `${numString}second`;
-      case "three":
-        return `${numString}third`;
-      case "four":
-        return `${numString}fourth`;
-      case "five":
-        return `${numString}fifth`;
-    }
+    const irregular = IntUtils.ORDINAL_IRREGULARS[lastWord];
+    if (irregular) return `${prefix}${irregular}`;
+
+    // Tens words (twenty, thirty, … ninety) take "-ieth" in place of the "y".
+    if (lastWord.endsWith("y")) return `${prefix}${lastWord.slice(0, -1)}ieth`;
+
     return `${originalString}th`;
   }
 

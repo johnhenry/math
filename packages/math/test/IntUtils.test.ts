@@ -51,6 +51,22 @@ test("toWordsOrdinal", () => {
   assert.equal(IntUtils.toWordsOrdinal(23), "twenty-third");
 });
 
+test("toWordsOrdinal: irregular suffixes for eight/nine/twelve (bug fix)", () => {
+  assert.equal(IntUtils.toWordsOrdinal(8), "eighth");
+  assert.equal(IntUtils.toWordsOrdinal(9), "ninth");
+  assert.equal(IntUtils.toWordsOrdinal(12), "twelfth");
+  assert.equal(IntUtils.toWordsOrdinal(28), "twenty-eighth");
+  assert.equal(IntUtils.toWordsOrdinal(108), "one-hundred-eighth");
+  assert.equal(IntUtils.toWordsOrdinal(112), "one-hundred-twelfth");
+});
+
+test("toWordsOrdinal: tens words take -ieth, not -yth (bug fix)", () => {
+  assert.equal(IntUtils.toWordsOrdinal(20), "twentieth");
+  assert.equal(IntUtils.toWordsOrdinal(30), "thirtieth");
+  assert.equal(IntUtils.toWordsOrdinal(90), "ninetieth");
+  assert.equal(IntUtils.toWordsOrdinal(120), "one-hundred-twentieth");
+});
+
 test("toWordsOrdinalLazy strips a leading one-", () => {
   assert.equal(IntUtils.toWordsOrdinalLazy(100), "hundredth");
 });

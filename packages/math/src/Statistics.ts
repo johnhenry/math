@@ -35,7 +35,10 @@ export function maximum(list: RVec): number {
 
 export function percentile(list: RVec, n: number): number {
   const ordered = sort(list);
-  const theIndex = n * (ordered.length + 1);
+  // Clamp to the valid 1-based rank range [1, length]: the raw n*(length+1)
+  // formula lands on 0 (n=0) or length+1 (n=1), one step outside the array on
+  // each end, so percentile 0/1 (min/max) would otherwise index out of bounds.
+  const theIndex = Math.min(Math.max(n * (ordered.length + 1), 1), ordered.length);
   if (theIndex === Math.floor(theIndex)) {
     return ordered[theIndex - 1] as number;
   }
