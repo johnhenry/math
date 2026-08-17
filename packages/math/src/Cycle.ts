@@ -72,12 +72,10 @@ export class Cycle<T = unknown> {
 
   /** Decompose into a product of adjacent transpositions. */
   transpositions(): Array<Cycle<T>> {
+    // A cycle of length <= 1 (a fixed point / the identity) has no
+    // transpositions -- there's nothing here to seed a fake Cycle<T> from.
+    if (this.length < 2) return [];
     const out: Array<Cycle<T>> = [];
-    if (this.length < 2) {
-      out.push(new Cycle([0, 1] as unknown as T[]));
-      out.push(new Cycle([1, 0] as unknown as T[]));
-      return out;
-    }
     for (let i = 0; i < this.length - 1; i++) {
       out.push(new Cycle([this._elements[i] as T, this._elements[i + 1] as T]));
     }
@@ -86,12 +84,8 @@ export class Cycle<T = unknown> {
 
   /** An alternate transposition decomposition (all sharing the last element). */
   transpositionsAlt(): Array<Cycle<T>> {
+    if (this.length < 2) return [];
     const out: Array<Cycle<T>> = [];
-    if (this.length < 2) {
-      out.push(new Cycle([0, 1] as unknown as T[]));
-      out.push(new Cycle([1, 0] as unknown as T[]));
-      return out;
-    }
     for (let i = 0; i < this.length - 1; i++) {
       out.push(new Cycle([this._elements[this.length - 2 - i] as T, this._elements[this.length - 1] as T]));
     }

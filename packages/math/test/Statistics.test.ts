@@ -12,6 +12,7 @@ import {
   minimum,
   outliers,
   outliersRemoved,
+  percentile,
   product,
   sort,
   standardDeviation,
@@ -29,6 +30,16 @@ test("sort is numeric (bug fix) so order stats are correct", () => {
   assert.equal(minimum(data), 1);
   assert.equal(maximum(data), 33);
   assert.equal(median(v(3, 1, 2)), 2);
+});
+
+test("percentile(list, 0) and percentile(list, 1) return min/max, not undefined (bug fix)", () => {
+  const data = v(3, 1, 2, 4);
+  assert.equal(percentile(data, 0), minimum(data));
+  assert.equal(percentile(data, 1), maximum(data));
+  assert.equal(percentile(data, 0), 1);
+  assert.equal(percentile(data, 1), 4);
+  // interior percentiles are unaffected by the boundary clamp
+  assert.equal(percentile(data, 0.5), median(data));
 });
 
 test("sum / product / mean", () => {

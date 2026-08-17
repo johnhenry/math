@@ -102,7 +102,11 @@ export class Environment {
   /** Follow chains of string references to the deepest concrete value. */
   retrieveDeep(key: string): unknown {
     let previous = this.retrieve(key);
-    for (let i = 0; i < this.size; i++) {
+    // <= (not <): the initial `retrieve` above already consumes one lookup
+    // that isn't tied to a loop iteration, so even an empty environment
+    // (size 0) must still get one pass to notice `previous === key` and
+    // return the symbolic passthrough instead of falling through below.
+    for (let i = 0; i <= this.size; i++) {
       if (previous === key) return key;
       if (typeof previous !== "string" || previous === this.retrieve(previous)) return previous;
       previous = this.retrieve(previous);
