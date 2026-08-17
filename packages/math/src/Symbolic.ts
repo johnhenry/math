@@ -414,6 +414,20 @@ export class DegenerateOdeError extends Error {
 }
 
 /**
+ * Thrown by {@link Symbolic.solve} when `expr` is identically zero (e.g.
+ * `solve("0")`) -- every real number is a solution. Distinct from `[]`,
+ * which means "verified no real solution" (e.g. `x^2 + 1`).
+ */
+export class InfiniteSolutionsError extends Error {
+  constructor(
+    message = "solve: the expression is identically zero -- every real number is a solution (infinitely many), not none.",
+  ) {
+    super(message);
+    this.name = "InfiniteSolutionsError";
+  }
+}
+
+/**
  * Result of {@link Symbolic.solveOdeClosedForm}. When the implicit relation
  * produced by the chosen method (H(y) = G(x) + C, or the linear-ODE
  * analog) can be algebraically solved for `y`, `explicit` is `true` and
@@ -539,8 +553,9 @@ export class Symbolic {
       return at(upper) - at(lower);
     } catch (err) {
       if (!(err instanceof NotIntegrableError)) throw err;
-      const f = compileExpr(e);
-      return Numerical.adaptiveSimpson((val: number) => f({ ...env, [variable]: val }), lower, upper);
+      // `e` hasn't changed since `probe` was compiled above for the
+      // singularity check, so reuse it instead of recompiling.
+      return Numerical.adaptiveSimpson((val: number) => probe({ ...env, [variable]: val }), lower, upper);
     }
   }
 
@@ -857,6 +872,9 @@ export class Symbolic {
    *
    * @throws if `expr` isn't a polynomial in `variable` of degree ≤ 6, or if a
    *   degree ≥ 3 factor has no rational root to deflate on.
+   * @throws {InfiniteSolutionsError} if `expr` is identically zero (e.g.
+   *   `solve("0")`) -- every real number is a solution, a different result
+   *   shape from `[]` (which means "verified no real solution").
    */
   static solve(expr: Expr | string, variable = "x"): Expr[] {
     const e = typeof expr === "string" ? Symbolic.parse(expr) : expr;
@@ -3910,7 +3928,18 @@ function solvePolynomial(coeffsIn: number[]): Expr[] {
   const coeffs = [...coeffsIn];
   while (coeffs.length > 1 && Math.abs(coeffs[coeffs.length - 1]) < 1e-9) coeffs.pop();
   const n = coeffs.length - 1;
-  if (n <= 0) return [];
+  if (n <= 0) {
+    // Degree collapsed to a constant (or the input was empty). If that
+    // remaining constant is genuinely nonzero, "constant = 0" has no real
+    // solution -- [] is correct. But if it's ~0 too, every coefficient of
+    // the original polynomial was ~0 (e.g. solve("0")): the equation is
+    // identically true, so every real number is a solution -- [] can't
+    // represent that, so signal it distinctly.
+    if (coeffs.length === 0 || Math.abs(coeffs[0]) < 1e-9) {
+      throw new InfiniteSolutionsError();
+    }
+    return [];
+  }
   if (n === 1) {
     const [c0, c1] = coeffs;
     return [toExactExpr(-c0 / c1)];

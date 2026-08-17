@@ -96,6 +96,7 @@ export {
   type Expr,
   FUNCTION_NAMES,
   type FuncName,
+  InfiniteSolutionsError,
   IntegrationSingularityError,
   NoClosedFormError,
   NonLinearSystemError,

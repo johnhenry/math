@@ -5,6 +5,7 @@ import { Rational } from "../src/Rational.ts";
 import { Structure } from "../src/Structure.ts";
 import {
   DegenerateOdeError,
+  InfiniteSolutionsError,
   IntegrationSingularityError,
   NoClosedFormError,
   NonLinearSystemError,
@@ -930,6 +931,24 @@ test("solve verifies every root actually zeroes the polynomial", () => {
 
 test("solve rejects non-polynomial expressions", () => {
   assert.throws(() => Symbolic.solve("sin(x)"));
+});
+
+test("solve distinguishes identically-zero (infinite solutions) from genuinely unsolvable ([])", () => {
+  // "0 = 0" is true for every x -- infinitely many solutions, not zero.
+  // This must NOT be conflated with the [] that x^2+1 legitimately returns
+  // (verified no real root exists).
+  assert.throws(() => Symbolic.solve("0"), InfiniteSolutionsError);
+  // Anything that simplifies to identically zero, not just the literal "0".
+  assert.throws(() => Symbolic.solve("x - x"), InfiniteSolutionsError);
+  assert.throws(() => Symbolic.solve("0*x"), InfiniteSolutionsError);
+  // An algebraic identity that only simplifies to identically-zero (not
+  // literally typed as "0") -- the case from issue #42.
+  assert.throws(() => Symbolic.solve("(x+1)^2 - x^2 - 2*x - 1"), InfiniteSolutionsError);
+
+  // Contrast: a nonzero constant ("5 = 0") has no solution at all -- still [].
+  assert.deepEqual(Symbolic.solve("5"), []);
+  // Contrast: genuinely no real root (complex roots only) -- still [].
+  assert.deepEqual(Symbolic.solve("x^2 + 1"), []);
 });
 
 test("factor extracts linear factors and common terms", () => {

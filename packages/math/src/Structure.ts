@@ -262,17 +262,44 @@ export class Structure<T = unknown> {
     return VectorUtils.collapse(powerList, (a, b) => this.multiplyMatrix(a, b)) as SMat<T>;
   }
 
+  /**
+   * Determinant via Gaussian elimination with row-swap pivoting, O(n^3)
+   * instead of the previous O(n!) cofactor (Laplace) expansion.
+   */
   determinant(alpha: SMat<T>): T {
     if (VectorUtils.width(alpha) !== VectorUtils.height(alpha)) return this.zero;
-    if (VectorUtils.width(alpha) < 2) return (alpha[0] as SVec<T>)[0] as T;
-    const detList = new Vector<T>();
-    for (let i = 0; i < VectorUtils.width(alpha); i++) {
-      const temp = VectorUtils.columnRemoved(VectorUtils.rowRemoved(alpha, 0), i);
-      const entry = (alpha[0] as SVec<T>)[i] as T;
-      const signed = i % 2 === 0 ? entry : this.negative(entry);
-      detList.push(this.multiply(signed, this.determinant(temp)));
+    const n = VectorUtils.width(alpha);
+    if (n < 2) return (alpha[0] as SVec<T>)[0] as T;
+
+    const mat: T[][] = [...alpha].map((row) => [...(row as SVec<T>)]);
+    let det = this.one;
+    let sign = this.one;
+
+    for (let col = 0; col < n; col++) {
+      if (this.equality(mat[col][col] as T, this.zero)) {
+        let swap = -1;
+        for (let r = col + 1; r < n; r++) {
+          if (!this.equality(mat[r][col] as T, this.zero)) {
+            swap = r;
+            break;
+          }
+        }
+        if (swap === -1) return this.zero;
+        [mat[col], mat[swap]] = [mat[swap], mat[col]];
+        sign = this.negative(sign);
+      }
+      const pivot = mat[col][col] as T;
+      det = this.multiply(det, pivot);
+      const pivotInv = this.reciprocal(pivot);
+      for (let r = col + 1; r < n; r++) {
+        const factor = this.multiply(mat[r][col] as T, pivotInv);
+        if (this.equality(factor, this.zero)) continue;
+        for (let k = col; k < n; k++) {
+          mat[r][k] = this.subtract(mat[r][k] as T, this.multiply(factor, mat[col][k] as T));
+        }
+      }
     }
-    return VectorUtils.collapse(detList, this.add) as T;
+    return this.multiply(sign, det);
   }
 
   permanent(alpha: SMat<T>): T {
