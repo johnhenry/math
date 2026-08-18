@@ -3961,6 +3961,23 @@ function solvePolynomial(coeffsIn: number[]): Expr[] {
       div(sub(toExactExpr(negB), sqrtExpr), toExactExpr(twoA)),
     ];
   }
+  // The rational-root search below enumerates divisors of the constant
+  // term as numerator candidates ("p" in the rational root theorem's p/q).
+  // A zero constant term is the degenerate case for that search --
+  // `divisorsOf(0)` special-cases to `[1]` (to avoid an infinite/undefined
+  // "divisors of 0" enumeration), but `[1]` can never produce the candidate
+  // `0` itself, so `x = 0` -- which trivially *is* a root whenever the
+  // constant term is zero -- is silently never tried and the search fails
+  // outright (issue #52). Handle it up front instead: pull out `(x - 0)` as
+  // a factor (same as `Symbolic.factor` already documents doing for its own
+  // "common power of `variable`" step), record the `0` root, and recurse on
+  // the deflated polynomial, which now has one lower degree and either a
+  // nonzero constant term (so the rational-root search below can proceed
+  // normally) or a low-enough degree for the n<=2 closed-form branches
+  // above to handle it directly.
+  if (Math.abs(coeffs[0]) < 1e-9) {
+    return [toExactExpr(0), ...solvePolynomial(coeffs.slice(1))];
+  }
   const root = findRationalRoot(coeffs);
   if (root === null) {
     throw new Error(

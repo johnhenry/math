@@ -933,6 +933,70 @@ test("solve rejects non-polynomial expressions", () => {
   assert.throws(() => Symbolic.solve("sin(x)"));
 });
 
+// -- issue #52: rational-root search must handle a zero constant term -----
+// The degree >= 3 path finds roots via the rational root theorem (candidate
+// roots = divisors of the constant term over divisors of the leading
+// coefficient). A zero constant term is the degenerate case for that search
+// -- "divisors of 0" -- and previously wasn't special-cased, so `x = 0`
+// (which trivially is a root whenever the constant term is zero) was never
+// tried as a candidate and the search failed outright.
+test("solve finds x=0 as a root of degree>=3 polynomials with a zero constant term (issue #52)", () => {
+  const rootsOf = (expr: string) =>
+    Symbolic.solve(expr)
+      .map((e) => Symbolic.evaluate(e))
+      .sort((a, b) => a - b);
+
+  // Exact repro cases from the issue: x*(x+3)*(x-2), etc.
+  assert.deepEqual(rootsOf("x^3 + x^2 - 6*x"), [-3, 0, 2]);
+  assert.deepEqual(rootsOf("x^3 - 4*x"), [-2, 0, 2]);
+  assert.deepEqual(rootsOf("x^3 - 9*x"), [-3, 0, 3]);
+  assert.deepEqual(rootsOf("x^3 + 7*x^2 + 12*x"), [-4, -3, 0]);
+
+  // Degree 4 and 5, single zero root.
+  assert.deepEqual(rootsOf("x^4 - 2*x^3 - 3*x^2"), [-1, 0, 0, 3]); // x^2*(x+1)*(x-3): 0 has multiplicity 2
+  assert.deepEqual(rootsOf("x^5 - 5*x^3 + 4*x"), [-2, -1, 0, 1, 2]); // x*(x^2-1)*(x^2-4)
+
+  // 0 as a root with multiplicity > 1 (mallory-graph#254's excluded case,
+  // generalized): x^2*(x-3)*(x+2) has a double root at 0.
+  assert.deepEqual(rootsOf("x^4 - x^3 - 6*x^2"), [-2, 0, 0, 3]);
+  // Triple root at 0: x^3*(x-5).
+  assert.deepEqual(rootsOf("x^4 - 5*x^3"), [0, 0, 0, 5]);
+
+  // Regression: degree 3/4/5 polynomials WITHOUT 0 as a root must still work.
+  assert.deepEqual(rootsOf("x^3 - 6*x^2 + 11*x - 6"), [1, 2, 3]);
+  assert.deepEqual(rootsOf("x^4 - 5*x^3 + 5*x^2 + 5*x - 6"), [-1, 1, 2, 3]);
+  assert.deepEqual(rootsOf("x^5 - 15*x^4 + 85*x^3 - 225*x^2 + 274*x - 120"), [1, 2, 3, 4, 5]);
+
+  // Stress test similar to the one that surfaced the bug: many random
+  // degree 3-5 polynomials built from known integer roots that ALWAYS
+  // include 0, verifying none of them throw and all roots come back exact.
+  let seed = 52;
+  const rand = () => {
+    // Deterministic PRNG so the test is reproducible.
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return seed / 0x7fffffff;
+  };
+  for (let i = 0; i < 1000; i++) {
+    const degree = 3 + (i % 3); // 3, 4, or 5
+    const nonZeroRoots = new Set<number>();
+    while (nonZeroRoots.size < degree - 1) {
+      const r = Math.floor(rand() * 13) - 6; // -6..6
+      if (r !== 0) nonZeroRoots.add(r);
+    }
+    const roots = [0, ...nonZeroRoots];
+    const expr = roots.map((r) => (r === 0 ? "x" : `(x-(${r}))`)).join("*");
+    let result: number[] = [];
+    assert.doesNotThrow(() => {
+      result = rootsOf(expr);
+    }, `solve threw on ${expr}`);
+    assert.deepEqual(
+      result,
+      [...roots].sort((a, b) => a - b),
+      `wrong roots for ${expr}`,
+    );
+  }
+});
+
 test("solve distinguishes identically-zero (infinite solutions) from genuinely unsolvable ([])", () => {
   // "0 = 0" is true for every x -- infinitely many solutions, not zero.
   // This must NOT be conflated with the [] that x^2+1 legitimately returns
