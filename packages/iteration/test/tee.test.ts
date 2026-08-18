@@ -111,7 +111,11 @@ test("teeAsync: concurrent first next() calls on both branches must not desync",
   // still-empty shared buffer -- this is the race window.
   const [r0, r1] = await Promise.all([it0!.next(), it1!.next()]);
 
-  assert.strictEqual(calls, 1, "source.next() must be called exactly once for one logical pull turn, not once per branch");
+  assert.strictEqual(
+    calls,
+    1,
+    "source.next() must be called exactly once for one logical pull turn, not once per branch",
+  );
   assert.strictEqual(r0.value, r1.value, "both branches' first item must be the same underlying source item");
   assert.strictEqual(r0.value, "a", "the shared first item must be the source's first value");
 
