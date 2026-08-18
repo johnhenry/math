@@ -989,7 +989,11 @@ test("solve finds x=0 as a root of degree>=3 polynomials with a zero constant te
     assert.doesNotThrow(() => {
       result = rootsOf(expr);
     }, `solve threw on ${expr}`);
-    assert.deepEqual(result, [...roots].sort((a, b) => a - b), `wrong roots for ${expr}`);
+    assert.deepEqual(
+      result,
+      [...roots].sort((a, b) => a - b),
+      `wrong roots for ${expr}`,
+    );
   }
 });
 
