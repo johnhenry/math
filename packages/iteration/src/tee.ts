@@ -67,21 +67,53 @@ export const teeAsync =
     const source = iterable[Symbol.asyncIterator]();
     const buffers: T[][] = new Array(num).fill(null).map(() => []);
 
+    // Guards against the check-then-act race between "is my buffer empty"
+    // and "pull from source": if two branches both call next() while their
+    // buffers are empty in the same logical turn, only the first should
+    // actually call source.next(); the rest must ride along on that single
+    // in-flight pull and then re-check their (now-populated) buffer, rather
+    // than each independently issuing their own source.next() call.
+    let inFlight: Promise<T | typeof DONE> | null = null;
+    let sourceDone = false;
+
     const next = async (i: number): Promise<T | typeof DONE> => {
       const buffer = buffers[i] as T[];
       if (buffer.length !== 0) {
         return buffer.shift() as T;
       }
-      const x = await source.next();
 
-      if (x.done) {
+      if (sourceDone) {
         return DONE;
       }
 
-      for (let j = 0; j < buffers.length; j++) {
-        if (j !== i) (buffers[j] as T[]).push(x.value);
+      if (inFlight) {
+        // Someone else is already pulling for this turn -- wait for it, then
+        // re-evaluate: our buffer will have been fed by the puller (unless
+        // the source is now exhausted).
+        await inFlight;
+        return next(i);
       }
-      return x.value;
+
+      const pull = (async (): Promise<T | typeof DONE> => {
+        const x = await source.next();
+
+        if (x.done) {
+          sourceDone = true;
+          return DONE;
+        }
+
+        for (let j = 0; j < buffers.length; j++) {
+          if (j !== i) (buffers[j] as T[]).push(x.value);
+        }
+        return x.value;
+      })();
+
+      inFlight = pull;
+      try {
+        return await pull;
+      } finally {
+        inFlight = null;
+      }
     };
 
     return buffers.map(async function* (_, i) {

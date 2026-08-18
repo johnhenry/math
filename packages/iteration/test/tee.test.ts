@@ -83,3 +83,47 @@ test("teeAsync calls source.return() when a consumer exits early", async () => {
   }
   assert.strictEqual(returnCalls, 1, "breaking out of async iteration early must call source.return()");
 });
+
+// Regression (#54): both branches' *first* .next() call landed on a still-empty
+// shared buffer at essentially the same instant. There was no atomicity between
+// "check if my buffer has a pending item" and "decide to pull from source", so
+// both branches independently pulled from `source`, each got a *different*
+// underlying item, and the two output streams desynced instead of one branch
+// pulling-and-forwarding while the other read from its buffer.
+test("teeAsync: concurrent first next() calls on both branches must not desync", async () => {
+  const original = ["a", "b", "c", "d"];
+  let calls = 0;
+  const source: AsyncIterator<string> = {
+    next: async () => {
+      if (calls >= original.length) {
+        return { value: undefined, done: true };
+      }
+      const value = original[calls] as string;
+      calls++;
+      return { value, done: false };
+    },
+  };
+  const iterable: AsyncIterable<string> = { [Symbol.asyncIterator]: () => source };
+
+  const [it0, it1] = teeAsync(2)(iterable);
+
+  // Fire both branches' first `.next()` in the same microtask tick, against a
+  // still-empty shared buffer -- this is the race window.
+  const [r0, r1] = await Promise.all([it0!.next(), it1!.next()]);
+
+  assert.strictEqual(
+    calls,
+    1,
+    "source.next() must be called exactly once for one logical pull turn, not once per branch",
+  );
+  assert.strictEqual(r0.value, r1.value, "both branches' first item must be the same underlying source item");
+  assert.strictEqual(r0.value, "a", "the shared first item must be the source's first value");
+
+  // Continue draining both branches normally and confirm they stay paired.
+  const [r2, r3] = await Promise.all([it0!.next(), it1!.next()]);
+  assert.strictEqual(r2.value, r3.value, "both branches' second item must also match");
+  assert.strictEqual(r2.value, "b");
+
+  await eventualEqual(it0!, ["c", "d"], "1st branch should mirror remaining items");
+  await eventualEqual(it1!, ["c", "d"], "2nd branch should mirror remaining items");
+});
