@@ -178,3 +178,34 @@ test("minSync/maxSync/minAsync/maxAsync", async () => {
   assert.strictEqual(await minAsync(asyncFromArray([3, 1, 2])), 1, "async: minimum item");
   assert.strictEqual(await maxAsync(asyncFromArray([3, 1, 2])), 3, "async: maximum item");
 });
+
+// Regression: `NaN < x`/`NaN > x` are always false, so a NaN key silently
+// fell out of every comparison instead of poisoning the result -- and
+// whether it got silently dropped or (if it happened to be the *first*
+// item) accidentally "won" depended on its position in the sequence.
+// min/max must now consistently poison to NaN, matching Math.min/Math.max.
+test("minSync/maxSync/minAsync/maxAsync: a NaN key poisons the result regardless of position", async () => {
+  assert.ok(Number.isNaN(minSync([3, Number.NaN, 1])), "a mid-sequence NaN must poison minSync's result");
+  assert.ok(Number.isNaN(maxSync([3, Number.NaN, 1])), "a mid-sequence NaN must poison maxSync's result");
+  assert.ok(Number.isNaN(minSync([Number.NaN, 3, 1])), "a leading NaN must also poison minSync's result");
+  assert.ok(Number.isNaN(maxSync([Number.NaN, 3, 1])), "a leading NaN must also poison maxSync's result");
+  assert.ok(Number.isNaN(minSync([3, 1, Number.NaN])), "a trailing NaN must also poison minSync's result");
+  assert.ok(Number.isNaN(maxSync([3, 1, Number.NaN])), "a trailing NaN must also poison maxSync's result");
+  assert.ok(
+    Number.isNaN(minSync(["ab", "NaN", "a"], (s) => (s === "NaN" ? Number.NaN : s.length))),
+    "a NaN produced by a custom keyFn must also poison the result",
+  );
+
+  assert.ok(
+    Number.isNaN(await minAsync(asyncFromArray([3, Number.NaN, 1]))),
+    "async: a mid-sequence NaN must poison minAsync's result",
+  );
+  assert.ok(
+    Number.isNaN(await maxAsync(asyncFromArray([3, Number.NaN, 1]))),
+    "async: a mid-sequence NaN must poison maxAsync's result",
+  );
+
+  // No NaN present: unaffected.
+  assert.strictEqual(minSync([3, 1, 2]), 1, "no-NaN inputs must be unaffected");
+  assert.strictEqual(maxSync([3, 1, 2]), 3, "no-NaN inputs must be unaffected");
+});

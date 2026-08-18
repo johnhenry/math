@@ -57,6 +57,14 @@ export class AsyncChannel<T = unknown> {
     value: T | typeof CHANNEL_END | Error;
     release: () => void;
   }> = [];
+  /**
+   * Serializes delivery of concurrent put() calls into call order. Each
+   * put() grabs the current tail synchronously (before any `await`, so
+   * position is fixed by call order rather than by how long e.g.
+   * `transform()` happens to take) and only commits its value once its
+   * predecessor has committed.
+   */
+  private putOrder: Promise<void> = Promise.resolve();
 
   /**
    * Asynchronous Channel constructor
@@ -95,18 +103,31 @@ export class AsyncChannel<T = unknown> {
    */
   async put(item: T, ...debug: unknown[]): Promise<void> {
     this.debug?.("put", item, ...debug);
-    const value = await this.transform(item);
-    if (this.promise) {
-      this.resolve?.(value);
-      return;
-    }
-    if (this.cache.length < this.limit) {
-      this.cache.push(value);
-      return;
-    }
-    await new Promise<void>((release) => {
-      this.putters.push({ value, release });
+    // Reserve this call's delivery slot synchronously, in call order,
+    // before doing any async work (transform() may resolve at a different
+    // speed for different items -- see class doc on putOrder).
+    const myTurn = this.putOrder;
+    let advance!: () => void;
+    this.putOrder = new Promise<void>((resolve) => {
+      advance = resolve;
     });
+    try {
+      const value = await this.transform(item);
+      await myTurn;
+      if (this.promise) {
+        this.resolve?.(value);
+        return;
+      }
+      if (this.cache.length < this.limit) {
+        this.cache.push(value);
+        return;
+      }
+      await new Promise<void>((release) => {
+        this.putters.push({ value, release });
+      });
+    } finally {
+      advance();
+    }
   }
   /**
    * Take item off of Asynchronous Channel
