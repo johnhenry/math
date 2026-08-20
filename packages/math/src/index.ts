@@ -4,6 +4,9 @@
  * A modern, tested TypeScript port of the Mallory ActionScript 3 library.
  */
 
+// 4D geometric algebra (vectors, bivectors, rotors) -- see report/MIEGAKURE_REPORT.md
+// in johnhenry/miegakure-archive for the design context this was built for.
+export { Bivector4 } from "./Bivector4.ts";
 // Counting mathematics
 export { Combinatorics } from "./Combinatorics.ts";
 export {
@@ -29,6 +32,15 @@ export { FUNC_DERIVATIVE_RULES, type FuncDerivativeRule } from "./differentiatio
 export { Environment } from "./Environment.ts";
 export { Expression } from "./Expression.ts";
 export { FFT } from "./FFT.ts";
+export {
+  type BivectorGeometricProduct,
+  dotProduct as dotProduct4,
+  dual as dual4,
+  geometricProductBivectors,
+  geometricProductVectors,
+  type VectorGeometricProduct,
+  wedgeProduct as wedgeProduct4,
+} from "./GeometricAlgebra4.ts";
 export { Geometry, type Point, Transform2D } from "./Geometry.ts";
 export { type Edge, Graph } from "./Graph.ts";
 export {
@@ -81,6 +93,7 @@ export { Quaternion } from "./Quaternion.ts";
 export { Rational } from "./Rational.ts";
 // Numeric cores
 export * as RealMath from "./RealMath.ts";
+export { Rotor4 } from "./Rotor4.ts";
 export { SpecialFunctions } from "./SpecialFunctions.ts";
 export { SpecialOperator } from "./SpecialOperator.ts";
 export * as Statistics from "./Statistics.ts";
@@ -113,6 +126,7 @@ export {
 export { Type, TypeTag } from "./Type.ts";
 // Utilities & leaves
 export { Utilities } from "./Utilities.ts";
+export { Vec4 } from "./Vec4.ts";
 // Foundations
 export { Vector } from "./Vector.ts";
 export { VectorCalculus } from "./VectorCalculus.ts";
