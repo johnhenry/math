@@ -185,6 +185,46 @@ test("exp(zero bivector) is Identity, without throwing", () => {
   assert.ok(Rotor4.exp(Bivector4.Zero).equals(Rotor4.Identity, 1e-9));
 });
 
+test("exp() on a COMPOUND bivector (e.g. an angular velocity spinning in two planes at once) does not throw, and matches the commuting-generators decomposition", () => {
+  // A naive cos|B|+sin|B|*B_hat formula is only valid for simple B -- this
+  // is a real case that must work: an angular velocity with components in
+  // two independent planes simultaneously is a completely ordinary physical
+  // state (see the Miegakure physics integrator, johnhenry/miegakure-archive#22).
+  const m1 = 1.5;
+  const m2 = 2.2;
+  const B = XY.scale(m1).add(ZW.scale(m2));
+  const got = Rotor4.exp(B);
+  const expected = Rotor4.fromBivectorAngle(ZW, m2).multiply(Rotor4.fromBivectorAngle(XY, m1));
+  assert.ok(actionEqual(got, expected, 1e-5));
+  assert.ok(Math.abs(got.magnitude - 1) < 1e-6);
+});
+
+test("exp() on a compound bivector still agrees with fromBivectorAngle for the simple (m2=0) case", () => {
+  const B = XY.scale(1.2);
+  assert.ok(actionEqual(Rotor4.exp(B), Rotor4.fromBivectorAngle(XY, 1.2)));
+});
+
+test("exp() on a compound bivector is robust across random plane orientations and magnitudes (regression guard)", () => {
+  let seed = 999;
+  const rand = () => {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return seed / 0x7fffffff;
+  };
+  for (let i = 0; i < 50; i++) {
+    const reorient = Rotor4.fromBivectorAngle(XY, rand() * Math.PI).multiply(
+      Rotor4.fromBivectorAngle(new Bivector4(0, 0, 1, 0, 0, 0), rand() * Math.PI),
+    );
+    const plane1 = reorient.applyToBivector(XY);
+    const plane2 = reorient.applyToBivector(ZW);
+    const m1 = (rand() * 2 - 1) * 5;
+    const m2 = (rand() * 2 - 1) * 5;
+    const B = plane1.scale(m1).add(plane2.scale(m2));
+    const got = Rotor4.exp(B);
+    const expected = Rotor4.fromBivectorAngle(plane2, m2).multiply(Rotor4.fromBivectorAngle(plane1, m1));
+    assert.ok(actionEqual(got, expected, 1e-4), `failed at i=${i}, m1=${m1}, m2=${m2}`);
+  }
+});
+
 test("log() inverts exp() for a simple rotor", () => {
   const angle = 0.87;
   const r = Rotor4.fromBivectorAngle(ZW, angle);
