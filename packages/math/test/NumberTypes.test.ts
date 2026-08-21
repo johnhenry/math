@@ -83,13 +83,41 @@ test("DualNumber gradient", () => {
 
 // --- Interval ---
 
+// Every non-exact Interval op now outward-rounds its result by ~1 ULP per
+// side (see Interval.ts's own `outward` doc comment), so an exact result
+// like [4, 6] comes back as a hair WIDER than [4, 6], not equal to it --
+// checking containment of the mathematically exact bounds is the correct
+// assertion here, not `.equals()`.
+function containsExactly(interval: Interval, lo: number, hi: number): boolean {
+  return interval.lo <= lo && interval.hi >= hi;
+}
+
 test("Interval arithmetic bounds results", () => {
   const a = new Interval(1, 2);
   const b = new Interval(3, 4);
-  assert.ok(a.add(b).equals(new Interval(4, 6)));
-  assert.ok(a.subtract(b).equals(new Interval(-3, -1)));
-  assert.ok(a.multiply(b).equals(new Interval(3, 8)));
-  assert.ok(new Interval(-2, 3).pow(2).equals(new Interval(0, 9)), "even power straddling zero");
+  assert.ok(containsExactly(a.add(b), 4, 6));
+  assert.ok(containsExactly(a.subtract(b), -3, -1));
+  assert.ok(containsExactly(a.multiply(b), 3, 8));
+  assert.ok(containsExactly(new Interval(-2, 3).pow(2), 0, 9), "even power straddling zero");
+});
+
+test("Interval outward rounding: a point input to a transcendental function returns an interval that actually CONTAINS the true irrational result, not a degenerate point excluding it", () => {
+  // Interval.point(2).sqrt() used to return the exact (rounded-to-nearest)
+  // double for sqrt(2) as BOTH endpoints -- a degenerate interval that
+  // provably does not contain the true irrational value.
+  const s = Interval.point(2).sqrt();
+  assert.ok(s.lo < s.hi, "expected outward rounding to produce a non-degenerate interval");
+  // Math.sqrt(2) itself (the nearest double) must lie strictly inside,
+  // with room on both sides for the true value's rounding error.
+  assert.ok(s.lo < Math.sqrt(2) && Math.sqrt(2) < s.hi);
+});
+
+test("Interval outward rounding: exact operations (negate, pow(0), hull, intersect) stay exact, not widened", () => {
+  const a = new Interval(1, 5);
+  assert.ok(a.negate().equals(new Interval(-5, -1)), "negation is exact (sign flip only)");
+  assert.ok(a.pow(0).equals(Interval.point(1)), "n=0 is exactly 1 for any interval");
+  const b = new Interval(3, 8);
+  assert.ok(a.hull(b).equals(new Interval(1, 8)), "hull only compares existing exact endpoints");
 });
 
 test("Interval intersect / hull / contains", () => {
