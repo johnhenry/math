@@ -170,6 +170,90 @@ test("normalize divides every component by the magnitude, and rejects the zero r
   assert.throws(() => new Rotor4(0, Bivector4.Zero, 0).normalize());
 });
 
+test("subtract/negate are component-wise, dot is the 8-component Euclidean inner product", () => {
+  const a = new Rotor4(1, new Bivector4(2, 0, 0, 0, 0, 0), 3);
+  const b = new Rotor4(4, new Bivector4(5, 0, 0, 0, 0, 0), 6);
+  const diff = a.subtract(b);
+  assert.equal(diff.scalar, -3);
+  assert.ok(diff.bivector.equals(new Bivector4(-3, 0, 0, 0, 0, 0)));
+  assert.equal(diff.pseudoscalar, -3);
+  assert.ok(a.negate().equals(new Rotor4(-1, new Bivector4(-2, 0, 0, 0, 0, 0), -3)));
+  assert.equal(a.dot(b), 1 * 4 + 2 * 5 + 3 * 6);
+});
+
+// --- Rotor4.inverse() (#60): distinct from reverse() for a non-unit rotor ---
+
+test("inverse() equals reverse() for a unit rotor (they only diverge once |R| != 1)", () => {
+  const r = Rotor4.fromBivectorAngle(XY, 0.77);
+  assert.ok(r.inverse().equals(r.reverse(), 1e-9));
+});
+
+test("R * R.inverse() == Identity even for a non-unit rotor, unlike R * R.reverse()", () => {
+  // A rotor that's drifted off the unit manifold (e.g. mid floating-point
+  // integration, before renormalization) -- exactly the scenario #60 flags.
+  const drifted = Rotor4.fromBivectorAngle(XY, 0.9).scale(1.4);
+  assert.ok(Math.abs(drifted.magnitude - 1) > 0.1, "sanity check: this rotor is genuinely non-unit");
+
+  assert.ok(drifted.multiply(drifted.inverse()).equals(Rotor4.Identity, 1e-9));
+
+  // reverse() alone does NOT recover the identity here: R * R~ = |R|^2 * Identity.
+  const viaReverse = drifted.multiply(drifted.reverse());
+  assert.ok(Math.abs(viaReverse.scalar - drifted.magnitudeSquared) < 1e-9, "R * R~ scales Identity by |R|^2, not the true inverse");
+  assert.ok(!viaReverse.equals(Rotor4.Identity, 1e-9), "confirms reverse() alone was the wrong operation for a non-unit rotor");
+});
+
+test("inverse() also holds for a compound (double-rotation) rotor", () => {
+  const r1 = Rotor4.fromBivectorAngle(XY, 0.6);
+  const r2 = Rotor4.fromBivectorAngle(ZW, 1.3);
+  const composed = r2.multiply(r1).scale(0.6);
+  assert.ok(composed.multiply(composed.inverse()).equals(Rotor4.Identity, 1e-9));
+});
+
+test("inverse() rejects the zero rotor", () => {
+  assert.throws(() => new Rotor4(0, Bivector4.Zero, 0).inverse());
+});
+
+// --- Rotor4.slerp() (#62): mirrors Quaternion.slerp ---
+
+test("slerp(a, a, t) is a for every t (interpolating a rotor with itself)", () => {
+  const r = Rotor4.fromBivectorAngle(XY, 0.9);
+  for (const t of [0, 0.25, 0.5, 0.75, 1]) {
+    assert.ok(Rotor4.slerp(r, r, t).equals(r, 1e-9));
+  }
+});
+
+test("slerp endpoints: slerp(a, b, 0) == a, slerp(a, b, 1) == b (up to double-cover sign)", () => {
+  const a = Rotor4.Identity;
+  const b = Rotor4.fromBivectorAngle(XY, Math.PI / 2);
+  assert.ok(Rotor4.slerp(a, b, 0).equals(a, 1e-9));
+  const end = Rotor4.slerp(a, b, 1);
+  assert.ok(end.equals(b, 1e-6) || end.equals(b.scale(-1), 1e-6));
+});
+
+test("slerp midpoint of a simple rotation is the half-angle rotation", () => {
+  const a = Rotor4.Identity;
+  const b = Rotor4.fromBivectorAngle(XY, Math.PI / 2);
+  const mid = Rotor4.slerp(a, b, 0.5);
+  const expected = Rotor4.fromBivectorAngle(XY, Math.PI / 4);
+  assert.ok(mid.equals(expected, 1e-9));
+});
+
+test("slerp stays on the unit rotor manifold throughout (magnitude 1 at every t)", () => {
+  const a = Rotor4.fromBivectorAngle(XY, 0.1);
+  const b = Rotor4.fromBivectorAngle(XY, 2.3);
+  for (const t of [0, 0.1, 0.3, 0.5, 0.7, 0.9, 1]) {
+    assert.ok(Math.abs(Rotor4.slerp(a, b, t).magnitude - 1) < 1e-9);
+  }
+});
+
+test("slerp falls back to normalized lerp for near-parallel rotors without dividing by ~zero", () => {
+  const a = Rotor4.fromBivectorAngle(XY, 0.5);
+  const b = Rotor4.fromBivectorAngle(XY, 0.5001);
+  assert.doesNotThrow(() => Rotor4.slerp(a, b, 0.5));
+  const mid = Rotor4.slerp(a, b, 0.5);
+  assert.ok(Math.abs(mid.magnitude - 1) < 1e-9);
+});
+
 test("toString renders scalar, bivector, and pseudoscalar parts", () => {
   const r = new Rotor4(1, Bivector4.Zero, 0);
   assert.match(r.toString(), /^1 \+ \(.*\) \+ 0e1234$/);

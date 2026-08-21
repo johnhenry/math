@@ -60,8 +60,21 @@ export class Rotor4 {
     return new Rotor4(this.scalar + r.scalar, this.bivector.add(r.bivector), this.pseudoscalar + r.pseudoscalar);
   }
 
+  subtract(r: Rotor4): Rotor4 {
+    return new Rotor4(this.scalar - r.scalar, this.bivector.subtract(r.bivector), this.pseudoscalar - r.pseudoscalar);
+  }
+
+  negate(): Rotor4 {
+    return new Rotor4(-this.scalar, this.bivector.negate(), -this.pseudoscalar);
+  }
+
   scale(s: number): Rotor4 {
     return new Rotor4(this.scalar * s, this.bivector.scale(s), this.pseudoscalar * s);
+  }
+
+  /** Component-wise inner product over all 8 components (scalar, 6 bivector, pseudoscalar) -- treats a Rotor4 as an 8-vector, exactly {@link Quaternion.dot}'s role in that class's own `slerp`. */
+  dot(r: Rotor4): number {
+    return this.scalar * r.scalar + this.bivector.dot(r.bivector) + this.pseudoscalar * r.pseudoscalar;
   }
 
   /** The geometric product `this * r` — composes two rotations (apply `r` first, then `this`). */
@@ -73,10 +86,28 @@ export class Rotor4 {
    * The reverse `R~`: reverses the order of vector factors, which negates the
    * bivector (grade 2, picks up (-1)^1) but leaves the scalar (grade 0) and
    * pseudoscalar (grade 4, picks up (-1)^6 = +1) unchanged. For a unit rotor,
-   * this is also the inverse — the 4D analogue of a quaternion's conjugate.
+   * this is also the inverse — the 4D analogue of a quaternion's conjugate
+   * ({@link Quaternion.conjugate}). **Not** the inverse for a non-unit rotor
+   * (see {@link inverse}): a rotor that has drifted off the unit manifold
+   * during repeated composition (e.g. per-timestep physics integration,
+   * before renormalization runs) will silently produce a wrong,
+   * `|R|²`-scaled result from `reverse()` where an inverse was intended.
    */
   reverse(): Rotor4 {
     return new Rotor4(this.scalar, this.bivector.negate(), this.pseudoscalar);
+  }
+
+  /**
+   * Multiplicative inverse `R⁻¹ = R~ / |R|²`, distinct from {@link reverse}
+   * for a non-unit rotor — the 4D analogue of {@link Quaternion.inverse}.
+   * `this.multiply(this.inverse())` is `Identity` regardless of `this`'s
+   * magnitude; `this.multiply(this.reverse())` only is when `this` is
+   * already a unit rotor.
+   */
+  inverse(): Rotor4 {
+    const m2 = this.magnitudeSquared;
+    if (m2 === 0) throw new Error("The zero rotor has no inverse.");
+    return this.reverse().scale(1 / m2);
   }
 
   get magnitudeSquared(): number {
@@ -362,6 +393,37 @@ export class Rotor4 {
     const angle = 2 * Math.atan2(bMag, this.scalar);
     if (bMag === 0) return { plane: Bivector4.Zero, angle: 0 };
     return { plane: this.bivector.normalize(), angle };
+  }
+
+  /**
+   * Spherical linear interpolation between two rotors, `t` in `[0, 1]` --
+   * the 4D analogue of {@link Quaternion.slerp}, same component-wise
+   * treatment (an 8-vector of scalar/bivector(6)/pseudoscalar, via
+   * {@link dot}) and the same near-parallel fallback to a normalized
+   * linear interpolation to avoid dividing by a near-zero `sin(theta0)`.
+   *
+   * **Same manifold caveat as {@link normalize}**: this is only exactly
+   * correct for interpolating between *simple* rotors (single rotation
+   * plane) — a compound double rotation doesn't lie on the sphere this
+   * construction assumes, so slerping one is an approximation, not a
+   * geodesic. For a double rotation, {@link factor} each endpoint into its
+   * two orthogonal simple rotors and slerp each pair independently instead.
+   */
+  static slerp(a: Rotor4, b: Rotor4, t: number): Rotor4 {
+    const ra = a.normalize();
+    let rb = b.normalize();
+    let cos = ra.dot(rb);
+    if (cos < 0) {
+      rb = rb.scale(-1);
+      cos = -cos;
+    }
+    if (cos > 0.9995) return ra.add(rb.subtract(ra).scale(t)).normalize();
+    const theta0 = Math.acos(cos);
+    const theta = theta0 * t;
+    const sinTheta0 = Math.sin(theta0);
+    const s0 = Math.sin(theta0 - theta) / sinTheta0;
+    const s1 = Math.sin(theta) / sinTheta0;
+    return ra.scale(s0).add(rb.scale(s1));
   }
 
   equals(r: Rotor4, epsilon = 0): boolean {
