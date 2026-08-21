@@ -30,7 +30,7 @@ import {
   PSEUDOSCALAR4,
   wedgeProductMV,
 } from "./Clifford4Internal.ts";
-import type { Vec4 } from "./Vec4.ts";
+import { Vec4 } from "./Vec4.ts";
 
 function vecToMV(v: Vec4): Multivector4 {
   const mv = mvZero();
@@ -123,4 +123,35 @@ export function dual(b: Bivector4): Bivector4 {
   I[PSEUDOSCALAR4] = 1;
   const mv = geometricProductMV(bivectorToMV(b), I);
   return bivectorFromMV(mv);
+}
+
+/**
+ * The commutator product `A × B = ½(AB − BA)` of two bivectors -- distinct
+ * from {@link geometricProductBivectors}'s full `AB`. This is the operation
+ * n-dimensional rigid body dynamics needs for the generalized Euler's
+ * equation `L_t(ω) = I(ω_t) − ω × I(ω) = τ` (angular momentum, inertia
+ * tensor, and torque are all bivectors in 4D; this `×` is the commutator,
+ * not the 3D cross product it specializes to in 3D).
+ */
+export function commutatorProduct(a: Bivector4, b: Bivector4): Bivector4 {
+  const ab = geometricProductMV(bivectorToMV(a), bivectorToMV(b));
+  const ba = geometricProductMV(bivectorToMV(b), bivectorToMV(a));
+  const commutator = mvZero();
+  for (let i = 0; i < commutator.length; i++) commutator[i] = ((ab[i] as number) - (ba[i] as number)) / 2;
+  return bivectorFromMV(commutator);
+}
+
+/**
+ * The left contraction `v⌋B` of a vector into a bivector, producing a
+ * vector -- the grade-1 part of the geometric product `vB` (the geometric
+ * product of a grade-1 and a grade-2 element splits into grade 1 [this] and
+ * grade 3, and this package doesn't otherwise need grade-3/trivector
+ * results, so only the grade-1 part is extracted here). Needed for a rigid
+ * body's point velocity: `v_point = v + r⌋ω`, where `v` is linear velocity
+ * (Vec4), `ω` is angular velocity (Bivector4), and `r` is the point's offset
+ * from the body's center of mass.
+ */
+export function leftContraction(v: Vec4, b: Bivector4): Vec4 {
+  const mv = geometricProductMV(vecToMV(v), bivectorToMV(b));
+  return new Vec4(mv[E1] as number, mv[E2] as number, mv[E3] as number, mv[E4] as number);
 }

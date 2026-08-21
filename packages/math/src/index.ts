@@ -34,10 +34,12 @@ export { Expression } from "./Expression.ts";
 export { FFT } from "./FFT.ts";
 export {
   type BivectorGeometricProduct,
+  commutatorProduct,
   dotProduct as dotProduct4,
   dual as dual4,
   geometricProductBivectors,
   geometricProductVectors,
+  leftContraction,
   type VectorGeometricProduct,
   wedgeProduct as wedgeProduct4,
 } from "./GeometricAlgebra4.ts";
