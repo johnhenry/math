@@ -133,6 +133,33 @@ export class Rotor4 {
   }
 
   /**
+   * `exp(B)`: the rotor for a rotation of `|B|` radians in `B`'s plane --
+   * a convenience over {@link fromBivectorAngle} for the common case of an
+   * already-scaled generator (e.g. `angularVelocity * dt` in a physics
+   * integrator, where the bivector's magnitude *is* the rotation angle and
+   * its direction *is* the plane). Returns {@link Identity} for the zero
+   * bivector rather than throwing (unlike `fromBivectorAngle`, whose
+   * `plane.normalize()` would throw on a zero plane).
+   */
+  static exp(bivector: Bivector4): Rotor4 {
+    const angle = bivector.magnitude;
+    if (angle === 0) return Rotor4.Identity;
+    return Rotor4.fromBivectorAngle(bivector, angle);
+  }
+
+  /**
+   * `log()`: the bivector `B` such that `exp(B) = this`, for a *simple*
+   * rotor -- the inverse of {@link exp}. Throws for a compound
+   * (double-rotation) rotor, same as {@link toBivectorAngle} (which this is
+   * built on): decomposing a general rotor's log is the Perwass-factorization
+   * work deferred to the physics layer.
+   */
+  log(epsilon = 1e-9): Bivector4 {
+    const { plane, angle } = this.toBivectorAngle(epsilon);
+    return plane.scale(angle);
+  }
+
+  /**
    * Recover `(plane, angle)` for a *simple* rotor (pseudoscalar ≈ 0). Throws
    * for a compound (double-rotation) rotor — see the class-level doc comment;
    * decomposing a general rotor's log is the Perwass-factorization work

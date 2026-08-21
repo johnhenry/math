@@ -174,3 +174,32 @@ test("toString renders scalar, bivector, and pseudoscalar parts", () => {
   const r = new Rotor4(1, Bivector4.Zero, 0);
   assert.match(r.toString(), /^1 \+ \(.*\) \+ 0e1234$/);
 });
+
+test("exp(B) round-trips with fromBivectorAngle: exp(plane*angle) == fromBivectorAngle(plane, angle)", () => {
+  const angle = 1.234;
+  const scaled = XY.normalize().scale(angle);
+  assert.ok(Rotor4.exp(scaled).equals(Rotor4.fromBivectorAngle(XY, angle), 1e-9));
+});
+
+test("exp(zero bivector) is Identity, without throwing", () => {
+  assert.ok(Rotor4.exp(Bivector4.Zero).equals(Rotor4.Identity, 1e-9));
+});
+
+test("log() inverts exp() for a simple rotor", () => {
+  const angle = 0.87;
+  const r = Rotor4.fromBivectorAngle(ZW, angle);
+  const recovered = r.log();
+  assert.ok(Rotor4.exp(recovered).equals(r, 1e-9));
+  assert.ok(Math.abs(recovered.magnitude - angle) < 1e-9);
+});
+
+test("log() throws for a compound (double-rotation) rotor, same as toBivectorAngle", () => {
+  const r1 = Rotor4.fromBivectorAngle(XY, 0.5);
+  const r2 = Rotor4.fromBivectorAngle(ZW, 0.9);
+  const compound = r2.multiply(r1);
+  assert.throws(() => compound.log());
+});
+
+test("exp is the identity's own log-exp round trip too: exp(Identity.log()) == Identity", () => {
+  assert.ok(Rotor4.exp(Rotor4.Identity.log()).equals(Rotor4.Identity, 1e-9));
+});
