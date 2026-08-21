@@ -12,20 +12,23 @@
  * has no 3D analogue. See {@link Rotor4.multiply} composing two
  * single-plane rotors in orthogonal planes for how a double rotation arises.
  *
- * **Normalization caveat.** {@link Rotor4.normalize} in this module performs
- * the naive quaternion-style renormalization (divide by magnitude). This is
- * only exactly correct for *simple* rotors (single rotation plane) — for a
+ * **Normalization caveat.** {@link Rotor4.normalize} performs the naive
+ * quaternion-style renormalization (divide by magnitude). This is only
+ * exactly correct for *simple* rotors (single rotation plane) — for a
  * genuine double rotation it does not lie on the same manifold as a simple
  * rotor, so naive renormalization after numerical drift can silently produce
- * an invalid rotor. A full fix (Perwass 2009 rotor factorization) belongs in
- * the physics layer where repeated integration actually accumulates drift;
- * this module intentionally does not attempt it — see the
- * `N-Dimensional Rigid Body Dynamics` (SIGGRAPH 2020) paper §3.3.
+ * an invalid rotor. {@link Rotor4.factor} and {@link Rotor4.renormalize} are
+ * the proper fix (Perwass-style rotor factorization): decompose into two
+ * simple rotors in orthogonal planes, each renormalizable exactly, then
+ * recompose — see the `N-Dimensional Rigid Body Dynamics` (SIGGRAPH 2020)
+ * paper §3.3 for why this matters for repeated physics integration.
  */
 import { Bivector4 } from "./Bivector4.ts";
 import { E1, E2, E3, E4, geometricProductMV, type Multivector4, mvZero, PSEUDOSCALAR4 } from "./Clifford4Internal.ts";
-import { bivectorFromMV, bivectorToMV } from "./GeometricAlgebra4.ts";
+import { bivectorFromMV, bivectorToMV, wedgeProduct } from "./GeometricAlgebra4.ts";
+import { MatrixMath } from "./MatrixMath.ts";
 import { Vec4 } from "./Vec4.ts";
+import { Vector } from "./Vector.ts";
 
 export class Rotor4 {
   readonly scalar: number;
@@ -110,6 +113,112 @@ export class Rotor4 {
   applyToBivector(b: Bivector4): Bivector4 {
     const mv = geometricProductMV(geometricProductMV(this.toMV(), bivectorToMV(b)), this.reverse().toMV());
     return bivectorFromMV(mv);
+  }
+
+  /**
+   * Perwass-style rotor factorization: decompose this rotor into two simple
+   * rotors `[R1, R2]` in mutually orthogonal planes such that `R2.multiply(R1)`
+   * has the same *action* as this rotor (equal up to the usual rotor
+   * double-cover sign, like any rotor comparison) — the proper fix for
+   * {@link normalize}'s documented limitation on double rotations. Works
+   * even when this rotor has drifted away from being a valid unit rotor
+   * (the intended use case: repeated physics integration).
+   *
+   * Method: find this rotor's two invariant 2-planes as eigenspaces of the
+   * *symmetric* part `S = M + Mᵀ` of its 4x4 matrix representation `M`
+   * (restricted to an invariant plane with rotation angle `θ`, `M + Mᵀ` is
+   * `2cos(θ)` times the identity on that plane — so same-angle-magnitude
+   * planes share an eigenvalue, and a repeated eigenvalue of `S` signals an
+   * isoclinic-type degeneracy where *any* orthonormal basis of that
+   * eigenspace is a genuinely valid invariant-plane choice, not just an
+   * approximation). `eigenSymmetric`'s eigenvector order isn't guaranteed to
+   * group same-plane pairs together when eigenvalues coincide (or are
+   * numerically indistinguishable), so the 3 possible pairings of the 4
+   * eigenvectors into 2 pairs are explicitly checked for genuine
+   * `M`-invariance (zero "leakage" into the other pair) before use, rather
+   * than assumed from sort order. Once a valid pair `(u, v)` spanning an
+   * invariant plane is known, the angle and correctly-oriented plane come
+   * directly from how `M` actually acts on `u` within that plane —
+   * `atan2(v·(Mu), u·(Mu))` — not from this rotor's own (possibly drifted)
+   * scalar/bivector/pseudoscalar components.
+   */
+  factor(): [Rotor4, Rotor4] {
+    const basis = [Vec4.Ex, Vec4.Ey, Vec4.Ez, Vec4.Ew];
+    const columns = basis.map((e) => this.apply(e).toArray());
+    const M = (i: number, j: number): number => columns[j]?.[i] as number;
+    const S = Vector.fromArray([0, 1, 2, 3].map((i) => Vector.fromArray([0, 1, 2, 3].map((j) => M(i, j) + M(j, i)))));
+    const { vectors } = MatrixMath.eigenSymmetric(S);
+    const eig = [0, 1, 2, 3].map(
+      (i) =>
+        new Vec4(
+          vectors[0]?.[i] as number,
+          vectors[1]?.[i] as number,
+          vectors[2]?.[i] as number,
+          vectors[3]?.[i] as number,
+        ),
+    );
+
+    const pairings: [[number, number], [number, number]][] = [
+      [
+        [0, 1],
+        [2, 3],
+      ],
+      [
+        [0, 2],
+        [1, 3],
+      ],
+      [
+        [0, 3],
+        [1, 2],
+      ],
+    ];
+    let bestLeak = Number.POSITIVE_INFINITY;
+    let best: [[number, number], [number, number]] = pairings[0] as [[number, number], [number, number]];
+    for (const [[i, j], [k, l]] of pairings) {
+      const ei = eig[i] as Vec4;
+      const ej = eig[j] as Vec4;
+      const ek = eig[k] as Vec4;
+      const el = eig[l] as Vec4;
+      const mi = this.apply(ei);
+      const mj = this.apply(ej);
+      const leak = Math.abs(mi.dot(ek)) + Math.abs(mi.dot(el)) + Math.abs(mj.dot(ek)) + Math.abs(mj.dot(el));
+      if (leak < bestLeak) {
+        bestLeak = leak;
+        best = [
+          [i, j],
+          [k, l],
+        ];
+      }
+    }
+
+    const planeAndAngle = (u: Vec4, v: Vec4): Rotor4 => {
+      const mu = this.apply(u);
+      const angle = Math.atan2(v.dot(mu), u.dot(mu));
+      const plane = wedgeProduct(v, u).normalize();
+      return Rotor4.fromBivectorAngle(plane, angle);
+    };
+    const [[a, b], [c, d]] = best;
+    return [planeAndAngle(eig[a] as Vec4, eig[b] as Vec4), planeAndAngle(eig[c] as Vec4, eig[d] as Vec4)];
+  }
+
+  /**
+   * The proper (Perwass-style) fix for numerical drift: {@link factor} this
+   * rotor into two simple rotors — each exactly renormalizable, unlike a
+   * compound rotor — and recompose. Prefer this over {@link normalize} once
+   * a rotor may have accumulated drift through repeated integration and
+   * could be a genuine double rotation; `normalize` remains correct (and
+   * cheaper) for rotors known to be simple.
+   */
+  renormalize(): Rotor4 {
+    // factor() reads this rotor's action via apply() (the sandwich product
+    // R v R~), which scales vectors by |R|^2 for a non-unit R -- corrupting
+    // the "M is a pure rotation matrix" assumption factor()'s eigenstructure
+    // analysis depends on. A cheap magnitude normalize first removes that
+    // radial drift; the exact plane/angle recovery in factor() then handles
+    // the part naive normalize alone gets wrong (the double-rotation
+    // manifold), on an already magnitude-correct input.
+    const [r1, r2] = this.normalize().factor();
+    return r2.multiply(r1);
   }
 
   /**

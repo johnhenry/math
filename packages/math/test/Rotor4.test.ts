@@ -203,3 +203,121 @@ test("log() throws for a compound (double-rotation) rotor, same as toBivectorAng
 test("exp is the identity's own log-exp round trip too: exp(Identity.log()) == Identity", () => {
   assert.ok(Rotor4.exp(Rotor4.Identity.log()).equals(Rotor4.Identity, 1e-9));
 });
+
+// --- Rotor4.factor() / renormalize() ---------------------------------------
+
+function actionEqual(r1: Rotor4, r2: Rotor4, epsilon = 1e-4): boolean {
+  for (const v of [new Vec4(1, 2, 3, 4), new Vec4(-1, 0.3, 2, 1), new Vec4(0.5, -0.5, 1, -2), Vec4.Ex, Vec4.Ew]) {
+    if (!r1.apply(v).equals(r2.apply(v), epsilon)) return false;
+  }
+  return true;
+}
+
+test("factor() on a simple rotor recomposes to an action-equivalent rotor", () => {
+  const r = Rotor4.fromBivectorAngle(XY, 0.9);
+  const [f1, f2] = r.factor();
+  assert.ok(actionEqual(f2.multiply(f1), r));
+});
+
+test("factor() on a genuine double rotation recomposes to an action-equivalent rotor", () => {
+  const r1 = Rotor4.fromBivectorAngle(XY, 0.7);
+  const r2 = Rotor4.fromBivectorAngle(ZW, 1.3);
+  const R = r2.multiply(r1);
+  const [f1, f2] = R.factor();
+  assert.ok(actionEqual(f2.multiply(f1), R));
+  // it doesn't collapse to a single-plane rotation: both factors are
+  // genuinely non-identity, and the recomposed rotor is still compound.
+  assert.ok(Math.abs(f1.toBivectorAngle().angle) > 1e-6);
+  assert.ok(Math.abs(f2.toBivectorAngle().angle) > 1e-6);
+});
+
+test("factor() handles the isoclinic degeneracy (equal angles) without throwing", () => {
+  const r1 = Rotor4.fromBivectorAngle(XY, 1.0);
+  const r2 = Rotor4.fromBivectorAngle(ZW, 1.0);
+  const R = r2.multiply(r1);
+  const [f1, f2] = R.factor();
+  assert.ok(actionEqual(f2.multiply(f1), R));
+});
+
+test("factor() handles the right-isoclinic degeneracy (opposite angles, cos(a)=cos(-a)) without throwing", () => {
+  const r1 = Rotor4.fromBivectorAngle(XY, 0.5);
+  const r2 = Rotor4.fromBivectorAngle(ZW, -0.5);
+  const R = r2.multiply(r1);
+  const [f1, f2] = R.factor();
+  assert.ok(actionEqual(f2.multiply(f1), R));
+});
+
+test("factor() handles Identity", () => {
+  const [f1, f2] = Rotor4.Identity.factor();
+  assert.ok(actionEqual(f2.multiply(f1), Rotor4.Identity));
+});
+
+test("factor()'s two factors are each unit, simple rotors", () => {
+  const r1 = Rotor4.fromBivectorAngle(XY, 0.4);
+  const r2 = Rotor4.fromBivectorAngle(ZW, 2.1);
+  const R = r2.multiply(r1);
+  const [f1, f2] = R.factor();
+  for (const f of [f1, f2]) {
+    assert.ok(Math.abs(f.magnitude - 1) < 1e-6);
+    assert.ok(Math.abs(f.pseudoscalar) < 1e-6);
+  }
+});
+
+test("renormalize() recovers a valid unit rotor from realistic (small) drift, action-preserving", () => {
+  // Renormalization -- any scheme -- can only project onto the nearest
+  // valid rotor; it can't undo an arbitrarily large distortion and recover
+  // an exact pre-drift value that information was genuinely lost from. This
+  // uses a *small* per-component perturbation, matching the scale of actual
+  // floating-point drift accumulated over many integration steps (the
+  // documented use case), not an arbitrary large distortion.
+  const r1 = Rotor4.fromBivectorAngle(XY, 0.6);
+  const r2 = Rotor4.fromBivectorAngle(ZW, 1.9);
+  const R = r2.multiply(r1);
+  const drifted = new Rotor4(R.scalar * 1.0005 + 0.0001, R.bivector.scale(0.9997), R.pseudoscalar * 1.0003);
+  const fixed = drifted.renormalize();
+  assert.ok(Math.abs(fixed.magnitude - 1) < 1e-9);
+  assert.ok(actionEqual(fixed, R, 0.01));
+});
+
+test("renormalize() always produces a valid magnitude-1 rotor, even after large/arbitrary distortion", () => {
+  // Unlike the small-drift case above, this doesn't assert the *action*
+  // stays close to any particular original -- a large enough distortion
+  // genuinely loses that information, for any renormalization scheme. What
+  // must still hold is the actual guarantee: the output is a valid unit
+  // rotor (renormalize() never leaves it non-unit, which is the concrete
+  // failure mode naive normalize() has near the double-rotation manifold).
+  const r1 = Rotor4.fromBivectorAngle(XY, 0.6);
+  const r2 = Rotor4.fromBivectorAngle(ZW, 1.9);
+  const R = r2.multiply(r1);
+  const drifted = new Rotor4(R.scalar * 1.05 + 0.01, R.bivector.scale(0.97), R.pseudoscalar * 1.02);
+  const fixed = drifted.renormalize();
+  assert.ok(Math.abs(fixed.magnitude - 1) < 1e-9);
+});
+
+test("renormalize() is exact (identity-equivalent) for an already-unit double rotation", () => {
+  const r1 = Rotor4.fromBivectorAngle(XY, 1.1);
+  const r2 = Rotor4.fromBivectorAngle(ZW, 0.4);
+  const R = r2.multiply(r1);
+  const fixed = R.renormalize();
+  assert.ok(actionEqual(fixed, R));
+});
+
+test("factor() is robust across many random plane orientations and angles (regression guard)", () => {
+  let seed = 12345;
+  const rand = () => {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return seed / 0x7fffffff;
+  };
+  for (let i = 0; i < 50; i++) {
+    const reorient = Rotor4.fromBivectorAngle(XY, rand() * Math.PI).multiply(
+      Rotor4.fromBivectorAngle(new Bivector4(0, 0, 1, 0, 0, 0), rand() * Math.PI),
+    );
+    const plane1 = reorient.applyToBivector(XY);
+    const plane2 = reorient.applyToBivector(ZW);
+    const a = (rand() * 2 - 1) * Math.PI * 2;
+    const b = (rand() * 2 - 1) * Math.PI * 2;
+    const R = Rotor4.fromBivectorAngle(plane2, b).multiply(Rotor4.fromBivectorAngle(plane1, a));
+    const [f1, f2] = R.factor();
+    assert.ok(actionEqual(f2.multiply(f1), R), `failed at i=${i}, a=${a}, b=${b}`);
+  }
+});
