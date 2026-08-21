@@ -198,8 +198,14 @@ test("R * R.inverse() == Identity even for a non-unit rotor, unlike R * R.revers
 
   // reverse() alone does NOT recover the identity here: R * R~ = |R|^2 * Identity.
   const viaReverse = drifted.multiply(drifted.reverse());
-  assert.ok(Math.abs(viaReverse.scalar - drifted.magnitudeSquared) < 1e-9, "R * R~ scales Identity by |R|^2, not the true inverse");
-  assert.ok(!viaReverse.equals(Rotor4.Identity, 1e-9), "confirms reverse() alone was the wrong operation for a non-unit rotor");
+  assert.ok(
+    Math.abs(viaReverse.scalar - drifted.magnitudeSquared) < 1e-9,
+    "R * R~ scales Identity by |R|^2, not the true inverse",
+  );
+  assert.ok(
+    !viaReverse.equals(Rotor4.Identity, 1e-9),
+    "confirms reverse() alone was the wrong operation for a non-unit rotor",
+  );
 });
 
 test("inverse() also holds for a compound (double-rotation) rotor", () => {
