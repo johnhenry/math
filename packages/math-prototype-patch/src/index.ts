@@ -13,7 +13,7 @@
  * import: `patchNumberPrototype()` must be called explicitly. See the
  * README before calling it.
  */
-import { ComplexNumber } from "mallory-math";
+import { ComplexNumber } from "@johnhenry/math";
 
 /**
  * mirrors mallory-math's own (internal, unexported) `CNInput` -- anything

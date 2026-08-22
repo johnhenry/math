@@ -3,14 +3,14 @@
   "entryPoints": ["src/index.ts"],
   "tsconfig": "tsconfig.json",
   "out": "docs/api",
-  "name": "mallory-ts",
+  "name": "@johnhenry/math",
   "readme": "README.md",
   "excludeExternals": true,
   "excludePrivate": true,
   "excludeInternal": true,
   "navigationLinks": {
-    "GitHub": "https://github.com/johnhenry/mallory-ts",
-    "Cookbook": "https://github.com/johnhenry/mallory-ts/blob/main/docs/COOKBOOK.md"
+    "GitHub": "https://github.com/johnhenry/math",
+    "Cookbook": "https://github.com/johnhenry/math/blob/main/docs/COOKBOOK.md"
   },
   "sort": ["alphabetical"],
   "categorizeByGroup": true,

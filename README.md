@@ -5,8 +5,9 @@ required beyond Node and npm to contribute.
 
 | Package | npm | What it is |
 |---|---|---|
-| [`packages/math`](./packages/math) | [`mallory-math`](https://www.npmjs.com/package/mallory-math) | Advanced college-level mathematics for TypeScript: complex/rational/decimal/interval/quaternion/dual numbers, linear algebra over arbitrary algebraic structures, a symbolic CAS, combinatorics, number theory, statistics, and renderer-agnostic plotting geometry |
-| [`packages/iteration`](./packages/iteration) | `mallory-iteration` | Sync + async iterator algebra: transducers, Python-`itertools` parity, terminal consumers, bounded concurrency, cancellation, and backpressure-aware channels |
+| [`packages/math`](./packages/math) | [`@johnhenry/math`](https://www.npmjs.com/package/@johnhenry/math) | Advanced college-level mathematics for TypeScript: complex/rational/decimal/interval/quaternion/dual numbers, linear algebra over arbitrary algebraic structures, a symbolic CAS, combinatorics, number theory, statistics, and renderer-agnostic plotting geometry |
+| [`packages/iteration`](./packages/iteration) | `@johnhenry/iteration` | Sync + async iterator algebra: transducers, Python-`itertools` parity, terminal consumers, bounded concurrency, cancellation, and backpressure-aware channels |
+| [`packages/math-prototype-patch`](./packages/math-prototype-patch) | `@johnhenry/math-prototype-patch` | OPT-IN, collision-checked `Number.prototype` patch adding `@johnhenry/math`'s `ComplexNumber` fluent arithmetic to plain numbers |
 
 ## Philosophy
 
@@ -38,7 +39,7 @@ npm run build        # tsc across all packages
 npm run check        # Biome lint + format check
 ```
 
-Per-package: `npm test -w mallory-math`, `npm run build -w mallory-iteration`, etc.
+Per-package: `npm test -w @johnhenry/math`, `npm run build -w @johnhenry/iteration`, etc.
 
 ## Releasing
 

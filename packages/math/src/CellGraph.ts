@@ -12,11 +12,11 @@
  * value that's deep-equal to what was already cached, so unaffected
  * downstream consumers don't re-render.
  *
- * Promoted here from johnhenry/mallory-graph (originally `src/lib/cell-
+ * Promoted here from johnhenry/mallory (originally `src/lib/cell-
  * graph.ts`, powering every panel there via `useCell`/`useSyncExternalStore`)
- * once johnhenry/mallory-grapher became a second consumer of a frozen
+ * once johnhenry/math-grapher became a second consumer of a frozen
  * vendored copy — two consumers is this monorepo's own extract-to-a-package
- * trigger. See johnhenry/mallory#56. UI-framework-agnostic and dependency-
+ * trigger. See johnhenry/math#56. UI-framework-agnostic and dependency-
  * free by design: nothing here references React or any host application.
  */
 

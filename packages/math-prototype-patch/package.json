@@ -1,8 +1,12 @@
 {
-  "name": "mallory-math-prototype-patch",
+  "name": "@johnhenry/math-prototype-patch",
   "version": "0.1.0",
-  "description": "OPT-IN, collision-checked Number.prototype patch adding mallory-math's ComplexNumber fluent arithmetic to plain numbers. Never merged into core mallory-math -- see the README before using.",
+  "description": "OPT-IN, collision-checked Number.prototype patch adding @johnhenry/math's ComplexNumber fluent arithmetic to plain numbers. Never merged into core @johnhenry/math -- see the README before using.",
   "type": "module",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -31,7 +35,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/johnhenry/mallory.git",
+    "url": "git+https://github.com/johnhenry/math.git",
     "directory": "packages/math-prototype-patch"
   },
   "keywords": [
@@ -43,7 +47,7 @@
   "author": "John Henry",
   "license": "MIT",
   "dependencies": {
-    "mallory-math": "^0.11.0"
+    "@johnhenry/math": "^0.15.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

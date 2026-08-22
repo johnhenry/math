@@ -169,7 +169,7 @@ for (const category of categories.sort()) {
 
 const out = {
   attribution:
-    "Derived from RuleBasedIntegration/MaximaSyntaxTestSuite (https://github.com/RuleBasedIntegration/MaximaSyntaxTestSuite), MIT License, Copyright (c) 2018 Rule-based Integration. Converted by scripts/rubi-convert.mjs (Maxima -> mallory-math Symbolic syntax).",
+    "Derived from RuleBasedIntegration/MaximaSyntaxTestSuite (https://github.com/RuleBasedIntegration/MaximaSyntaxTestSuite), MIT License, Copyright (c) 2018 Rule-based Integration. Converted by scripts/rubi-convert.mjs (Maxima -> @johnhenry/math Symbolic syntax).",
   problems: fixture,
 };
 writeFileSync(new URL("../test/fixtures/rubi-corpus.json", import.meta.url), `${JSON.stringify(out, null, 1)}\n`);

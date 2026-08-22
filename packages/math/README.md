@@ -1,8 +1,8 @@
-# mallory
+# @johnhenry/math
 
 **Advanced college-level mathematics for TypeScript** — a modern, fully-typed,
 test-covered port of the Mallory ActionScript 3 library (a project worked on,
-on and off, since 2004), published to npm as `mallory-math`.
+on and off, since 2004), published to npm as `@johnhenry/math`.
 
 Complex numbers, linear algebra over arbitrary algebraic structures,
 combinatorics and number theory, an expression evaluator, and renderer-agnostic
@@ -10,7 +10,7 @@ graphing geometry — all rewritten in modern TypeScript with `node:test`
 (example-based and, for algebraic laws, property-based via `fast-check`).
 
 ```ts
-import { ComplexNumber, Structure, Vector, StringEvaluator } from "mallory-math";
+import { ComplexNumber, Structure, Vector, StringEvaluator } from "@johnhenry/math";
 
 ComplexNumber.E.power(new ComplexNumber(0, Math.PI)); // ≈ -1  (Euler)
 Structure.realField().determinant(/* 3×3 matrix, as Vector<Vector<number>> */);
@@ -21,6 +21,12 @@ StringEvaluator.evaluate("sin(pi/2) + 2^3", StringEvaluator.mathEnvironment()); 
 
 Requires Node.js ≥ 22.6 (the test suite runs `.ts` directly via Node's built-in
 type stripping).
+
+```bash
+npm install @johnhenry/math
+```
+
+To work on the library itself from within this monorepo:
 
 ```bash
 npm install

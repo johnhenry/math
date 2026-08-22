@@ -1,6 +1,10 @@
 {
-  "name": "mallory-math",
+  "name": "@johnhenry/math",
   "version": "0.15.0",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "description": "Advanced college-level mathematics library \u2014 a modern TypeScript port of the Mallory ActionScript 3 library.",
   "type": "module",
   "exports": {
@@ -45,12 +49,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/johnhenry/mallory.git"
+    "url": "git+https://github.com/johnhenry/math.git"
   },
   "bugs": {
-    "url": "https://github.com/johnhenry/mallory/issues"
+    "url": "https://github.com/johnhenry/math/issues"
   },
-  "homepage": "https://github.com/johnhenry/mallory#readme",
+  "homepage": "https://github.com/johnhenry/math#readme",
   "devDependencies": {
     "@biomejs/biome": "^2.5.1",
     "fast-check": "^4.8.0",

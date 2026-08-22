@@ -3215,7 +3215,7 @@ function compileExpr(e: Expr): (env: Record<string, number>) => number {
 }
 
 // -- exact (Rational) and structure-aware evaluation -------------------------
-// Moved here from mallory-graph's app-level rational-eval.ts/structure-eval.ts:
+// Moved here from mallory's app-level rational-eval.ts/structure-eval.ts:
 // these are generic "evaluate an Expr over an alternate algebra" utilities
 // with no graphing-calculator-specific logic, so they belong alongside
 // evalExpr/compileExpr where this file's own exhaustiveness checking keeps

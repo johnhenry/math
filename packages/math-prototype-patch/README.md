@@ -1,13 +1,13 @@
-# mallory-math-prototype-patch
+# @johnhenry/math-prototype-patch
 
 An **opt-in**, collision-checked patch of `Number.prototype` with
-[`mallory-math`](https://www.npmjs.com/package/mallory-math)'s `ComplexNumber`
+[`@johnhenry/math`](https://www.npmjs.com/package/@johnhenry/math)'s `ComplexNumber`
 fluent arithmetic/trig methods, so a plain JS number can participate directly
 in complex arithmetic:
 
 ```ts
-import { ComplexNumber } from "mallory-math";
-import { patchNumberPrototype } from "mallory-math-prototype-patch";
+import { ComplexNumber } from "@johnhenry/math";
+import { patchNumberPrototype } from "@johnhenry/math-prototype-patch";
 
 patchNumberPrototype();
 
@@ -23,13 +23,13 @@ means for **every module that runs afterward** — not just the file that
 called it, and not just code that imported this package. That's a
 categorically bigger risk surface than adding a method to `ComplexNumber`
 itself, which is exactly why this is a separate package and not part of
-`mallory-math` core (see
-[johnhenry/mallory#28](https://github.com/johnhenry/mallory/issues/28)).
+`@johnhenry/math` core (see
+[johnhenry/math#28](https://github.com/johnhenry/math/issues/28)).
 
 Nothing runs on import. You always opt in explicitly:
 
 ```ts
-import { patchNumberPrototype } from "mallory-math-prototype-patch";
+import { patchNumberPrototype } from "@johnhenry/math-prototype-patch";
 patchNumberPrototype(); // <-- the actual mutation happens here, and only here
 ```
 
@@ -45,7 +45,7 @@ previous call from unrelated code — it throws a
 self-collision.
 
 ```ts
-import { NumberPrototypeCollisionError, patchNumberPrototype } from "mallory-math-prototype-patch";
+import { NumberPrototypeCollisionError, patchNumberPrototype } from "@johnhenry/math-prototype-patch";
 
 try {
   patchNumberPrototype();
@@ -59,7 +59,7 @@ try {
 ## Undoing it
 
 ```ts
-import { unpatchNumberPrototype, isNumberPrototypePatched } from "mallory-math-prototype-patch";
+import { unpatchNumberPrototype, isNumberPrototypePatched } from "@johnhenry/math-prototype-patch";
 
 unpatchNumberPrototype();       // removes exactly what patchNumberPrototype() added; no-op if not patched
 isNumberPrototypePatched();     // false
@@ -81,8 +81,8 @@ Calling `patchNumberPrototype()` doesn't change what TypeScript thinks
 *also* opt into the ambient type augmentation, as a **separate** import:
 
 ```ts
-import "mallory-math-prototype-patch/global"; // ambient `interface Number { add(...): ComplexNumber; ... }`
-import { patchNumberPrototype } from "mallory-math-prototype-patch";
+import "@johnhenry/math-prototype-patch/global"; // ambient `interface Number { add(...): ComplexNumber; ... }`
+import { patchNumberPrototype } from "@johnhenry/math-prototype-patch";
 
 patchNumberPrototype();
 const z = (3).add(1); // now type-checks as ComplexNumber, no cast needed
@@ -91,7 +91,7 @@ const z = (3).add(1); // now type-checks as ComplexNumber, no cast needed
 This is deliberately split from the main entry point: a `declare global`
 block is a whole-program effect the instant *any* file imports it, whether
 or not `patchNumberPrototype()` was ever actually called at runtime.
-Importing `"mallory-math-prototype-patch/global"` without calling
+Importing `"@johnhenry/math-prototype-patch/global"` without calling
 `patchNumberPrototype()` gives you types for methods that don't exist yet;
 calling `patchNumberPrototype()` without importing `/global` gives you real
 methods TypeScript doesn't know about. Do both, deliberately, or neither.
@@ -99,7 +99,7 @@ methods TypeScript doesn't know about. Do both, deliberately, or neither.
 ## Install & use
 
 ```bash
-npm install mallory-math-prototype-patch
+npm install @johnhenry/math-prototype-patch
 npm test           # run the node:test suite
 npm run typecheck  # tsc --noEmit (src/ only, matching this monorepo's convention)
 npm run build      # emit ./dist (ESM + .d.ts)

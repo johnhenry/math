@@ -7,7 +7,7 @@
  * Two levels of checking:
  *
  * 1. Every block must run to completion (imports rewritten from
- *    "mallory-math" to this package's src/index.ts; blocks execute as real
+ *    "@johnhenry/math" to this package's src/index.ts; blocks execute as real
  *    ES modules under Node's type stripping). This catches API renames,
  *    signature changes, and removed exports — the dominant doc-rot mode.
  *
@@ -102,7 +102,10 @@ function materialize(block: DocBlock): string {
   ];
   const lines = block.code.split("\n");
   for (let i = 0; i < lines.length; i++) {
-    const line = (lines[i] as string).replace(/from\s+"mallory-math"/g, `from ${JSON.stringify(INDEX_URL)}`);
+    const line = (lines[i] as string).replace(
+      /from\s+"(?:mallory-math|@johnhenry\/math)"/g,
+      `from ${JSON.stringify(INDEX_URL)}`,
+    );
     const m = line.match(CHECK_RE);
     const stmt = m?.[2] ?? "";
     const isCheckable =

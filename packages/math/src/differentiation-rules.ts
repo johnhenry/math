@@ -2,7 +2,7 @@
  * Data-driven derivative rules for single-argument elementary functions --
  * the `func` `Expr` variant (`sin`, `exp`, `asinh`, etc.). This is the
  * "declarative rewrite-rule table" from the Woxi-study design note
- * (github.com/johnhenry/mallory#15): each `FuncName` maps to a pure function
+ * (github.com/johnhenry/math#15): each `FuncName` maps to a pure function
  * from (the function's argument `u`, its already-differentiated form `du`)
  * to d/dx[f(u)]. The chain-rule wrapping itself (computing `du` and
  * dispatching on `e.name`) stays in Symbolic.ts, since that's structural

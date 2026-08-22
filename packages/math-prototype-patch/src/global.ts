@@ -10,7 +10,7 @@
  * `patchNumberPrototype()` without this gives you real methods TypeScript
  * doesn't know about. Do both, deliberately, or neither.
  */
-import type { ComplexNumber } from "mallory-math";
+import type { ComplexNumber } from "@johnhenry/math";
 
 /** See index.ts's identical local alias -- mallory-math doesn't export `CNInput` publicly. */
 type CNInput = ComplexNumber | number;

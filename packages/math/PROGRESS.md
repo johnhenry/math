@@ -1,6 +1,6 @@
 # Mallory → TypeScript port — COMPLETE
 
-Ported `johnhenry/mallory` (ActionScript 3, ~11.4k LOC, 23 classes) to modern,
+Ported `johnhenry/math` (ActionScript 3, ~11.4k LOC, 23 classes) to modern,
 fully-typed TypeScript with `node:test`. Tests written **before** each module;
 bugs fixed rather than carried over.
 
