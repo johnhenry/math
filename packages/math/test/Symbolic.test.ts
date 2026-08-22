@@ -956,7 +956,7 @@ test("solve finds x=0 as a root of degree>=3 polynomials with a zero constant te
   assert.deepEqual(rootsOf("x^4 - 2*x^3 - 3*x^2"), [-1, 0, 0, 3]); // x^2*(x+1)*(x-3): 0 has multiplicity 2
   assert.deepEqual(rootsOf("x^5 - 5*x^3 + 4*x"), [-2, -1, 0, 1, 2]); // x*(x^2-1)*(x^2-4)
 
-  // 0 as a root with multiplicity > 1 (mallory-graph#254's excluded case,
+  // 0 as a root with multiplicity > 1 (mallory#254's excluded case,
   // generalized): x^2*(x-3)*(x+2) has a double root at 0.
   assert.deepEqual(rootsOf("x^4 - x^3 - 6*x^2"), [-2, 0, 0, 3]);
   // Triple root at 0: x^3*(x-5).

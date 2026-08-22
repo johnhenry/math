@@ -25,8 +25,8 @@ The constraints are deliberate and load-bearing:
   stripping, property-based tests via `fast-check`, formatting and linting via Biome.
 
 The engineering counterpart — fixed-width tensors, Rust→WASM kernels, WebGPU, Arrow — lives
-separately in [mallory-plus](https://github.com/johnhenry/mallory-plus), which depends on this
-family rather than absorbing it. The two make opposite trade-offs on purpose: `mallory-math`'s
+separately in [math-plus](https://github.com/johnhenry/math-plus), which depends on this
+family rather than absorbing it. The two make opposite trade-offs on purpose: `@johnhenry/math`'s
 boxed, generic elements are precisely what a SIMD-friendly tensor runtime forbids, and vice versa.
 Neither is a subset of the other.
 

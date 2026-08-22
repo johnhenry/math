@@ -156,13 +156,13 @@ over time.
   (`takeWhileSync`/`takeWhileAsync`) rather than Python's single name — pick
   the one matching your iterable's kind (or check with `isIterator`/
   `isAsyncIterator`/`exhaustable` from the core exports).
-- **Argument order**: the `mallory-iteration/itertools` and
-  `mallory-iteration/combinatorics` functions take the predicate/function
+- **Argument order**: the `@johnhenry/iteration/itertools` and
+  `@johnhenry/iteration/combinatorics` functions take the predicate/function
   first and the iterable(s) last, matching Python's `itertools` argument
   order (e.g. `takeWhileSync(predicate, iterable)`, `starmapSync(fn,
   iterableOfArgArrays)`), so a Python recipe should translate close to
   mechanically.
-- **Currying**: the *transducer* functions in `mallory-iteration/transducers`
+- **Currying**: the *transducer* functions in `@johnhenry/iteration/transducers`
   (`map`, `filter`, `take`, `drop`, `reject`, `group`, `accumulate`) are
   curried factories meant for composition inside `transduceSync`/
   `transduceAsync` — a different shape from the flat itertools-parity

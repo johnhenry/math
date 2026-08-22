@@ -861,7 +861,7 @@ export class Symbolic {
   }
 
   /**
-   * Solve `expr = 0` for `variable`, returning every *real* root mallory-math
+   * Solve `expr = 0` for `variable`, returning every *real* root @johnhenry/math
    * can find as an exact `Expr` (rationals and `sqrt`-radicals where
    * possible) — complex roots are not returned (e.g. `x^2 + 1` yields `[]`).
    * Supports polynomials up to degree 6: linear and quadratic are solved in
@@ -1143,7 +1143,7 @@ export class Symbolic {
    * common power of `variable`, then repeatedly pulls out rational linear
    * factors `(variable - r)` via the rational root theorem, falling back to
    * the quadratic formula for a final degree-2 remainder. Any remaining
-   * factor mallory-math can't reduce further (e.g. an irreducible cubic) is
+   * factor @johnhenry/math can't reduce further (e.g. an irreducible cubic) is
    * left as-is. Returns `expr` unchanged (simplified) if it isn't a
    * polynomial in `variable`.
    */

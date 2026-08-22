@@ -1,5 +1,5 @@
 /**
- * mallory-ts — advanced college-level mathematics for TypeScript.
+ * @johnhenry/math — advanced college-level mathematics for TypeScript.
  *
  * A modern, tested TypeScript port of the Mallory ActionScript 3 library.
  */

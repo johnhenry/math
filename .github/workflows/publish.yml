@@ -57,7 +57,7 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-  # JSR dual-publish (issue #13) — same pattern as mallory-plus's release.yml
+  # JSR dual-publish (issue #13) — same pattern as math-plus's release.yml
   # jsr-release job: OIDC Trusted Publishing (no secret; each package on
   # jsr.io links this repo as its publisher — one-time manual setup, done
   # 2026-08-13), continue-on-error per package so an already-published
@@ -72,7 +72,7 @@ jobs:
 
       # jsr.json is committed with the current version, but the publish-time
       # source of truth is package.json — sync here so the two can never
-      # drift (the same no-hand-edited-versions rule as mallory-plus's
+      # drift (the same no-hand-edited-versions rule as math-plus's
       # sync-jsr-configs.mjs).
       - name: Sync jsr.json versions from package.json
         run: |

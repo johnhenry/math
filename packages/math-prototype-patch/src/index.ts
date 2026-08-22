@@ -1,11 +1,11 @@
 /**
- * mallory-math-prototype-patch (issue #28) — an OPT-IN, collision-checked
+ * @johnhenry/math-prototype-patch (issue #28) — an OPT-IN, collision-checked
  * patch of `Number.prototype` with `ComplexNumber`'s fluent arithmetic/
  * trig methods, so a plain JS number can participate directly in complex
  * arithmetic: `(3).add(new ComplexNumber(1, 2))` instead of
  * `new ComplexNumber(3).add(...)`.
  *
- * Deliberately a SEPARATE package from `mallory-math` itself, never
+ * Deliberately a SEPARATE package from `@johnhenry/math` itself, never
  * merged into core -- patching a built-in prototype is a process-wide,
  * global-realm effect (every module in the process observes it, not just
  * callers that imported this package), a categorically bigger risk
@@ -16,9 +16,9 @@
 import { ComplexNumber } from "@johnhenry/math";
 
 /**
- * mirrors mallory-math's own (internal, unexported) `CNInput` -- anything
+ * mirrors @johnhenry/math's own (internal, unexported) `CNInput` -- anything
  * `ComplexNumber`'s fluent methods accept as an operand. Defined locally
- * rather than depending on an export mallory-math doesn't make public,
+ * rather than depending on an export @johnhenry/math doesn't make public,
  * keeping this package's surface fully self-contained.
  */
 type CNInput = ComplexNumber | number;
@@ -82,7 +82,7 @@ export class NumberPrototypeCollisionError extends Error {
   constructor(collidingNames: readonly string[]) {
     super(
       `Number.prototype already defines: ${collidingNames.join(", ")}. ` +
-        "mallory-math-prototype-patch refuses to overwrite an existing member -- " +
+        "@johnhenry/math-prototype-patch refuses to overwrite an existing member -- " +
         "something else (another library, a polyfill, a previous patch) already claimed it.",
     );
     this.name = "NumberPrototypeCollisionError";

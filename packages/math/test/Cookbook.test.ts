@@ -1,6 +1,6 @@
 /**
  * Docs-as-tests (issue #17, pattern from Woxi's scrut-run documentation —
- * see mallory-plus's docs/spikes/woxi-study.md): every fenced ```ts block in
+ * see math-plus's docs/spikes/woxi-study.md): every fenced ```ts block in
  * docs/COOKBOOK.md is EXECUTED by this suite, so a documented example that
  * stops compiling or starts throwing fails CI instead of silently rotting.
  *
@@ -102,10 +102,7 @@ function materialize(block: DocBlock): string {
   ];
   const lines = block.code.split("\n");
   for (let i = 0; i < lines.length; i++) {
-    const line = (lines[i] as string).replace(
-      /from\s+"(?:mallory-math|@johnhenry\/math)"/g,
-      `from ${JSON.stringify(INDEX_URL)}`,
-    );
+    const line = (lines[i] as string).replace(/from\s+"@johnhenry\/math"/g, `from ${JSON.stringify(INDEX_URL)}`);
     const m = line.match(CHECK_RE);
     const stmt = m?.[2] ?? "";
     const isCheckable =
