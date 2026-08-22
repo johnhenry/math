@@ -6,12 +6,6 @@
     ".": "./src/index.ts"
   },
   "publish": {
-    "exclude": [
-      "test",
-      "docs",
-      "scripts",
-      "api",
-      "**/*.test.ts"
-    ]
+    "exclude": ["test", "docs", "scripts", "api", "**/*.test.ts"]
   }
 }

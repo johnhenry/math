@@ -7,9 +7,6 @@
     "./global": "./src/global.ts"
   },
   "publish": {
-    "exclude": [
-      "test",
-      "**/*.test.ts"
-    ]
+    "exclude": ["test", "**/*.test.ts"]
   }
 }
