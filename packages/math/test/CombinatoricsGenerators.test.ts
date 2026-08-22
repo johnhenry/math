@@ -71,7 +71,7 @@ test("combinationsWithReplacement", () => {
 });
 
 // The point of housing enumeration alongside counting: the two must agree.
-// These cross-checks are only expressible now that both live in mallory-math.
+// These cross-checks are only expressible now that both live in @johnhenry/math.
 
 test("binomial counts exactly what combinations enumerates", () => {
   const pool = [1, 2, 3, 4, 5, 6];

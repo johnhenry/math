@@ -1,8 +1,8 @@
 /**
  * Lattice — axial-coordinate neighbor helpers for hexagonal and triangular
- * grids (part of johnhenry/mallory#30's "lattice-geometry helpers" item,
+ * grids (part of johnhenry/math#30's "lattice-geometry helpers" item,
  * upstream for the generalized Wang tile laboratory,
- * johnhenry/mallory-graph#92). Both the solver (adjacency for constraint
+ * johnhenry/mallory#92). Both the solver (adjacency for constraint
  * propagation) and the app (drawing) need a shared, tested "direction d's
  * neighbor" definition per lattice — this is that definition, kept purely
  * combinatorial (integer coordinate offsets), independent of any pixel

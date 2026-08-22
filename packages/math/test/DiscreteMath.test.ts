@@ -102,7 +102,7 @@ test("dijkstra shortest path", () => {
   assert.deepEqual(path, ["a", "b", "c", "d"]);
 });
 
-// Regression test for https://github.com/johnhenry/mallory/issues/38 — dijkstra/shortestPath
+// Regression test for https://github.com/johnhenry/math/issues/38 — dijkstra/shortestPath
 // used to do a linear "find min unvisited vertex" scan on every iteration (O(V^2)), which
 // measured at 9-12s on a 20,000-node chain graph. A heap-based implementation should stay
 // well under a second. The threshold below is generous (2s) to avoid flakiness on slow CI

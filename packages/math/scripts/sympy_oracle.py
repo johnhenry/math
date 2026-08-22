@@ -3,7 +3,7 @@
 
 Protocol (batch -- SymPy import dominates startup, so callers send many jobs
 per invocation): a JSON object {"jobs": [...]} on stdin, {"results": [...]}
-on stdout, one result per job in order. Each job carries mallory-math's Expr
+on stdout, one result per job in order. Each job carries @johnhenry/math's Expr
 AST verbatim (it is a plain JSON discriminated union); this script rebuilds
 it as a SymPy expression -- an INDEPENDENT reimplementation of the semantics,
 which is the whole point.
@@ -41,7 +41,7 @@ UNARY = {
     "acoth": sp.acoth, "asech": sp.asech, "acsch": sp.acsch,
     "abs": sp.Abs,
     "log10": lambda a: sp.log(a, 10), "log2": lambda a: sp.log(a, 2),
-    "cbrt": lambda a: sp.real_root(a, 3),  # mallory's cbrt is the REAL cube root (Math.cbrt)
+    "cbrt": lambda a: sp.real_root(a, 3),  # this library's cbrt is the REAL cube root (Math.cbrt)
     "floor": sp.floor, "ceil": sp.ceiling,
     "sign": sp.sign,
     "expm1": lambda a: sp.exp(a) - 1, "log1p": lambda a: sp.log(1 + a),

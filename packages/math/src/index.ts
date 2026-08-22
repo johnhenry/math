@@ -1,5 +1,5 @@
 /**
- * mallory-ts — advanced college-level mathematics for TypeScript.
+ * @johnhenry/math — advanced college-level mathematics for TypeScript.
  *
  * A modern, tested TypeScript port of the Mallory ActionScript 3 library.
  */
@@ -7,9 +7,9 @@
 // 4D geometric algebra (vectors, bivectors, rotors) -- see report/MIEGAKURE_REPORT.md
 // in johnhenry/miegakure-archive for the design context this was built for.
 export { Bivector4 } from "./Bivector4.ts";
-// Reactive, pull-based dependency graph -- promoted from johnhenry/mallory-graph
-// (its src/lib/cell-graph.ts), which mallory-grapher also vendored a frozen
-// copy of; both now import it from here instead. See johnhenry/mallory#56.
+// Reactive, pull-based dependency graph -- promoted from johnhenry/mallory
+// (its src/lib/cell-graph.ts), which math-grapher also vendored a frozen
+// copy of; both now import it from here instead. See johnhenry/math#56.
 export { CellGraph, type CellRole, CircularDependencyError, structuralEqual } from "./CellGraph.ts";
 // Counting mathematics
 export { Combinatorics } from "./Combinatorics.ts";

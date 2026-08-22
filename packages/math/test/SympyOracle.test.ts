@@ -1,5 +1,5 @@
 /**
- * SymPy differential oracle for Symbolic (issue #14) — mallory-plus's proven
+ * SymPy differential oracle for Symbolic (issue #14) — math-plus's proven
  * subprocess-oracle pattern (numpy_oracle.py / scipy_oracle.py) applied to
  * this repo's own CAS. SymPy rebuilds mallory's Expr AST independently
  * (scripts/sympy_oracle.py), so agreement is two implementations agreeing,
@@ -268,7 +268,7 @@ function mulberry32(seed: number): () => number {
 /** Smooth, sympy-translatable, non-piecewise subset — the property leg's
  * spec table. Kinked/discrete funcs (abs/floor/relu/min/max/...) are pinned
  * by the fixed suites; FD-meaningless at kinks applies to derivatives here
- * exactly as it did in mallory-plus's fuzzer. */
+ * exactly as it did in math-plus's fuzzer. */
 const GEN_FUNCS = ["sin", "cos", "exp", "tanh", "sinh", "atan", "sigmoid", "sqrt", "ln", "erf", "asinh"] as const;
 
 function genExpr(rng: () => number, depth: number): Expr {

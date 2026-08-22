@@ -36,7 +36,7 @@ const count = <N extends Numeric>(zero: N, one: N) =>
  * @see countAsync
  * @example <caption>Log an infinite sequence of numbers starting with 5 </caption>
  * ```javascript
- * import { countSync } from 'mallory-iteration';
+ * import { countSync } from '@johnhenry/iteration';
  * for(const num of countSync(5, Infinity)){
  *   console.log(num);
  * }
@@ -54,7 +54,7 @@ export const countBigSync = count<bigint>(0n, 1n);
  * @see countSync
  * @example <caption>Log an infinite sequence of numbers starting with 5 </caption>
  * ```javascript
- * import { countAsync } from 'mallory-iteration';
+ * import { countAsync } from '@johnhenry/iteration';
  * for await(const num of countAsync(5, Infinity)){
  *   console.log(num);
  * }

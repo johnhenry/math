@@ -1,7 +1,7 @@
 /**
  * Ambient TYPE augmentation for `Number.prototype`, matching the methods
  * `patchNumberPrototype()` (see `./index.ts`) adds at runtime -- kept as a
- * SEPARATE opt-in import (`import "mallory-math-prototype-patch/global";`)
+ * SEPARATE opt-in import (`import "@johnhenry/math-prototype-patch/global";`)
  * rather than folded into the main entry point, since a `declare global`
  * block is a whole-program effect the moment ANY file imports it,
  * regardless of whether `patchNumberPrototype()` was ever actually
@@ -10,9 +10,9 @@
  * `patchNumberPrototype()` without this gives you real methods TypeScript
  * doesn't know about. Do both, deliberately, or neither.
  */
-import type { ComplexNumber } from "mallory-math";
+import type { ComplexNumber } from "@johnhenry/math";
 
-/** See index.ts's identical local alias -- mallory-math doesn't export `CNInput` publicly. */
+/** See index.ts's identical local alias -- @johnhenry/math doesn't export `CNInput` publicly. */
 type CNInput = ComplexNumber | number;
 
 declare global {

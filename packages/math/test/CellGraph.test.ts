@@ -177,7 +177,7 @@ test("throws on a circular dependency", () => {
 });
 
 // The four tests below investigate a specific concern raised while surveying
-// this repo for cross-repo interop opportunities (see the mallory-plus
+// this repo for cross-repo interop opportunities (see the math-plus
 // FAMILY.md doc and this repo's own issue #18): could redefining a cell to
 // complete a cycle, at a moment when an INTERMEDIATE cell in that cycle is
 // clean/cached (not currently on the live call stack), let a genuine
@@ -344,7 +344,7 @@ test("get() on a deleted id re-creates an empty record with 'never existed' sema
   assert.equal(g.hasValue("a"), false);
 });
 
-test("a compute that reads a sibling id before it's ever been set/defined sees undefined, then recomputes once that sibling is later defined (the mallory-graph#10 pattern)", () => {
+test("a compute that reads a sibling id before it's ever been set/defined sees undefined, then recomputes once that sibling is later defined (the mallory#10 pattern)", () => {
   const g = new CellGraph();
   // Mirrors LinkedGraphPanes/Linked3DView's combinedDuration: defined before
   // either "pane" has mounted and defined its own timelineDuration cell.
@@ -371,7 +371,7 @@ test("a compute that reads a sibling id before it's ever been set/defined sees u
 });
 
 // -----------------------------------------------------------------------
-// Regression tests for github.com/johnhenry/mallory-graph issues #12-#16
+// Regression tests for github.com/johnhenry/mallory issues #12-#16
 // -----------------------------------------------------------------------
 
 // #12 -- set() on a dependent cell leaks stale dependency edges
@@ -567,7 +567,7 @@ test("define() redefining with a throwing compute does not throw synchronously, 
 test("define() still eagerly notifies dependents on a first-ever definition (no prior value to compare against)", () => {
   // A first define() has no cached value to defer against -- hasValue flips
   // false -> true unconditionally, so the existing eager-cascade behavior
-  // (relied on by the mallory-graph#10-pattern test above) must be
+  // (relied on by the mallory#10-pattern test above) must be
   // untouched by the #15 fix.
   const g = new CellGraph();
   let notified = 0;
@@ -685,7 +685,7 @@ test("subscribeWrites: the returned unsubscribe function stops future notificati
 });
 
 // -----------------------------------------------------------------------
-// Regression tests for github.com/johnhenry/mallory-graph issue #234:
+// Regression tests for github.com/johnhenry/mallory issue #234:
 // subscribeAll over-firing (bug 1) and reentrant-write swallowing (bug 2).
 // -----------------------------------------------------------------------
 

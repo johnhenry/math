@@ -1,6 +1,6 @@
 {
-  "name": "@johnhenry/mallory-math-prototype-patch",
-  "version": "0.1.0",
+  "name": "@johnhenry/math-prototype-patch",
+  "version": "0.0.0",
   "license": "MIT",
   "exports": {
     ".": "./src/index.ts",

@@ -52,7 +52,7 @@ const composeFunctions =
  * @see transduceSync
  * @example <caption>Asynchronously log transduced numbers </caption>
  * ```javascript
- * import { transduceAsync, transducers, countAsync } from 'mallory-iteration';
+ * import { transduceAsync, transducers, countAsync } from '@johnhenry/iteration';
  * const {
  *     map,
  *     filter,
@@ -113,7 +113,7 @@ export function transduceAsync(...functions: Array<Transducer<any, any>>) {
  * @see transduceAsync
  * @example <caption>Synchronously log transduced numbers </caption>
  * ```javascript
- * import { transduceSync, transducers, countSync } from 'mallory-iteration';
+ * import { transduceSync, transducers, countSync } from '@johnhenry/iteration';
  * const {
  *     map,
  *     filter,

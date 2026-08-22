@@ -1,7 +1,7 @@
 // Historically this module was a pop-quiz assertion and imported
 // pop-quiz/testerror. pop-quiz is no longer a dependency (the test suite
 // moved to node:test), so a structurally-compatible TestError is inlined
-// here to keep the "mallory-iteration/pop-quiz/asserteventualequal" subpath
+// here to keep the "@johnhenry/iteration/pop-quiz/asserteventualequal" subpath
 // export working for existing consumers: it extends Error, exposes the
 // details on `.val`, and is iterable over the [key, value] entries --
 // exactly the shape pop-quiz@1's TestError had.

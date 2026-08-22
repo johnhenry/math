@@ -1,6 +1,6 @@
 {
-  "name": "@johnhenry/mallory-math",
-  "version": "0.9.0",
+  "name": "@johnhenry/math",
+  "version": "0.0.0",
   "license": "MIT",
   "exports": {
     ".": "./src/index.ts"

@@ -15,10 +15,10 @@
  * so a fully lazy formulation isn't available. Pools are therefore buffered in
  * memory; enumerating a large product is bounded by that, not by laziness.
  *
- * Originally written for the library now published as `mallory-iteration`;
+ * Originally written for the library now published as `@johnhenry/iteration`;
  * moved here because enumeration is mathematics rather than stream plumbing.
  * The async duals stayed behind — they only added a "collect the source, then
- * run this same sync generator" wrapper, and mallory-math is deliberately
+ * run this same sync generator" wrapper, and @johnhenry/math is deliberately
  * synchronous throughout.
  */
 

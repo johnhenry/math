@@ -12,7 +12,7 @@
 ## Installation
 
 ```bash
-npm install mallory-iteration
+npm install @johnhenry/iteration
 ```
 
 ## Usage
@@ -25,7 +25,7 @@ The traditional way to load javascript in browsers.
 
 ```html
 <html>
-  <script src="./node_modules/mallory-iteration/dist/malloryIteration.mjs"></script>
+  <script src="./node_modules/@johnhenry/iteration/dist/malloryIteration.mjs"></script>
   <script>
     // do stuff with malloryIteration
   </script>
@@ -37,7 +37,7 @@ The traditional way to load javascript in browsers.
 The traditional way to load javascript in node.
 
 ```javascript
-const malloryIteration = require("./node_modules/mallory-iteration/dist/cjs/index.cjs");
+const malloryIteration = require("./node_modules/@johnhenry/iteration/dist/cjs/index.cjs");
 // do stuff with malloryIteration
 ```
 
@@ -48,14 +48,14 @@ The modern way to load javascript in browsers and node.
 ```html
 <html>
   <script type="module">
-    import * as malloryIteration from "./node_modules/mallory-iteration/dist/index.mjs";
+    import * as malloryIteration from "./node_modules/@johnhenry/iteration/dist/index.mjs";
     // do stuff with malloryIteration
   </script>
 </html>
 ```
 
 ```javascript
-// import * as malloryIteration from './node_modules/mallory-iteration/dist/index.mjs';
-import * as malloryIteration from "mallory-iteration";
+// import * as malloryIteration from './node_modules/@johnhenry/iteration/dist/index.mjs';
+import * as malloryIteration from "@johnhenry/iteration";
 // do stuff with malloryIteration
 ```

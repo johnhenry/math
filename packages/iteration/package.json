@@ -1,6 +1,10 @@
 {
-  "name": "mallory-iteration",
+  "name": "@johnhenry/iteration",
   "type": "module",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "engines": {
     "node": ">=22.12.0",
     "npm": ">=8.19.2"
@@ -73,11 +77,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/johnhenry/mallory.git",
+    "url": "git+https://github.com/johnhenry/math.git",
     "directory": "packages/iteration"
   },
-  "version": "2.0.0",
-  "description": "Sync + async iterator algebra for TypeScript \u2014 transducers, Python-itertools parity, terminal consumers, bounded concurrency, cancellation, and backpressure-aware channels. Zero runtime dependencies.",
+  "version": "0.0.0",
+  "description": "Sync + async iterator algebra for TypeScript — transducers, Python-itertools parity, terminal consumers, bounded concurrency, cancellation, and backpressure-aware channels. Zero runtime dependencies.",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
