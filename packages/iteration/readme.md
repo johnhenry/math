@@ -12,12 +12,14 @@ Since this library's original release, JavaScript gained native **Iterator Helpe
 
 Requires **Node.js 22.12+** (or an equivalent Iterator-Helpers-capable engine).
 
-> **Provenance.** This library has been renamed twice. It started life as `async-itertools`; the
-> 1.x releases and the "2.0" milestones referenced below (transducer rewrite, cancellation, bounded
-> concurrency, backpressure) describe that history under the old name. It was then published as
-> `@johnhenry/iteration`, part of the [Mallory](https://github.com/johnhenry/mallory) family. It now
-> ships as `@johnhenry/iteration`, part of the `johnhenry/math` monorepo, continuing that lineage
-> at version 2.0.0.
+> **Provenance.** This library has been renamed twice, so its published history spans three names.
+> It started life as [`async-itertools`](https://github.com/johnhenry/async-itertools) (now
+> archived) — the 1.x releases and the "2.0" milestones described below (transducer rewrite,
+> cancellation, bounded concurrency, backpressure) all happened under that name. It was then
+> absorbed into a pure-TypeScript monorepo as `mallory-iteration`, with full git history preserved
+> via `git subtree`. It now ships as **`@johnhenry/iteration`** from the
+> [`johnhenry/math`](https://github.com/johnhenry/math) monorepo, restarted at `0.0.0` under the
+> new scoped name — the version number is fresh, the code and its lineage are not.
 
 ## What's new in 2.0
 
