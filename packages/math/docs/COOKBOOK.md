@@ -1,6 +1,6 @@
 # Cookbook
 
-Task-oriented recipes across every domain mallory covers. Each snippet is
+Task-oriented recipes across every domain @johnhenry/math covers. Each snippet is
 self-contained, runnable, and pulled directly from the test suite (or verified
 against it) — see the linked test file if you want the full context.
 

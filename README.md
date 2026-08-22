@@ -1,7 +1,7 @@
-# Mallory
+# math
 
-A family of **pure-TypeScript libraries** — zero runtime dependencies, `tsc`-only builds, nothing
-required beyond Node and npm to contribute.
+The `@johnhenry/math` family: **pure-TypeScript libraries** — zero runtime dependencies,
+`tsc`-only builds, nothing required beyond Node and npm to contribute.
 
 | Package | npm | What it is |
 |---|---|---|

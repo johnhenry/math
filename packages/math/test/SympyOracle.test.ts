@@ -1,7 +1,7 @@
 /**
  * SymPy differential oracle for Symbolic (issue #14) — math-plus's proven
  * subprocess-oracle pattern (numpy_oracle.py / scipy_oracle.py) applied to
- * this repo's own CAS. SymPy rebuilds mallory's Expr AST independently
+ * this repo's own CAS. SymPy rebuilds @johnhenry/math's Expr AST independently
  * (scripts/sympy_oracle.py), so agreement is two implementations agreeing,
  * not one implementation agreeing with itself.
  *
@@ -10,7 +10,7 @@
  *   additive constant (pointwise difference must be CONSTANT, not zero),
  *   solution sets modulo ordering, simplification by numeric equivalence.
  * - The reference isn't gospel: a disagreement is a finding to triage, not
- *   automatically a mallory bug — failures print both sides for exactly
+ *   automatically a @johnhenry/math bug — failures print both sides for exactly
  *   that reason.
  *
  * Oracle resolution: $MALLORY_SYMPY_ORACLE_PYTHON, else `python3` on PATH;
@@ -59,7 +59,7 @@ function close(a: number, b: number): boolean {
   return Math.abs(a - b) <= ATOL + RTOL * Math.max(Math.abs(a), Math.abs(b));
 }
 
-/** mallory-side evaluation that mirrors the oracle's None convention. */
+/** math-side evaluation that mirrors the oracle's None convention. */
 function evalOrNull(expr: Expr | string, point: Point): number | null {
   try {
     const v = Symbolic.evaluate(expr, point);
@@ -69,22 +69,22 @@ function evalOrNull(expr: Expr | string, point: Point): number | null {
   }
 }
 
-/** Compare mallory values against oracle values pointwise where BOTH are
+/** Compare @johnhenry/math values against oracle values pointwise where BOTH are
  * defined; require a minimum number of comparable points so domain
  * mismatches can't make a check vacuous. */
 function assertPointwiseAgreement(
   label: string,
-  mallory: Array<number | null>,
+  @johnhenry/math: Array<number | null>,
   sympy: Array<number | null>,
   minComparable: number,
 ): void {
   let compared = 0;
-  for (let i = 0; i < mallory.length; i++) {
-    const m = mallory[i];
+  for (let i = 0; i < @johnhenry/math.length; i++) {
+    const m = @johnhenry/math[i];
     const s = sympy[i];
     if (m === null || m === undefined || s === null || s === undefined) continue;
     compared++;
-    assert.ok(close(m, s), `${label}: point #${i}: mallory=${m} sympy=${s}`);
+    assert.ok(close(m, s), `${label}: point #${i}: @johnhenry/math=${m} sympy=${s}`);
   }
   assert.ok(
     compared >= minComparable,
@@ -115,13 +115,13 @@ test("differentiate agrees with sympy.diff across a diverse fixed expression set
     const r = results[i] as ValuesResult;
     assert.ok(!r.error, `sympy failed on ${exprs[i]}: ${r.error}`);
     const d = Symbolic.differentiate(exprs[i] as string, "x");
-    const mallory = X_POINTS.map((p) => evalOrNull(d, p));
-    assertPointwiseAgreement(`d/dx ${exprs[i]}`, mallory, r.values as Array<number | null>, 3);
+    const @johnhenry/math = X_POINTS.map((p) => evalOrNull(d, p));
+    assertPointwiseAgreement(`d/dx ${exprs[i]}`, @johnhenry/math, r.values as Array<number | null>, 3);
   }
 });
 
 test("integrate agrees with sympy.integrate modulo an additive constant", { skip: SKIP_REASON }, () => {
-  // Expressions inside mallory's documented elementary-rule coverage.
+  // Expressions inside @johnhenry/math's documented elementary-rule coverage.
   const exprs = ["x^2 + 3*x", "cos(x)", "x*sin(x)", "2*x*sin(x^2)", "exp(x) + 1/x", "x*exp(x)"];
   const points: Point[] = [0.4, 0.9, 1.5, 2.1, 3.0].map((x) => ({ x })); // positive: keeps 1/x's ln(x) real
   const jobs = exprs.map((e) => ({ op: "integrate_eval", expr: Symbolic.parse(e), variable: "x", points }));
@@ -168,7 +168,7 @@ test("integrateDefinite agrees with sympy's definite integrals", { skip: SKIP_RE
     const m = Symbolic.integrateDefinite(c.expr, c.lower, c.upper);
     assert.ok(
       Math.abs(m - (r.value as number)) <= 1e-6 * Math.max(1, Math.abs(r.value as number)),
-      `∫[${c.lower},${c.upper}] ${c.expr}: mallory=${m} sympy=${r.value}`,
+      `∫[${c.lower},${c.upper}] ${c.expr}: @johnhenry/math=${m} sympy=${r.value}`,
     );
   }
 });
@@ -185,20 +185,20 @@ test("solve agrees with sympy.solve as real solution SETS (order-independent)", 
   for (let i = 0; i < exprs.length; i++) {
     const r = results[i] as ValuesResult;
     assert.ok(!r.error, `sympy failed on ${exprs[i]}: ${r.error}`);
-    const mallory = Symbolic.solve(exprs[i] as string, "x")
+    const @johnhenry/math = Symbolic.solve(exprs[i] as string, "x")
       .map((root) => Symbolic.evaluate(root, {}))
       .filter((v) => Number.isFinite(v))
       .sort((a, b) => a - b);
     const sympy = r.roots as number[];
     assert.equal(
-      mallory.length,
+      @johnhenry/math.length,
       sympy.length,
-      `solve ${exprs[i]}: mallory found ${JSON.stringify(mallory)}, sympy ${JSON.stringify(sympy)}`,
+      `solve ${exprs[i]}: @johnhenry/math found ${JSON.stringify(@johnhenry/math)}, sympy ${JSON.stringify(sympy)}`,
     );
-    for (let j = 0; j < mallory.length; j++) {
+    for (let j = 0; j < @johnhenry/math.length; j++) {
       assert.ok(
-        close(mallory[j] as number, sympy[j] as number),
-        `solve ${exprs[i]}: root #${j}: mallory=${mallory[j]} sympy=${sympy[j]}`,
+        close(@johnhenry/math[j] as number, sympy[j] as number),
+        `solve ${exprs[i]}: root #${j}: @johnhenry/math=${@johnhenry/math[j]} sympy=${sympy[j]}`,
       );
     }
   }
@@ -228,12 +228,12 @@ test("taylor agrees with sympy.series near the expansion center", { skip: SKIP_R
     const r = results[i] as ValuesResult;
     assert.ok(!r.error, `sympy failed on ${c.expr}: ${r.error}`);
     const poly = Symbolic.taylor(c.expr, "x", c.center, c.order);
-    const mallory = [-0.3, -0.1, 0.1, 0.3].map((dx) => evalOrNull(poly, { x: c.center + dx }));
-    assertPointwiseAgreement(`taylor ${c.expr} @ ${c.center}`, mallory, r.values as Array<number | null>, 4);
+    const @johnhenry/math = [-0.3, -0.1, 0.1, 0.3].map((dx) => evalOrNull(poly, { x: c.center + dx }));
+    assertPointwiseAgreement(`taylor ${c.expr} @ ${c.center}`, @johnhenry/math, r.values as Array<number | null>, 4);
   }
 });
 
-test("simplify preserves semantics: sympy evaluates the ORIGINAL, mallory the SIMPLIFIED", {
+test("simplify preserves semantics: sympy evaluates the ORIGINAL, @johnhenry/math the SIMPLIFIED", {
   skip: SKIP_REASON,
 }, () => {
   const exprs = ["a*b + b*a", "x + x + 2*x", "(x+1)^2 - (x^2 + 2*x + 1)", "sin(x)^2 + cos(x)^2 + x", "x*1 + 0*y + x^1"];
@@ -247,8 +247,8 @@ test("simplify preserves semantics: sympy evaluates the ORIGINAL, mallory the SI
     const r = results[i] as ValuesResult;
     assert.ok(!r.error, `sympy failed on ${exprs[i]}: ${r.error}`);
     const simplified = Symbolic.simplify(exprs[i] as string);
-    const mallory = points.map((p) => evalOrNull(simplified, p));
-    assertPointwiseAgreement(`simplify ${exprs[i]}`, mallory, r.values as Array<number | null>, 3);
+    const @johnhenry/math = points.map((p) => evalOrNull(simplified, p));
+    assertPointwiseAgreement(`simplify ${exprs[i]}`, @johnhenry/math, r.values as Array<number | null>, 3);
   }
 });
 
@@ -317,7 +317,7 @@ test("property leg: random Expr trees agree with sympy on evaluate AND different
       discarded++;
       continue;
     }
-    // Reject graphs whose mallory-side values explode (domain/pole trouble
+    // Reject graphs whose math-side values explode (domain/pole trouble
     // makes float comparison meaningless — same guard as the IR fuzzer).
     const vals = points.map((p) => evalOrNull(expr, p));
     if (vals.filter((v) => v !== null && Math.abs(v) < 1e6).length < 3) {

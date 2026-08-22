@@ -127,7 +127,7 @@ test("every COOKBOOK.md ```ts block runs, and every `// =>` documented value mat
     `expected >= 20 checked (// =>) doc values, found ${checkCount} -- conversions have regressed`,
   );
 
-  const dir = mkdtempSync(join(tmpdir(), "mallory-cookbook-"));
+  const dir = mkdtempSync(join(tmpdir(), "math-cookbook-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
 
   for (const [i, block] of blocks.entries()) {

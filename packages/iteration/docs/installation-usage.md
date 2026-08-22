@@ -5,9 +5,8 @@
 - [Installation and Usage](#installation-and-usage)
   - [Installation](#installation)
   - [Usage](#usage)
-    - [IFFE ('script src=')](#iffe-script-src)
-    - [Common JS ('require')](#common-js-require)
-    - [Ecmascript modules ('import')](#ecmascript-modules-import)
+    - [ESM (`import`)](#esm-import)
+    - [CommonJS (`require`)](#commonjs-require)
 
 ## Installation
 
@@ -17,45 +16,40 @@ npm install @johnhenry/iteration
 
 ## Usage
 
-AsyncItertools is built in three different module flavors:
+`@johnhenry/iteration` ships **ESM only** — compiled `.js` + `.d.ts` under `dist/`, no bundle,
+no UMD/IIFE build, no separate CJS build. Requires **Node 22.12+** (or an equivalent
+Iterator-Helpers-capable engine).
 
-### IFFE ('script src=')
-
-The traditional way to load javascript in browsers.
-
-```html
-<html>
-  <script src="./node_modules/@johnhenry/iteration/dist/malloryIteration.mjs"></script>
-  <script>
-    // do stuff with malloryIteration
-  </script>
-</html>
-```
-
-### Common JS ('require')
-
-The traditional way to load javascript in node.
+### ESM (`import`)
 
 ```javascript
-const malloryIteration = require("./node_modules/@johnhenry/iteration/dist/cjs/index.cjs");
-// do stuff with malloryIteration
+import { countSync, transduceSync, transducers } from "@johnhenry/iteration";
 ```
 
-### Ecmascript modules ('import')
-
-The modern way to load javascript in browsers and node.
-
-```html
-<html>
-  <script type="module">
-    import * as malloryIteration from "./node_modules/@johnhenry/iteration/dist/index.mjs";
-    // do stuff with malloryIteration
-  </script>
-</html>
-```
+Subpath exports are available for the individual namespaces:
 
 ```javascript
-// import * as malloryIteration from './node_modules/@johnhenry/iteration/dist/index.mjs';
-import * as malloryIteration from "@johnhenry/iteration";
-// do stuff with malloryIteration
+import { takeWhileSync } from "@johnhenry/iteration/itertools";
+import { map, filter } from "@johnhenry/iteration/transducers";
+import { combinations } from "@johnhenry/iteration/combinatorics";
+import { someAsync } from "@johnhenry/iteration/consumers";
 ```
+
+In a browser, import the same ESM files directly — there is no script-tag build:
+
+```html
+<script type="module">
+  import { countSync } from "./node_modules/@johnhenry/iteration/dist/index.js";
+</script>
+```
+
+### CommonJS (`require`)
+
+No CJS build is provided or needed. Node's native `require(esm)` support (stable and unflagged
+since **Node 22.12**, which is this package's floor) loads the same ESM files synchronously:
+
+```javascript
+const { countSync, someAsync } = require("@johnhenry/iteration");
+```
+
+This is verified in CI by `scripts/require-esm-smoke-test.cjs`, not just documented.

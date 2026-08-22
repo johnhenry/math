@@ -194,7 +194,7 @@ test("tier 2: where Symbolic.integrate accepts a low-step problem, its OWN antid
   // silently. The floor is the MEASURED baseline at corpus-generation time
   // (7 verified of 181 attempted, 174 honest declines -- Rubi's low-step
   // problems lean on symbolic-exponent forms like (a+b*x)^m that are
-  // outside mallory's documented elementary-rule coverage), minus headroom.
+  // outside this library's documented elementary-rule coverage), minus headroom.
   // This is a coverage ratchet, not a correctness claim; raise it when
   // integrate() grows.
   assert.ok(
