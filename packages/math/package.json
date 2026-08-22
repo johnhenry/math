@@ -5,7 +5,7 @@
     "access": "public",
     "provenance": true
   },
-  "description": "Advanced college-level mathematics library — a modern TypeScript port of the Mallory ActionScript 3 library.",
+  "description": "Advanced college-level mathematics library \u2014 a modern TypeScript port of the Mallory ActionScript 3 library.",
   "type": "module",
   "exports": {
     ".": {
@@ -49,7 +49,8 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/johnhenry/math.git"
+    "url": "git+https://github.com/johnhenry/math.git",
+    "directory": "packages/math"
   },
   "bugs": {
     "url": "https://github.com/johnhenry/math/issues"
