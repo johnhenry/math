@@ -1,12 +1,15 @@
 {
   "name": "@johnhenry/math-prototype-patch",
-  "version": "0.1.0",
+  "version": "0.0.0",
   "license": "MIT",
   "exports": {
     ".": "./src/index.ts",
     "./global": "./src/global.ts"
   },
   "publish": {
-    "exclude": ["test", "**/*.test.ts"]
+    "exclude": [
+      "test",
+      "**/*.test.ts"
+    ]
   }
 }

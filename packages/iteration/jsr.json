@@ -1,6 +1,6 @@
 {
   "name": "@johnhenry/iteration",
-  "version": "2.0.0",
+  "version": "0.0.0",
   "license": "MIT",
   "exports": {
     ".": "./src/index.ts",
@@ -21,6 +21,12 @@
     "./is-iterator": "./src/is-iterator.ts"
   },
   "publish": {
-    "exclude": ["test", "docs", "scripts", "api", "**/*.test.ts"]
+    "exclude": [
+      "test",
+      "docs",
+      "scripts",
+      "api",
+      "**/*.test.ts"
+    ]
   }
 }

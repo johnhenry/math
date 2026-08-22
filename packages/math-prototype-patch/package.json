@@ -1,6 +1,6 @@
 {
   "name": "@johnhenry/math-prototype-patch",
-  "version": "0.1.0",
+  "version": "0.0.0",
   "description": "OPT-IN, collision-checked Number.prototype patch adding @johnhenry/math's ComplexNumber fluent arithmetic to plain numbers. Never merged into core @johnhenry/math -- see the README before using.",
   "type": "module",
   "publishConfig": {
@@ -47,7 +47,7 @@
   "author": "John Henry",
   "license": "MIT",
   "dependencies": {
-    "@johnhenry/math": "^0.15.0"
+    "@johnhenry/math": "^0.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
