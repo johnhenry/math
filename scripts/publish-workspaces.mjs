@@ -53,10 +53,14 @@ for (const entry of entries) {
     continue;
   }
 
-  console.log(`🚀 publishing ${spec} ...`);
+  // Prerelease versions (0.1.0-rc.1, …) go to the "rc" dist-tag so a plain
+  // `npm install` never resolves to them; stable versions go to "latest".
+  const distTag = pkg.version.includes("-") ? "rc" : "latest";
+
+  console.log(`🚀 publishing ${spec} with dist-tag ${distTag} ...`);
   const result = spawnSync(
     "npm",
-    ["publish", "--provenance", "--access", "public"],
+    ["publish", "--provenance", "--access", "public", "--tag", distTag],
     { cwd: dir, stdio: "inherit" },
   );
   if (result.status === 0) published++;
