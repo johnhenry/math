@@ -81,6 +81,21 @@ test("DualNumber gradient", () => {
   assert.ok(close(grad[0], 10) && close(grad[1], 3));
 });
 
+test("DualNumber.pow(0) at value===0 is 1 with derivative 0, not NaN", () => {
+  // The general power-rule formula `n * value**(n-1) * deriv` degenerates to
+  // `0 * Infinity = NaN` when n===0 and value===0 (since `0 ** -1` is
+  // Infinity in JS). x^0 = 1 is constant, so its derivative must be 0
+  // everywhere, including at x=0. See issue #74.
+  const r = DualNumber.variable(0).pow(0);
+  assert.equal(r.value, 1);
+  assert.equal(r.deriv, 0);
+  // Sanity: away from value===0, pow(0) should already behave correctly,
+  // and this must remain unaffected by the fix.
+  const r2 = DualNumber.variable(5).pow(0);
+  assert.equal(r2.value, 1);
+  assert.equal(r2.deriv, 0);
+});
+
 // --- Interval ---
 
 // Every non-exact Interval op now outward-rounds its result by ~1 ULP per
