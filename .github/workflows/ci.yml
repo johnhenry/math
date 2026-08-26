@@ -46,5 +46,12 @@ jobs:
       - name: Smoke-test the built packages
         run: npm run test:build
 
+      # After the build steps: the examples import the packages by bare
+      # specifier through the workspace symlinks, which resolves to dist/
+      # -- and math-prototype-patch has no prepare script, so its dist/
+      # only exists after the explicit build above.
+      - name: Run examples
+        run: npm run examples
+
       - name: API docs build
         run: npm run docs
