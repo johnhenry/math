@@ -1438,6 +1438,10 @@ function simplifyOnce(e: Expr): Expr {
       if (isConst(r, 1)) return l;
       return mul(l, r);
     case "div":
+      // Check the denominator for zero BEFORE the numerator-zero shortcut
+      // below -- 0/0 is indeterminate and must NOT collapse to 0 just
+      // because the numerator happens to be zero too (issue #73).
+      if (isConst(r, 0)) return div(l, r);
       if (isConst(l, 0)) return num(0);
       if (isConst(r, 1)) return l;
       return div(l, r);

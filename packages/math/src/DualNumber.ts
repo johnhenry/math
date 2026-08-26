@@ -55,6 +55,13 @@ export class DualNumber {
 
   /** Raise to a constant power (chain rule). */
   pow(n: number): DualNumber {
+    // n === 0 is special-cased: the general formula `n * value**(n-1) * deriv`
+    // becomes `0 * Infinity = NaN` when value is also 0 (since `0 ** -1` is
+    // `Infinity` in JS). The derivative of the constant function x^0 = 1 is
+    // 0 everywhere, regardless of the base's own derivative, so skip the
+    // general formula entirely rather than let it hit that indeterminate
+    // form (issue #74).
+    if (n === 0) return new DualNumber(1, 0);
     return new DualNumber(this.value ** n, n * this.value ** (n - 1) * this.deriv);
   }
 

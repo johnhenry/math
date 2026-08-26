@@ -53,6 +53,17 @@ test("simplify applies identities", () => {
   assert.equal(Symbolic.toString(Symbolic.simplify("x^0")), "1");
 });
 
+test("simplify does not collapse 0/0 to 0 (indeterminate form)", () => {
+  // (x-x)/(x-x) simplifies numerator and denominator to the constant 0 on
+  // each side -- the div case must not then fall through to the ordinary
+  // "numerator is 0" shortcut, since the denominator is 0 too. See issue #73.
+  assert.notEqual(Symbolic.toString(Symbolic.simplify("(x-x)/(x-x)")), "0");
+  // The ordinary "0 in numerator, nonzero denominator" case must still
+  // simplify to 0 as before.
+  assert.equal(Symbolic.toString(Symbolic.simplify("0/x")), "0");
+  assert.equal(Symbolic.toString(Symbolic.simplify("(x-x)/x")), "0");
+});
+
 test("simplify folds a constant denominator into the surrounding term's coefficient", () => {
   // The motivating shape from the Bernoulli-ODE investigation: a constant
   // denominator used to be locked inside an opaque div atom, so the
