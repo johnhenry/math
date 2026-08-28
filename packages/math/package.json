@@ -1,11 +1,11 @@
 {
   "name": "@johnhenry/math",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "publishConfig": {
     "access": "public",
     "provenance": true
   },
-  "description": "Advanced college-level mathematics library \u2014 a modern TypeScript port of the Mallory ActionScript 3 library.",
+  "description": "Advanced college-level mathematics library — a modern TypeScript port of the Mallory ActionScript 3 library.",
   "type": "module",
   "exports": {
     ".": {

@@ -7,6 +7,8 @@ versions were reset to `0.0.0` when the packages moved under the `@johnhenry` sc
 
 ## [Unreleased]
 
+## [0.0.1] - 2026-08-27
+
 ### Added
 
 - Root `examples/` with five runnable walkthroughs (symbolic calculus, algebra over arbitrary
@@ -14,6 +16,15 @@ versions were reset to `0.0.0` when the packages moved under the `@johnhenry` sc
   an `npm run examples` loop, and a CI smoke step that runs them against the built packages.
 - Root README rewritten as a family map with routing guidance and docs links.
 - This changelog.
+
+### Fixed
+
+- `@johnhenry/math`: `0/0` no longer silently simplifies to `0` — `simplifyOnce`'s division case
+  checked only whether the numerator was zero, so the indeterminate form `0/0` fell through to
+  the same shortcut as an ordinary `0/x` and collapsed to `0`; a zero denominator is now checked
+  first and left unevaluated. `DualNumber.pow(0)` no longer returns `NaN` at `value === 0` — the
+  general derivative formula `n * value**(n-1) * deriv` degenerates to `0 * Infinity` there;
+  `n === 0` is now special-cased to `{value: 1, deriv: 0}` (#73, #74, #75).
 
 ## [0.0.0] - 2026-08-25
 
