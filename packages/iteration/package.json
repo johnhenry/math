@@ -6,7 +6,7 @@
     "provenance": true
   },
   "engines": {
-    "node": ">=22.12.0",
+    "node": ">=26.0.0",
     "npm": ">=8.19.2"
   },
   "exports": {
