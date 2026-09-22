@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "description": "The math family of pure-TypeScript libraries — zero runtime dependencies, tsc-only builds, no toolchain beyond npm",
+  "homepage": "https://opensource.johnhenry.me/math/",
   "workspaces": [
     "packages/*"
   ],
