@@ -47,7 +47,7 @@
   "author": "John Henry",
   "license": "MIT",
   "dependencies": {
-    "@johnhenry/math": "^0.0.0"
+    "@johnhenry/math": "^0.0.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
