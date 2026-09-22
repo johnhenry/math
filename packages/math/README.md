@@ -19,8 +19,9 @@ StringEvaluator.evaluate("sin(pi/2) + 2^3", StringEvaluator.mathEnvironment()); 
 
 ## Install & use
 
-Requires Node.js ≥ 22.6 (the test suite runs `.ts` directly via Node's built-in
-type stripping).
+Requires Node.js ≥ 26 (`engines.node` was bumped from ≥22.6 to match the
+rest of the `@johnhenry` family's floor; the test suite runs `.ts` directly
+via Node's built-in type stripping).
 
 ```bash
 npm install @johnhenry/math
