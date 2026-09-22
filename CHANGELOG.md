@@ -7,6 +7,23 @@ versions were reset to `0.0.0` when the packages moved under the `@johnhenry` sc
 
 ## [Unreleased]
 
+### Documentation
+
+- Root README: added the CI/license badge row and a literal `Full
+  documentation:` line, upgraded `## Which package do I want?` from a bullet
+  list to the family-wide intent-first table (matching `math-plus`'s
+  structure), split the package inventory into its own `## Packages`
+  heading, added `## Adding a new package` (using `@johnhenry/math-prototype-patch`'s
+  split from core as the real worked example), and moved the family
+  relationship (math-plus, math-grapher) out of `## Philosophy` into its own
+  `## Family` section. Added `## Contents` now that the README is over 8 KB.
+  Fixed a stale "Node ≥22" claim in `## Philosophy` that disagreed with
+  `engines.node`'s `>=26.0.0`.
+- Added root `AGENTS.md` (with `CLAUDE.md` symlinked to it) — previously
+  this repo had none.
+- `package.json`: added the `homepage` field (`opensource.johnhenry.me/math/`),
+  which had never been set.
+
 ## [0.0.1] - 2026-08-27
 
 ### Added
