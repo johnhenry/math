@@ -78,10 +78,12 @@ A change is done when all of the following hold, not just when tests pass:
 
 ## Releases
 
-Bump `version` in the package(s) you want to publish, add the `CHANGELOG.md`
-entry, merge, then cut a GitHub Release. `.github/workflows/publish.yml`
-verifies everything and publishes any workspace package whose version isn't
-yet on npm (idempotent `npm view` pre-flight guard — re-running is safe).
-Requires the `NPM_TOKEN` repository secret. `math` is the pilot candidate
-for a future migration to Changesets (the `math-plus` model) — until that
-lands, this repo's own npm-workspaces publish mechanism is current.
+Releases use [Changesets](https://github.com/changesets/changesets) (the
+`math-plus` model): `npm run changeset` to describe a change, merge to the
+default branch, then merge the bot-opened "chore: version packages" PR.
+`.github/workflows/release.yml` verifies everything and publishes any
+workspace package whose version isn't yet on npm (idempotent — re-running,
+including manual `workflow_dispatch`, is safe). Requires the `NPM_TOKEN`
+repository secret. See the workflow file's header comment for how
+prerelease (`rc`) dist-tags work under Changesets, which differs from the
+retired `scripts/publish-workspaces.mjs`.

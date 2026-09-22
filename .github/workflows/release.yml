@@ -1,0 +1,146 @@
+name: Release
+
+# Changesets-driven publish, replacing the previous scripts/publish-workspaces.mjs
+# (a readdir-over-packages/ + per-package `npm view` idempotency guard). Same
+# deployment substrate as before (GitHub Actions + the NPM_TOKEN repository
+# secret), now modeled on johnhenry/math-plus's release.yml -- math is the
+# pilot for the family's Changesets-as-monorepo-standard decision (see
+# ecosystem-cohesion-plan.md section 2b):
+#
+#   1. Land PRs that include a changeset (`npm run changeset`).
+#   2. This workflow opens/updates a "Version Packages" PR that applies the
+#      version bumps and changelogs.
+#   3. Merging that PR triggers this workflow again, which verifies and
+#      publishes every package whose version is new (changesets' own
+#      pre-flight registry check is the idempotency guard now, replacing
+#      the old script's `npm view` check -- safe to re-run).
+#
+# Manual dispatch re-runs the same verify-then-publish flow without needing
+# a new changeset (useful if a previous publish attempt failed partway
+# through).
+#
+# What changed vs. the old dist-tag logic: scripts/publish-workspaces.mjs
+# inferred an npm dist-tag PER PACKAGE from that package's own version
+# string (any version containing "-" got tag "rc", everything else got
+# "latest") -- so a single run could publish some packages to "rc" and
+# others to "latest" simultaneously, independently. Changesets has no
+# per-package equivalent of that. Its dist-tag control is repo-wide
+# "pre-release mode": `npx changeset pre enter rc` switches EVERY package's
+# next publish to the "rc" dist-tag until `npx changeset pre exit` is run
+# (`changeset version`/`changeset publish` both respect it automatically --
+# see @changesets/cli's `getReleaseTag`). This is a deliberate, repo-wide
+# mode switch a release manager opts into around a prerelease cutover,
+# not something inferred silently per package from a version string. If
+# math ever needs a genuine prerelease channel, enter pre mode before
+# `changeset version`/publish and exit it once the prerelease series is
+# done; until then every package publishes to "latest", matching today's
+# default behavior for stable versions.
+#
+# All three current packages (@johnhenry/math, @johnhenry/iteration,
+# @johnhenry/math-prototype-patch) are already published at their current
+# `package.json` versions, so the first run of this workflow is a no-op
+# publish-wise (changesets skips versions already on the registry, same as
+# the old script did) -- nothing to "arm" carefully here, unlike a
+# from-scratch monorepo.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write # version-bump commits and tags
+  pull-requests: write # the "Version Packages" PR
+  id-token: write # npm provenance attestation + JSR OIDC trusted publishing
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    # Secrets can't be referenced in `if:` directly, so surface it as env and
+    # gate the publish step on it -- the workflow stays green (and inert)
+    # until the token is configured, rather than failing every push.
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # changesets needs history to diff against the base branch
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "26"
+          registry-url: "https://registry.npmjs.org"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Verify before publishing
+        run: |
+          npm run typecheck
+          npm run check
+          npm test
+          npm run build
+          npm run test:build
+
+      - name: No NPM_TOKEN — skipping release
+        if: env.NPM_TOKEN == ''
+        run: |
+          echo "::notice title=Release skipped::NPM_TOKEN is not configured, so nothing was versioned or published."
+
+      - name: Create version PR or publish
+        if: env.NPM_TOKEN != ''
+        uses: changesets/action@v1
+        with:
+          publish: npm run release
+          title: "chore: version packages"
+          commit: "chore: version packages"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  # JSR dual-publish (issue #13) -- pre-existing, independent of the
+  # Changesets migration above; unchanged except for running on this
+  # workflow's new push-to-main trigger instead of `release: published`
+  # (matching math-plus's release.yml, where the JSR job shares the same
+  # triggers as its Changesets job). OIDC Trusted Publishing (no secret;
+  # each package on jsr.io links this repo as its publisher -- one-time
+  # manual setup, done 2026-08-13), continue-on-error per package so an
+  # already-published version or a JSR outage never blocks (or is blocked
+  # by) npm publishing.
+  jsr-publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # JSR OIDC trusted publishing
+    steps:
+      - uses: actions/checkout@v4
+
+      # jsr.json is committed with the current version, but the publish-time
+      # source of truth is package.json -- sync here so the two can never
+      # drift (the same no-hand-edited-versions rule as math-plus's
+      # sync-jsr-configs.mjs).
+      - name: Sync jsr.json versions from package.json
+        run: |
+          for dir in packages/math packages/iteration packages/math-prototype-patch; do
+            node -e "
+              const fs = require('fs');
+              const pkg = JSON.parse(fs.readFileSync('$dir/package.json', 'utf8'));
+              const jsr = JSON.parse(fs.readFileSync('$dir/jsr.json', 'utf8'));
+              jsr.version = pkg.version;
+              fs.writeFileSync('$dir/jsr.json', JSON.stringify(jsr, null, 2) + '\n');
+            "
+          done
+
+      - name: Publish to JSR
+        continue-on-error: true
+        run: |
+          for dir in packages/math packages/iteration packages/math-prototype-patch; do
+            echo "::group::jsr publish — $dir"
+            (cd "$dir" && npx --yes jsr publish --allow-slow-types --allow-dirty) || \
+              echo "::warning title=JSR publish skipped/failed::$dir (already published at this version, or trusted publishing not configured)"
+            echo "::endgroup::"
+          done

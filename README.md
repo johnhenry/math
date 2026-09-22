@@ -128,10 +128,13 @@ Per-package: `npm test -w @johnhenry/math`, `npm run build -w @johnhenry/iterati
 
 ## Releasing
 
-Bump the `version` in the package you want to publish, merge to the default branch, then cut a
-GitHub Release. `.github/workflows/publish.yml` verifies everything and publishes any workspace
-package whose version isn't yet on npm (idempotent — re-running is safe). Requires the `NPM_TOKEN`
-repository secret.
+Releases use [Changesets](https://github.com/changesets/changesets): `npm run changeset` to
+describe a change, merge to the default branch, then merge the bot-opened "chore: version
+packages" PR. `.github/workflows/release.yml` verifies everything and publishes any workspace
+package whose version isn't yet on npm (idempotent — re-running, including manual
+`workflow_dispatch`, is safe). Requires the `NPM_TOKEN` repository secret. See the workflow file's
+header comment for how prerelease (`rc`) dist-tags work under Changesets, which differs from the
+previous hand-rolled `scripts/publish-workspaces.mjs`.
 
 ## Family
 
