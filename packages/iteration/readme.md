@@ -739,19 +739,24 @@ withEmitter(c, source);
 
 ## Releasing
 
-Publishing is release-gated in GitHub Actions, matching the deployment setup in
-[`johnhenry/math`](https://github.com/johnhenry/math):
+`@johnhenry/iteration` publishes as part of the `johnhenry/math` monorepo, via
+that repo's root [Changesets](https://github.com/changesets/changesets) flow
+(`.github/workflows/release.yml`), not a standalone per-package workflow:
 
-1. Bump `version` in `package.json` (and run `npm install --package-lock-only`
-   so the lockfile matches — `npm ci` fails if they diverge).
-2. Merge to `main`; CI runs typecheck, tests, build and the dist/`require(esm)`
-   smoke tests across Node 22.x and 24.x.
-3. Cut a **GitHub Release**. `.github/workflows/publish.yml` re-runs the full
-   verification, then publishes with npm provenance attestation.
+1. Bump `version` in `package.json` and describe the change with
+   `npm run changeset` (run from the `math` repo root), or bump it directly
+   in a PR that includes a changeset.
+2. Merge to `main`; the root release workflow opens or updates a
+   "chore: version packages" PR.
+3. Merge that PR. The workflow verifies (typecheck, check, test, build,
+   test:build) and publishes every workspace package whose version isn't yet
+   on npm — idempotent, so re-running (including manual `workflow_dispatch`)
+   is safe.
 
-The publish step is idempotent (`scripts/npm-publish-if-new.mjs` exits 0 when
-the current version is already on the registry), so re-running a release or a
-manual `workflow_dispatch` is safe.
+See the root [README](../../README.md#releasing) for the full flow. The
+`scripts/npm-publish-if-new.mjs` script in this package's own directory
+predates the monorepo merge and is not what the current release workflow
+uses.
 
 Requires the **`NPM_TOKEN`** repository secret — a granular automation token
 with write access to this package:

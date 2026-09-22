@@ -7,6 +7,14 @@ versions were reset to `0.0.0` when the packages moved under the `@johnhenry` sc
 
 ## [Unreleased]
 
+### Changed
+
+- Publishing migrated from `scripts/publish-workspaces.mjs` (a `readdir`-over-`packages/` script
+  with a per-package `npm view` idempotency guard) to
+  [Changesets](https://github.com/changesets/changesets), matching the `math-plus` model — see
+  `.github/workflows/release.yml`'s header comment for what changed in dist-tag (`rc`/`latest`)
+  handling. JSR dual-publishing is unaffected.
+
 ## [0.0.1] - 2026-08-27
 
 ### Added
