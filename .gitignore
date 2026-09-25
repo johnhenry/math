@@ -4,3 +4,4 @@ dist-test/
 docs/api/
 *.tsbuildinfo
 .DS_Store
+.turbo/
