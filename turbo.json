@@ -1,59 +1,39 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "globalDependencies": [
-    "biome.json"
-  ],
+  "globalDependencies": ["biome.json"],
   "tasks": {
     "build": {
-      "dependsOn": [
-        "^build"
-      ],
-      "outputs": [
-        "dist/**"
-      ],
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"],
       "cache": true
     },
     "typecheck": {
-      "dependsOn": [
-        "^build"
-      ],
+      "dependsOn": ["^build"],
       "outputs": [],
       "cache": true
     },
     "test": {
-      "dependsOn": [
-        "build"
-      ],
+      "dependsOn": ["build"],
       "outputs": [],
       "cache": true
     },
     "test:build": {
-      "dependsOn": [
-        "build"
-      ],
+      "dependsOn": ["build"],
       "outputs": [],
       "cache": true
     },
     "test:coverage": {
-      "dependsOn": [
-        "build"
-      ],
-      "outputs": [
-        "coverage/**"
-      ],
+      "dependsOn": ["build"],
+      "outputs": ["coverage/**"],
       "cache": true
     },
     "lint": {
-      "dependsOn": [
-        "^build"
-      ],
+      "dependsOn": ["^build"],
       "outputs": [],
       "cache": true
     },
     "check": {
-      "dependsOn": [
-        "^build"
-      ],
+      "dependsOn": ["^build"],
       "outputs": [],
       "cache": true
     },
@@ -64,12 +44,8 @@
       "cache": false
     },
     "docs": {
-      "dependsOn": [
-        "^build"
-      ],
-      "outputs": [
-        "docs/api/**"
-      ],
+      "dependsOn": ["^build"],
+      "outputs": ["docs/api/**"],
       "cache": true
     }
   }

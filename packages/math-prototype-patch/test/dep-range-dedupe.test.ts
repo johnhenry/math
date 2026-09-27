@@ -44,70 +44,80 @@ async function writeFutureMathFixture(dir: string): Promise<string> {
   await mkdir(dir, { recursive: true });
   await writeFile(
     path.join(dir, "package.json"),
-    JSON.stringify({ name: "@johnhenry/math", version: "0.0.2", type: "module", main: "index.js", exports: { ".": "./index.js" } }, null, 2),
+    JSON.stringify(
+      { name: "@johnhenry/math", version: "0.0.2", type: "module", main: "index.js", exports: { ".": "./index.js" } },
+      null,
+      2,
+    ),
   );
   await writeFile(path.join(dir, "index.js"), "export class ComplexNumber {}\n");
   return dir;
 }
 
-test(
-  "install-time dedupe: a fresh consumer depending on a NEWER (future, not-yet-published) @johnhenry/math patch alongside this package resolves ONE copy, not two",
-  { timeout: 120_000 },
-  async () => {
-    const work = await mkdtemp(path.join(tmpdir(), "math-prototype-patch-dedupe-"));
-    try {
-      const { stdout: packOut } = await execFileAsync("npm", ["pack", "--silent", "--pack-destination", work], { cwd: PACKAGE_ROOT });
-      const tarballName = packOut.trim().split("\n").pop()!.trim();
-      const tarballPath = path.join(work, tarballName);
+test("install-time dedupe: a fresh consumer depending on a NEWER (future, not-yet-published) @johnhenry/math patch alongside this package resolves ONE copy, not two", {
+  timeout: 120_000,
+}, async () => {
+  const work = await mkdtemp(path.join(tmpdir(), "math-prototype-patch-dedupe-"));
+  try {
+    const { stdout: packOut } = await execFileAsync("npm", ["pack", "--silent", "--pack-destination", work], {
+      cwd: PACKAGE_ROOT,
+    });
+    const tarballName = packOut.trim().split("\n").pop()!.trim();
+    const tarballPath = path.join(work, tarballName);
 
-      const mathFixtureDir = await writeFutureMathFixture(path.join(work, "math-0.0.2"));
+    const mathFixtureDir = await writeFutureMathFixture(path.join(work, "math-0.0.2"));
 
-      const consumerDir = path.join(work, "consumer");
-      await mkdir(consumerDir);
-      await writeFile(
-        path.join(consumerDir, "package.json"),
-        JSON.stringify(
-          {
-            name: "math-prototype-patch-dedupe-consumer",
-            private: true,
-            version: "0.0.0",
-            dependencies: {
-              "@johnhenry/math": `file:${mathFixtureDir}`,
-              "@johnhenry/math-prototype-patch": `file:${tarballPath}`,
-            },
+    const consumerDir = path.join(work, "consumer");
+    await mkdir(consumerDir);
+    await writeFile(
+      path.join(consumerDir, "package.json"),
+      JSON.stringify(
+        {
+          name: "math-prototype-patch-dedupe-consumer",
+          private: true,
+          version: "0.0.0",
+          dependencies: {
+            "@johnhenry/math": `file:${mathFixtureDir}`,
+            "@johnhenry/math-prototype-patch": `file:${tarballPath}`,
           },
-          null,
-          2,
-        ),
-      );
+        },
+        null,
+        2,
+      ),
+    );
 
-      await execFileAsync("npm", ["install", "--no-audit", "--no-fund"], { cwd: consumerDir });
+    await execFileAsync("npm", ["install", "--no-audit", "--no-fund"], { cwd: consumerDir });
 
-      const { stdout: lsOut } = await execFileAsync("npm", ["ls", "@johnhenry/math", "--all", "--json"], { cwd: consumerDir });
-      const tree = JSON.parse(lsOut) as {
-        dependencies: {
-          "@johnhenry/math"?: { version?: string };
-          "@johnhenry/math-prototype-patch"?: { dependencies?: Record<string, { version?: string; resolved?: string }> };
-        };
+    const { stdout: lsOut } = await execFileAsync("npm", ["ls", "@johnhenry/math", "--all", "--json"], {
+      cwd: consumerDir,
+    });
+    const tree = JSON.parse(lsOut) as {
+      dependencies: {
+        "@johnhenry/math"?: { version?: string };
+        "@johnhenry/math-prototype-patch"?: { dependencies?: Record<string, { version?: string; resolved?: string }> };
       };
-      const topLevel = tree.dependencies["@johnhenry/math"];
-      const nested = tree.dependencies["@johnhenry/math-prototype-patch"]?.dependencies?.["@johnhenry/math"];
-      assert.equal(topLevel?.version, "0.0.2", "expected the top-level @johnhenry/math to resolve to the future-fixture version");
-      // A single deduped copy means math-prototype-patch's OWN
-      // @johnhenry/math dependency is satisfied by hoisting to the
-      // top-level install -- `npm ls --json` represents that as EITHER
-      // omitting the nested entry entirely, or listing it with no
-      // "resolved" of its own (nothing separate was fetched for it) and
-      // the SAME version as the top-level copy. A genuine duplicate (the
-      // pre-fix caret-pin bug) instead shows its own "resolved"
-      // tarball/registry URL and a different (older) version -- the real
-      // registry's 0.0.0 or 0.0.1, whichever the stale caret matched.
-      assert.ok(
-        !nested || (nested.resolved === undefined && nested.version === topLevel.version),
-        `expected @johnhenry/math to dedupe to a single copy matching the top-level version ${topLevel?.version}; math-prototype-patch's own dependency entry was ${JSON.stringify(nested)} (a separately-"resolved" or differently-versioned entry means npm installed a second, separate copy)`,
-      );
-    } finally {
-      await rm(work, { recursive: true, force: true });
-    }
-  },
-);
+    };
+    const topLevel = tree.dependencies["@johnhenry/math"];
+    const nested = tree.dependencies["@johnhenry/math-prototype-patch"]?.dependencies?.["@johnhenry/math"];
+    assert.equal(
+      topLevel?.version,
+      "0.0.2",
+      "expected the top-level @johnhenry/math to resolve to the future-fixture version",
+    );
+    // A single deduped copy means math-prototype-patch's OWN
+    // @johnhenry/math dependency is satisfied by hoisting to the
+    // top-level install -- `npm ls --json` represents that as EITHER
+    // omitting the nested entry entirely, or listing it with no
+    // "resolved" of its own (nothing separate was fetched for it) and
+    // the SAME version as the top-level copy. A genuine duplicate (the
+    // pre-fix caret-pin bug) instead shows its own "resolved"
+    // tarball/registry URL and a different (older) version -- the real
+    // registry's 0.0.0 or 0.0.1, whichever the stale caret matched.
+    assert.ok(
+      !nested || (nested.resolved === undefined && nested.version === topLevel.version),
+      `expected @johnhenry/math to dedupe to a single copy matching the top-level version ${topLevel?.version}; math-prototype-patch's own dependency entry was ${JSON.stringify(nested)} (a separately-"resolved" or differently-versioned entry means npm installed a second, separate copy)`,
+    );
+  } finally {
+    await rm(work, { recursive: true, force: true });
+  }
+});
