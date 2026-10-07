@@ -57,3 +57,6 @@ jobs:
 
       - name: API docs build
         run: npm run docs
+
+  workflow-lint:
+    uses: johnhenry/workflows/.github/workflows/workflow-lint.yml@v1
