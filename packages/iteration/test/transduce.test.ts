@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { countSync, transducePush, transducers, transduceSync } from "../src/index.ts";
+import { countSync, transduceAsync, transducePush, transducers, transduceSync } from "../src/index.ts";
+import { asyncFromArray } from "./helpers.ts";
 
 const { map, take, drop, filter, group, accumulate, reject, dedupe, interpose, partitionBy, tap } = transducers;
 
@@ -247,4 +248,84 @@ test("transducePush HALT sets halted and ignores later values", () => {
   assert.strictEqual(pipe.halted, true);
   assert.deepStrictEqual(pipe.step(4), [], "values after HALT are ignored");
   assert.deepStrictEqual(pipe.complete(), []);
+});
+
+// Regression (#85): the stateless built-ins returned a step with no
+// `.complete`, so the end-of-source flush never reached a stateful
+// transducer after them -- `transduceSync(map(f), group(2))([1, 2, 3])`
+// lost the trailing [3]. The README's step protocol requires `.complete` to
+// cascade; each built-in now forwards it.
+const statelessBuiltins: Record<string, () => (next: any) => any> = {
+  map: () => map((x: number) => x * 10),
+  filter: () => filter((x: number) => x % 2 === 1),
+  take: () => take(5),
+  drop: () => drop(2),
+  reject: () => reject((x: number) => x > 8),
+  tap: () => tap(() => {}),
+  dedupe: () => dedupe(),
+  interpose: () => interpose(0),
+  accumulate: () => accumulate((a: number, b: number) => a + b, 0),
+};
+const statefulBuiltins: Record<string, () => (next: any) => any> = {
+  "group(2)": () => group(2),
+  partitionBy: () => partitionBy((x: number) => x % 2),
+};
+// Chosen so every stateless built-in above emits an odd number of items,
+// leaving group(2) a trailing partial group to flush (asserted below).
+const flushItems = [1, 1, 2, 3, 3, 4, 5, 7, 8, 9, 10];
+
+/** What `[stateless, stateful]` must produce: each applied on its own, in turn. */
+const sequential = (stateless: () => any, stateful: () => any, items: number[]) => [
+  ...(transduceSync as any)(stateful())([...(transduceSync as any)(stateless())(items)]),
+];
+
+for (const [statelessName, stateless] of Object.entries(statelessBuiltins)) {
+  for (const [statefulName, stateful] of Object.entries(statefulBuiltins)) {
+    test(`${statelessName} forwards .complete to a following ${statefulName} (regression #85)`, async () => {
+      const expected = sequential(stateless, stateful, flushItems);
+      assert.ok(expected.length > 0, "the fixture produces output");
+      if (statefulName === "group(2)") {
+        assert.strictEqual(expected.at(-1).length, 1, "the fixture leaves a trailing partial group");
+      }
+
+      const viaSync = [...(transduceSync as any)(stateless(), stateful())(flushItems)];
+      assert.deepStrictEqual(viaSync, expected, "transduceSync");
+
+      const viaAsync: unknown[] = [];
+      for await (const item of (transduceAsync as any)(stateless(), stateful())(asyncFromArray(flushItems))) {
+        viaAsync.push(item);
+      }
+      assert.deepStrictEqual(viaAsync, expected, "transduceAsync");
+
+      const pipe = (transducePush as any)(stateless(), stateful());
+      const viaPush: unknown[] = [];
+      for (const item of flushItems) viaPush.push(...pipe.step(item));
+      viaPush.push(...pipe.complete());
+      assert.deepStrictEqual(viaPush, expected, "transducePush");
+    });
+  }
+}
+
+test("the trailing group is flushed after a stateless transducer (regression #85)", () => {
+  assert.deepStrictEqual(
+    [
+      ...transduceSync(
+        map((x: number) => x),
+        group<number>(2),
+      )([1, 2, 3]),
+    ],
+    [[1, 2], [3]],
+  );
+  // Several stateless steps in a row, and a HALT from take on an infinite source.
+  assert.deepStrictEqual(
+    [
+      ...transduceSync(
+        map((x: number) => x + 1),
+        filter((x: number) => x % 2 === 0),
+        take<number>(3),
+        group<number>(2),
+      )(countSync(1, Infinity)),
+    ],
+    [[2, 4], [6]],
+  );
 });
