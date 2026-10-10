@@ -269,7 +269,10 @@ for (const x of transduceSync(sum)([1, 2, 3, 4])) {
 
 Place items into groups of size N. A trailing, under-sized group is flushed
 once the source is exhausted (via the transducer completion protocol — see
-`transduceSync`/`transduceAsync`).
+`transduceSync`/`transduceAsync`), wherever `group` sits in the pipeline:
+every built-in transducer forwards the flush to the transducers after it.
+(Before 0.0.1, the stateless built-ins did not, so `map(f)` followed by
+`group(2)` silently dropped the trailing group.)
 
 ```javascript
 import { group } from "@johnhenry/iteration/transducers";
@@ -426,10 +429,7 @@ do:
   and returns its output. There is no async variant; a transducer is pure.
 - After `HALT`, or after `complete()`, `step` ignores its value and returns
   `[]`; it does not throw. `complete()` is idempotent.
-- Like `transduceSync`, it drops what the halting step emitted, and a
-  `.complete` flush only reaches stateful transducers that come before any
-  built-in stateless one (`map`, `filter`, `take` do not forward
-  `.complete`).
+- Like `transduceSync`, it drops what the halting step emitted.
 
 ### Early termination: `HALT`
 
@@ -460,6 +460,11 @@ iterator completes by attaching a `.complete(init)` method to the step
 function they return (see `group`, above, for a worked example, and note
 that `.complete` must cascade to the inner step's own `.complete`) — see
 `reduceSync`/`reduceAsync` in `src/iterator-tools.ts` for the protocol.
+A custom *stateless* transducer has nothing to flush, but must still pass
+the flush on, or a stateful transducer after it never sees it: copy the
+inner step's `.complete` onto the step you return
+(`if (next.complete) step.complete = next.complete;`), as every built-in
+does.
 
 > **Migrating from 2.0:** the old protocol threaded an *iterable*
 > accumulator that each step wrapped in a new generator via

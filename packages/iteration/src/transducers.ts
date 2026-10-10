@@ -9,6 +9,21 @@
 import { HALT, type ReducerStep, type Transducer } from "./iterator-tools.ts";
 
 /**
+ * Give a stateless transducer's step the inner step's `.complete`, so the
+ * end-of-source flush cascades through it to a stateful transducer further
+ * down the pipeline (e.g. the trailing partial group in
+ * `transduceSync(map(f), group(2))`). A stateless step has nothing of its
+ * own to flush, so it forwards the inner `.complete` unchanged. Without
+ * this, `reduceSync`/`reduceAsync`/`transducePush` only ever saw the
+ * outermost step, which had no `.complete`, and the flush was lost.
+ * @ignore
+ */
+const forwardComplete = <In>(next: Pick<ReducerStep<never>, "complete">, step: ReducerStep<In>): ReducerStep<In> => {
+  if (next.complete) step.complete = next.complete;
+  return step;
+};
+
+/**
  * Create a transducer that maps values
  * @kind function
  * @name map
@@ -18,8 +33,7 @@ import { HALT, type ReducerStep, type Transducer } from "./iterator-tools.ts";
 export const map =
   <In, Out>(transform: (item: In) => Out): Transducer<In, Out> =>
   (conjoin) =>
-  (init, item) =>
-    conjoin(init, transform(item));
+    forwardComplete(conjoin, (init, item) => conjoin(init, transform(item)));
 
 /**
  * Create a transducer that filters values
@@ -31,8 +45,7 @@ export const map =
 export const filter =
   <In>(predicate: (item: In) => boolean): Transducer<In, In> =>
   (conjoin) =>
-  (init, item) =>
-    predicate(item) ? conjoin(init, item) : init;
+    forwardComplete(conjoin, (init, item) => (predicate(item) ? conjoin(init, item) : init));
 
 /**
  * Create a transducer that halts after a given number of values
@@ -46,7 +59,7 @@ export const take =
   (conjoin) => {
     let amount = 0;
     // biome-ignore lint/complexity/noCommaOperator: deliberate single-expression step function
-    return (init, item) => (amount < limit ? (amount++, conjoin(init, item)) : HALT);
+    return forwardComplete(conjoin, (init, item) => (amount < limit ? (amount++, conjoin(init, item)) : HALT));
   };
 
 /**
@@ -62,8 +75,11 @@ export const drop =
   <In>(limit: number): Transducer<In, In> =>
   (conjoin) => {
     let amount = 0;
-    // biome-ignore lint/complexity/noCommaOperator: deliberate single-expression step function
-    return (init, item) => (amount >= limit ? (amount++, conjoin(init, item)) : (amount++, init));
+    return forwardComplete(conjoin, (init, item) => {
+      const pass = amount >= limit;
+      amount++;
+      return pass ? conjoin(init, item) : init;
+    });
   };
 
 /**
@@ -79,8 +95,7 @@ export const drop =
 export const reject =
   <In>(predicate: (item: In) => boolean): Transducer<In, In> =>
   (conjoin) =>
-  (init, item) =>
-    predicate(item) ? init : conjoin(init, item);
+    forwardComplete(conjoin, (init, item) => (predicate(item) ? init : conjoin(init, item)));
 
 /**
  * Create a transducer that groups items by quantity before emitting.
@@ -134,10 +149,10 @@ export const accumulate =
     // directly here would carry accumulated state over into the *next*
     // transduce run that reuses this same accumulate(...) instance.
     let accumulated = initial;
-    return (init, item) => {
+    return forwardComplete(conjoin, (init, item) => {
       accumulated = func(accumulated, item);
       return conjoin(init, accumulated);
-    };
+    });
   };
 
 /**
@@ -156,7 +171,7 @@ export const dedupe =
   (conjoin) => {
     let hasLast = false;
     let lastKey: unknown;
-    return (init, item) => {
+    return forwardComplete(conjoin, (init, item) => {
       const key = keyFn(item);
       if (hasLast && Object.is(key, lastKey)) {
         return init;
@@ -164,7 +179,7 @@ export const dedupe =
       hasLast = true;
       lastKey = key;
       return conjoin(init, item);
-    };
+    });
   };
 
 /**
@@ -179,7 +194,7 @@ export const interpose =
   <In, Sep = In>(separator: Sep): Transducer<In, In | Sep> =>
   (conjoin) => {
     let started = false;
-    return (init, item) => {
+    return forwardComplete(conjoin, (init, item) => {
       if (started) {
         const out = conjoin(init, separator);
         if (out === HALT) {
@@ -189,7 +204,7 @@ export const interpose =
       }
       started = true;
       return conjoin(init, item);
-    };
+    });
   };
 
 /**
@@ -250,7 +265,7 @@ export const partitionBy =
 export const tap =
   <In>(fn: (item: In) => unknown): Transducer<In, In> =>
   (conjoin) =>
-  (init, item) => {
-    fn(item);
-    return conjoin(init, item);
-  };
+    forwardComplete(conjoin, (init, item) => {
+      fn(item);
+      return conjoin(init, item);
+    });
