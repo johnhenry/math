@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { countSync, transducers, transduceSync } from "../src/index.ts";
+import { countSync, transducePush, transducers, transduceSync } from "../src/index.ts";
 
 const { map, take, drop, filter, group, accumulate, reject, dedupe, interpose, partitionBy, tap } = transducers;
 
@@ -193,4 +193,58 @@ test("transducer:tap calls fn for side effects without altering values", () => {
   const withTap = transduceSync(tap((x: number) => seen.push(x)));
   assert.deepStrictEqual([...withTap([1, 2, 3])], [1, 2, 3], "output values must be unchanged");
   assert.deepStrictEqual(seen, [1, 2, 3], "fn should have been called once per item, in order");
+});
+
+/** Push every item through `transducePush`, then complete: the push-driven equivalent of transduceSync. */
+const pushAll = <A, B>(pipe: { step(v: A): B[]; complete(): B[] }, items: A[]): B[] => {
+  const out: B[] = [];
+  for (const item of items) out.push(...pipe.step(item));
+  out.push(...pipe.complete());
+  return out;
+};
+
+test("transducePush matches transduceSync (composition order, .complete flush, HALT)", () => {
+  const items = [1, 1, 2, 3, 3, 3, 4, 5, 6, 7, 8, 9, 10];
+  const pipelines: Array<() => Array<(next: any) => any>> = [
+    () => [map((x: number) => x * 2), filter((x: number) => x % 3 !== 0)],
+    () => [filter((x: number) => x % 2 === 1), map((x: number) => x + 1)],
+    () => [group(4)],
+    () => [map((x: number) => x % 3), partitionBy()],
+    () => [dedupe(), interpose(0)],
+    () => [accumulate((a: number, b: number) => a + b, 0), take(5)],
+    () => [take(4), group(3)],
+    () => [group(2), take(3)],
+  ];
+  for (const make of pipelines) {
+    const expected = [...(transduceSync as any)(...make())(items)];
+    const actual = pushAll((transducePush as any)(...make()), items);
+    assert.deepStrictEqual(actual, expected, `pipeline ${make.toString()}`);
+  }
+});
+
+test("transducePush step returns what each value emitted", () => {
+  const pipe = transducePush(
+    group<number>(2),
+    map((pair: number[]) => pair.map((x) => x * 10)),
+  );
+  assert.deepStrictEqual(pipe.step(1), []);
+  assert.deepStrictEqual(pipe.step(2), [[10, 20]]);
+  assert.deepStrictEqual(pipe.step(3), []);
+  assert.deepStrictEqual(pipe.complete(), [[30]], "complete flushes the trailing partial group");
+  assert.deepStrictEqual(pipe.complete(), [], "complete is idempotent");
+  assert.deepStrictEqual(pipe.step(4), [], "step after complete is ignored");
+});
+
+test("transducePush HALT sets halted and ignores later values", () => {
+  const pipe = transducePush(
+    map((x: number) => x + 1),
+    take<number>(2),
+  );
+  assert.deepStrictEqual(pipe.step(1), [2]);
+  assert.deepStrictEqual(pipe.step(2), [3]);
+  assert.strictEqual(pipe.halted, false, "take(2) halts on the 3rd item, as in transduceSync");
+  assert.deepStrictEqual(pipe.step(3), [], "the halting step's emissions are discarded");
+  assert.strictEqual(pipe.halted, true);
+  assert.deepStrictEqual(pipe.step(4), [], "values after HALT are ignored");
+  assert.deepStrictEqual(pipe.complete(), []);
 });

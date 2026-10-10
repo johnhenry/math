@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { asyncFrom, teeAsync, teeSync } from "../src/index.ts";
-import { eventualEqual } from "./helpers.ts";
+import { collect, eventualEqual, flush } from "./helpers.ts";
 
 test("teeSync should produce results that mirror original", () => {
   const original = [1, 2, 3, 4, 5];
@@ -126,4 +126,99 @@ test("teeAsync: concurrent first next() calls on both branches must not desync",
 
   await eventualEqual(it0!, ["c", "d"], "1st branch should mirror remaining items");
   await eventualEqual(it1!, ["c", "d"], "2nd branch should mirror remaining items");
+});
+
+test("teeSync with no options stays unbounded", () => {
+  const [fast, slow] = teeSync(2)(Array.from({ length: 1000 }, (_, i) => i));
+  assert.strictEqual([...fast!].length, 1000);
+  assert.strictEqual([...slow!].length, 1000, "the slow branch buffered everything");
+});
+
+test('teeSync overflow "drop-oldest" keeps each branch\'s newest `limit` items', () => {
+  const [fast, slow] = teeSync(2, { limit: 2, overflow: "drop-oldest" })([1, 2, 3, 4, 5]);
+  assert.deepStrictEqual([...fast!], [1, 2, 3, 4, 5]);
+  assert.deepStrictEqual([...slow!], [4, 5]);
+});
+
+test('teeSync overflow "error" throws instead of growing past `limit`', () => {
+  const [fast, slow] = teeSync(2, { limit: 2, overflow: "error" })([1, 2, 3, 4, 5]);
+  assert.strictEqual(fast!.next().value, 1);
+  assert.strictEqual(fast!.next().value, 2);
+  assert.throws(() => fast!.next(), RangeError);
+  assert.deepStrictEqual([slow!.next().value, slow!.next().value], [1, 2], "the slow branch still has its items");
+});
+
+test('teeSync rejects overflow "wait" (it cannot block) and bad limits', () => {
+  assert.throws(() => teeSync(2, { limit: 2, overflow: "wait" as never })([1]), TypeError);
+  assert.throws(() => teeSync(2, { limit: 0 })([1]), RangeError);
+  assert.throws(() => teeAsync(2, { limit: 1.5 })(asyncFrom(1)), RangeError);
+});
+
+test("bounded teeSync: a closed branch no longer counts toward the limit", () => {
+  const [fast, unused] = teeSync(2, { limit: 1, overflow: "error" })([1, 2, 3]);
+  unused!.return(undefined); // closed before it was ever read
+  assert.deepStrictEqual([...fast!], [1, 2, 3]);
+});
+
+test('teeAsync overflow "wait" makes the fastest branch wait for the slowest', async () => {
+  let pulled = 0;
+  const source = (async function* () {
+    for (let i = 1; i <= 5; i++) {
+      pulled = i;
+      yield i;
+    }
+  })();
+  const [fast, slow] = teeAsync(2, { limit: 2, overflow: "wait" })(source);
+  assert.strictEqual((await fast!.next()).value, 1);
+  assert.strictEqual((await fast!.next()).value, 2);
+  let third: IteratorResult<number> | undefined;
+  const pending = fast!.next().then((r) => {
+    third = r;
+  });
+  await flush();
+  assert.strictEqual(third, undefined, "the fast branch waits: the slow branch already holds 2 unread items");
+  assert.strictEqual(pulled, 2, "the source is not pulled past the limit");
+  assert.strictEqual((await slow!.next()).value, 1);
+  await pending;
+  assert.strictEqual(third!.value, 3, "a read on the slow branch frees room");
+  // Drain both together: draining one alone would (correctly) stall once
+  // the other holds `limit` unread items.
+  const [restSlow, restFast] = await Promise.all([collect(slow!), collect(fast!)]);
+  assert.deepStrictEqual(restSlow, [2, 3, 4, 5]);
+  assert.deepStrictEqual(restFast, [4, 5]);
+});
+
+test('teeAsync defaults to overflow "wait" when a limit is given', async () => {
+  const [fast, slow] = teeAsync(2, { limit: 1 })(asyncFrom(1, 2, 3));
+  assert.strictEqual((await fast!.next()).value, 1);
+  let second: IteratorResult<number> | undefined;
+  const pending = fast!.next().then((r) => {
+    second = r;
+  });
+  await flush();
+  assert.strictEqual(second, undefined);
+  await slow!.next();
+  await pending;
+  assert.strictEqual(second!.value, 2);
+});
+
+test('teeAsync overflow "wait": closing the slow branch releases the fast one', async () => {
+  const [fast, slow] = teeAsync(2, { limit: 1, overflow: "wait" })(asyncFrom(1, 2, 3));
+  assert.strictEqual((await fast!.next()).value, 1);
+  const pending = fast!.next();
+  await flush();
+  await slow!.return(undefined); // never read, closed
+  assert.strictEqual((await pending).value, 2);
+});
+
+test('teeAsync overflow "drop-oldest" and "error"', async () => {
+  const [fast, slow] = teeAsync(2, { limit: 2, overflow: "drop-oldest" })(asyncFrom(1, 2, 3, 4, 5));
+  await eventualEqual(fast!, [1, 2, 3, 4, 5]);
+  await eventualEqual(slow!, [4, 5]);
+
+  const [a, b] = teeAsync(2, { limit: 2, overflow: "error" })(asyncFrom(1, 2, 3, 4, 5));
+  await a!.next();
+  await a!.next();
+  await assert.rejects(a!.next(), RangeError);
+  assert.strictEqual((await b!.next()).value, 1);
 });

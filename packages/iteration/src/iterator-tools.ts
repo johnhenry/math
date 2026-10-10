@@ -1,4 +1,4 @@
-import { isAsyncIterator } from "./is-iterator.ts";
+import { closeAll, closeAllSync, entryOf, pull } from "./internal.ts";
 
 /**
  * Sentinel returned by a reducer step to stop consumption of the source
@@ -221,17 +221,30 @@ export const conjoinAsync = async function* <T>(
  * @returns an iterator who's members are the members of the given iterators zipped sequencially
  */
 export const zipSync = function* <T>(...iteratorList: Array<Iterable<T>>): Generator<T[]> {
-  const generators = iteratorList.map((iterator) => iterator[Symbol.iterator]());
-  outer: while (true) {
-    const result: T[] = [];
-    for (const generator of generators) {
-      const { value, done } = generator.next();
-      if (done) {
-        break outer;
+  const entries = iteratorList.map((iterator) => ({ it: iterator[Symbol.iterator](), done: false }));
+  try {
+    outer: while (true) {
+      const result: T[] = [];
+      for (const entry of entries) {
+        let step: IteratorResult<T>;
+        try {
+          step = entry.it.next();
+        } catch (error) {
+          entry.done = true; // an iterator that threw is not closed again
+          throw error;
+        }
+        if (step.done) {
+          entry.done = true;
+          break outer;
+        }
+        result.push(step.value);
       }
-      result.push(value);
+      yield result;
     }
-    yield result;
+  } finally {
+    // Close every input that has not ended -- when the shortest input ends,
+    // when an input throws, and when the consumer exits early.
+    closeAllSync(entries);
   }
 };
 
@@ -248,17 +261,19 @@ export const zipSync = function* <T>(...iteratorList: Array<Iterable<T>>): Gener
 export const zipAsync = async function* <T>(
   ...iteratorList: Array<AsyncIterable<T> | Iterable<T>>
 ): AsyncGenerator<T[]> {
-  const generators = iteratorList.map((iterator) =>
-    isAsyncIterator(iterator)
-      ? (iterator as AsyncIterable<T>)[Symbol.asyncIterator]()
-      : (iterator as Iterable<T>)[Symbol.iterator](),
-  );
-  while (true) {
-    const results = await Promise.all(generators.map((g) => g.next()));
-    if (results.some(({ done }) => done)) {
-      break;
+  const entries = iteratorList.map((iterator) => entryOf(iterator));
+  try {
+    while (true) {
+      const results = await Promise.all(entries.map((entry) => pull(entry)));
+      if (results.some(({ done }) => done)) {
+        break;
+      }
+      yield results.map(({ value }) => value as T);
     }
-    yield results.map(({ value }) => value as T);
+  } finally {
+    // Close every input that has not ended -- when the shortest input ends,
+    // when an input rejects, and when the consumer exits early.
+    await closeAll(entries);
   }
 };
 

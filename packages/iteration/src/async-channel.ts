@@ -11,32 +11,25 @@
  */
 export const CHANNEL_END: unique symbol = Symbol("CHANNEL_END");
 
-interface InvertedPromiseParts<T> {
-  promise: Promise<T>;
-  resolve: (value: T) => void;
-  reject: (reason?: unknown) => void;
-}
-
-/**
- * Creates a promise that can be resolved/rejected outside of initial closure
- * @kind function
- * @name InvertedPromise
- * @ignore
- */
-const InvertedPromise = <T>(): InvertedPromiseParts<T> => {
-  const out = {} as InvertedPromiseParts<T>;
-  out.promise = new Promise<T>((resolve, reject) => {
-    out.resolve = resolve;
-    out.reject = reject;
-  });
-  return out;
-};
-
 export interface AsyncChannelOptions<T> {
   cache?: Array<T | typeof CHANNEL_END | Error>;
   limit?: number;
   transform?: (item: T) => T | Promise<T>;
   debug?: (...args: unknown[]) => unknown;
+  /**
+   * How an error queued by `throw()` reaches a `take()` that arrives after
+   * it (a `take()` already waiting when `throw()` is called always rejects).
+   * - `"value"` (default, the pre-0.0.1 behaviour): `take()` resolves with
+   *   the `Error` object, and async iteration yields it as an item.
+   * - `"throw"`: `take()` rejects with it, so async iteration throws.
+   */
+  errors?: "value" | "throw";
+}
+
+/** A pending take(), waiting for an item. */
+interface Taker<T> {
+  resolve: (value: T | typeof CHANNEL_END) => void;
+  reject: (reason?: unknown) => void;
 }
 
 /**
@@ -49,9 +42,15 @@ export class AsyncChannel<T = unknown> {
   cache: Array<T | typeof CHANNEL_END | Error>;
   transform: (item: T) => T | Promise<T>;
   debug?: (...args: unknown[]) => unknown;
-  private promise?: Promise<T | typeof CHANNEL_END>;
-  private resolve?: (value: T | typeof CHANNEL_END) => void;
-  private reject?: (reason?: unknown) => void;
+  errors: "value" | "throw";
+  /**
+   * Consumers waiting in take(), served FIFO. Before 0.0.1 this was a
+   * single slot, so a second concurrent take() replaced the first, which
+   * then never resolved.
+   */
+  private takers: Array<Taker<T>> = [];
+  /** Errors queued by throw() (as opposed to Error objects put() as values). */
+  private thrown = new WeakSet<Error>();
   /** Producers awaiting capacity, FIFO (backpressure -- see put()). */
   private putters: Array<{
     value: T | typeof CHANNEL_END | Error;
@@ -71,11 +70,29 @@ export class AsyncChannel<T = unknown> {
    * @kind function
    * @name constructor
    */
-  constructor({ cache = [], limit = Infinity, transform = ($: T) => $, debug }: AsyncChannelOptions<T> = {}) {
+  constructor({
+    cache = [],
+    limit = Infinity,
+    transform = ($: T) => $,
+    debug,
+    errors = "value",
+  }: AsyncChannelOptions<T> = {}) {
     this.limit = limit;
     this.cache = cache.slice(0, limit);
     this.transform = transform;
     this.debug = debug;
+    this.errors = errors;
+  }
+  /**
+   * Hand an item that came off the cache or a producer to a take() caller:
+   * with `errors: "throw"`, an error queued by throw() rejects.
+   * @ignore
+   */
+  private deliver(value: T | typeof CHANNEL_END | Error): T | typeof CHANNEL_END {
+    if (this.errors === "throw" && value instanceof Error && this.thrown.has(value)) {
+      throw value;
+    }
+    return value as T | typeof CHANNEL_END;
   }
   /**
    * Move waiting producers' items into the cache while there is capacity,
@@ -114,8 +131,9 @@ export class AsyncChannel<T = unknown> {
     try {
       const value = await this.transform(item);
       await myTurn;
-      if (this.promise) {
-        this.resolve?.(value);
+      const taker = this.takers.shift();
+      if (taker) {
+        taker.resolve(value);
         return;
       }
       if (this.cache.length < this.limit) {
@@ -137,29 +155,23 @@ export class AsyncChannel<T = unknown> {
   async take(...debug: unknown[]): Promise<T | typeof CHANNEL_END> {
     this.debug?.("take", ...debug);
     if (this.cache.length) {
-      const value = this.cache.shift() as T | typeof CHANNEL_END;
+      const value = this.cache.shift() as T | typeof CHANNEL_END | Error;
       this.drainPutters();
-      return value;
+      return this.deliver(value);
     }
     if (this.putters.length) {
       // limit of 0 (rendezvous) or drained cache with waiting producers:
       // hand off directly.
       const { value, release } = this.putters.shift() as {
-        value: T | typeof CHANNEL_END;
+        value: T | typeof CHANNEL_END | Error;
         release: () => void;
       };
       release();
-      return value;
+      return this.deliver(value);
     }
-    const { promise, resolve, reject } = InvertedPromise<T | typeof CHANNEL_END>();
-    this.promise = promise;
-    this.resolve = resolve;
-    this.reject = reject;
-    const value = await this.promise;
-    delete this.promise;
-    delete this.resolve;
-    delete this.reject;
-    return value;
+    return new Promise<T | typeof CHANNEL_END>((resolve, reject) => {
+      this.takers.push({ resolve, reject });
+    });
   }
   /**
    * Pause Asynchronous Channel
@@ -168,8 +180,9 @@ export class AsyncChannel<T = unknown> {
    */
   async break(...debug: unknown[]): Promise<void> {
     this.debug?.("break", ...debug);
-    if (this.promise) {
-      await this.resolve?.(CHANNEL_END);
+    const taker = this.takers.shift();
+    if (taker) {
+      taker.resolve(CHANNEL_END);
     } else if (this.putters.length > 0) {
       // Keep FIFO order: the end marker must not overtake producers
       // already waiting for capacity.
@@ -185,13 +198,16 @@ export class AsyncChannel<T = unknown> {
    */
   async throw(message?: string, ...debug: unknown[]): Promise<void> {
     this.debug?.("throw", ...debug);
-    if (this.promise) {
-      await this.reject?.(new Error(message));
+    const error = new Error(message);
+    this.thrown.add(error);
+    const taker = this.takers.shift();
+    if (taker) {
+      taker.reject(error);
     } else if (this.putters.length > 0) {
       // Keep FIFO order behind producers already waiting for capacity.
-      this.putters.push({ value: new Error(message), release: () => {} });
+      this.putters.push({ value: error, release: () => {} });
     } else {
-      this.cache.push(new Error(message));
+      this.cache.push(error);
     }
   }
   /**
@@ -201,7 +217,7 @@ export class AsyncChannel<T = unknown> {
    * Note: should this be a getter?
    */
   pending(): boolean {
-    return !!this.promise;
+    return this.takers.length > 0;
   }
   /**
    * Return string representation of Asynchronous Channel

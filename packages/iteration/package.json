@@ -54,6 +54,10 @@
       "types": "./dist/async-channel.d.ts",
       "import": "./dist/async-channel.js"
     },
+    "./combine": {
+      "types": "./dist/combine.d.ts",
+      "import": "./dist/combine.js"
+    },
     "./abort": {
       "types": "./dist/abort.d.ts",
       "import": "./dist/abort.js"
@@ -73,6 +77,10 @@
     "./is-iterator": {
       "types": "./dist/is-iterator.d.ts",
       "import": "./dist/is-iterator.js"
+    },
+    "./time": {
+      "types": "./dist/time.d.ts",
+      "import": "./dist/time.js"
     }
   },
   "repository": {

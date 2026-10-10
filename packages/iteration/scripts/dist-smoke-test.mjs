@@ -48,4 +48,20 @@ assert.deepStrictEqual(
 const assertion = await import("@johnhenry/iteration/pop-quiz/asserteventualequal");
 assert.strictEqual(typeof assertion.default, "function");
 
+// new in 0.0.1: ./combine and ./time subpaths, transducePush
+const { mergeAsync, combineLatestAsync } = await import("@johnhenry/iteration/combine");
+const merged = [];
+for await (const item of mergeAsync([1, 2], ["a"])) merged.push(item);
+assert.deepStrictEqual(merged, [1, "a", 2], "dist mergeAsync via ./combine");
+const snapshots = [];
+for await (const s of combineLatestAsync({ x: [1] })) snapshots.push(s);
+assert.deepStrictEqual(snapshots, [{ x: 1 }], "dist combineLatestAsync via ./combine");
+const { debounceAsync, throttleAsync, systemClock } = await import("@johnhenry/iteration/time");
+assert.strictEqual(typeof debounceAsync, "function", "dist debounceAsync via ./time");
+assert.strictEqual(typeof throttleAsync, "function", "dist throttleAsync via ./time");
+assert.strictEqual(typeof systemClock.now(), "number");
+const pipe = index.transducePush(map((x) => x * 2), take(1));
+assert.deepStrictEqual([pipe.step(1), pipe.step(2), pipe.halted], [[2], [], true], "dist transducePush");
+assert.strictEqual(index.latestAsync, (await import("@johnhenry/iteration/combine")).latestAsync);
+
 console.log("dist smoke test passed");

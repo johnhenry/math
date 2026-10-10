@@ -1,5 +1,5 @@
 import { abortable, type SignalOptions } from "./abort.ts";
-import { type ReducerStep, reduceAsync, reduceSync, type Transducer } from "./iterator-tools.ts";
+import { HALT, type ReducerStep, reduceAsync, reduceSync, type Transducer } from "./iterator-tools.ts";
 
 /**
  * The innermost reducer step ("emit"): pushes an emitted item onto the
@@ -158,4 +158,94 @@ export function transduceSync(
 ): (itemCollection: Iterable<unknown>) => Generator<unknown>;
 export function transduceSync(...functions: Array<Transducer<any, any>>) {
   return (itemCollection: Iterable<unknown>) => reduceSync(itemCollection, composeFunctions(...functions)(emit), []);
+}
+
+/**
+ * A push-driven transducer pipeline: feed values in one at a time with
+ * `step`, and flush with `complete` when the input ends.
+ */
+export interface PushTransducer<In, Out> {
+  /**
+   * Run one value through the pipeline and return what it emitted (often
+   * zero or one item; `group` and friends may emit several). Returns `[]`
+   * once the pipeline has halted or completed.
+   */
+  step(value: In): Out[];
+  /**
+   * Flush stateful transducers (`.complete`, e.g. a trailing partial
+   * `group`) and return what they emitted. Call it once when the input
+   * ends, or after `halted` becomes true. Later calls return `[]`.
+   */
+  complete(): Out[];
+  /** True once a transducer returned HALT (e.g. `take(n)` saw item n + 1). */
+  readonly halted: boolean;
+}
+
+/**
+ * Drive transducers by pushing values in, with no iterator: for code that
+ * receives values by callback (an event handler, a wire in a dataflow
+ * graph). Uses the same left-to-right composition order, `.complete` flush
+ * protocol and HALT semantics as transduceSync:
+ * `transduceSync(...t)(xs)` yields exactly what pushing each `x` through
+ * `step` and then calling `complete()` returns.
+ *
+ * Like transduceSync, the items emitted by the step that returns HALT are
+ * discarded.
+ * @kind function
+ * @name transducePush
+ * @example
+ * ```javascript
+ * import { transducePush, transducers } from '@johnhenry/iteration';
+ * const { map, group } = transducers;
+ * const pipe = transducePush(map((x) => x * 10), group(2));
+ * pipe.step(1); // []
+ * pipe.step(2); // [[10, 20]]
+ * pipe.step(3); // []
+ * pipe.complete(); // [[30]]
+ * ```
+ */
+export function transducePush<A, B>(t1: Transducer<A, B>): PushTransducer<A, B>;
+export function transducePush<A, B, C>(t1: Transducer<A, B>, t2: Transducer<B, C>): PushTransducer<A, C>;
+export function transducePush<A, B, C, D>(
+  t1: Transducer<A, B>,
+  t2: Transducer<B, C>,
+  t3: Transducer<C, D>,
+): PushTransducer<A, D>;
+export function transducePush<A, B, C, D, E>(
+  t1: Transducer<A, B>,
+  t2: Transducer<B, C>,
+  t3: Transducer<C, D>,
+  t4: Transducer<D, E>,
+): PushTransducer<A, E>;
+export function transducePush<A, B, C, D, E, F>(
+  t1: Transducer<A, B>,
+  t2: Transducer<B, C>,
+  t3: Transducer<C, D>,
+  t4: Transducer<D, E>,
+  t5: Transducer<E, F>,
+): PushTransducer<A, F>;
+export function transducePush(...functions: Array<Transducer<any, any>>): PushTransducer<unknown, unknown>;
+export function transducePush(...functions: Array<Transducer<any, any>>): PushTransducer<unknown, unknown> {
+  const step = composeFunctions(...functions)(emit);
+  let halted = false;
+  let completed = false;
+  return {
+    step(value) {
+      if (halted || completed) return [];
+      const out = step([], value);
+      if (out === HALT) {
+        halted = true;
+        return [];
+      }
+      return out;
+    },
+    complete() {
+      if (completed) return [];
+      completed = true;
+      return step.complete ? step.complete([]) : [];
+    },
+    get halted() {
+      return halted;
+    },
+  };
 }
