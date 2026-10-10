@@ -88,7 +88,7 @@
     "url": "git+https://github.com/johnhenry/math.git",
     "directory": "packages/iteration"
   },
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Sync + async iterator algebra for TypeScript — transducers, Python-itertools parity, terminal consumers, bounded concurrency, cancellation, and backpressure-aware channels. Zero runtime dependencies.",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
