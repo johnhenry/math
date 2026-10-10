@@ -1,5 +1,6 @@
 export * from "./abort.ts";
 export * from "./async-channel.ts";
+export * from "./combine.ts";
 export * from "./concurrency.ts";
 export * from "./consumers.ts";
 export * from "./count.ts";
@@ -9,6 +10,7 @@ export * from "./is-iterator.ts";
 export * from "./iterator-tools.ts";
 export * from "./itertools.ts";
 export * from "./tee.ts";
+export * from "./time.ts";
 export * from "./transduce.ts";
 
 import * as channelDecorators from "./channel-decorators.ts";

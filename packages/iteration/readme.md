@@ -21,6 +21,23 @@ Requires **Node.js 22.12+** (or an equivalent Iterator-Helpers-capable engine).
 > [`johnhenry/math`](https://github.com/johnhenry/math) monorepo, restarted at `0.0.0` under the
 > new scoped name — the version number is fresh, the code and its lineage are not.
 
+## What's new in 0.0.1
+
+Additions for carrying **live values and events**. Every existing export keeps
+its signature and default behaviour.
+
+- **Combinators** (`@johnhenry/iteration/combine`): `mergeAsync`,
+  `combineLatestAsync`, `withLatestFromAsync`, `latestAsync`, `sampleAsync`.
+- **Time operators** (`@johnhenry/iteration/time`): `debounceAsync`,
+  `throttleAsync`, with an injectable `clock`.
+- **`transducePush`**: drive transducers one value at a time, with no iterator.
+- **Options:** `teeSync`/`teeAsync` take `{ limit, overflow }`, and
+  `AsyncChannel` takes `errors: "value" | "throw"`.
+- **Fixes:** `zipSync`/`zipAsync`/`zipLongestSync`/`zipLongestAsync` now close
+  every input when the zip ends, errors or is exited early, and concurrent
+  `AsyncChannel#take()` calls are now served FIFO (a second waiting `take()`
+  used to replace the first, which then never resolved).
+
 ## What's new in 2.0
 
 - **Transducer protocol rewritten (memory-leak fix).** In the 1.x line the
@@ -160,6 +177,13 @@ for await (const pair of zipAsync([1, 2, 3], ["a", "b"])) {
   console.log(pair);
 } // logs [1,'a'], [2,'b'] -- stops at the shorter input
 ```
+
+When the zip ends (the shortest input runs out), when an input throws, or
+when the consumer exits early, every input that has not ended is closed
+with `return()`, so generator `finally` blocks and the resources they guard
+are released. The same holds for `zipLongestSync`/`zipLongestAsync`. An input
+that ended or threw is not closed again. `zipAsync` does not take a
+`{ signal }`; wrap it in `abortable` for cancellation.
 
 ## Transformation: transducers
 
@@ -375,6 +399,37 @@ for (const x of transformation([
 }
 // logs 3, 5, 7, 9
 ```
+
+### `transducePush`: push values in, one at a time
+
+`transducePush(...transducers)` runs the same transducers without an
+iterator, for code that receives values by callback (an event handler, a
+wire in a dataflow graph). It returns `{ step(value), complete(), halted }`:
+`step` returns the items that value emitted, `complete()` flushes stateful
+transducers (such as a trailing partial `group`), and `halted` turns true
+once a transducer returns `HALT`.
+
+```javascript
+import { transducePush, transducers } from "@johnhenry/iteration";
+const { group, map } = transducers;
+const pipe = transducePush(group(2), map((pair) => pair.join("+")));
+socket.onmessage = (event) => pipe.step(event.data).forEach(send); // "a+b", "c+d", ...
+socket.onclose = () => pipe.complete().forEach(send); // a trailing "e", if any
+```
+
+It uses the same composition order, `.complete` flush and `HALT` as
+`transduceSync`: pushing every item of `xs` and then calling `complete()`
+returns exactly what `transduceSync(...)(xs)` yields. What it does **not**
+do:
+
+- It does not buffer or schedule anything: each `step` runs synchronously
+  and returns its output. There is no async variant; a transducer is pure.
+- After `HALT`, or after `complete()`, `step` ignores its value and returns
+  `[]`; it does not throw. `complete()` is idempotent.
+- Like `transduceSync`, it drops what the halting step emitted, and a
+  `.complete` flush only reaches stateful transducers that come before any
+  built-in stateless one (`map`, `filter`, `take` do not forward
+  `.complete`).
 
 ### Early termination: `HALT`
 
@@ -609,6 +664,185 @@ for await (const record of prefetchAsync(8, slowDatabaseCursor())) {
 }
 ```
 
+## Live values and events (`@johnhenry/iteration/combine`, new in 0.0.1)
+
+Combinators for sources that produce values over time: UI events, sockets,
+channels, sensors. Shared rules:
+
+- Inputs may be async or sync iterables.
+- Each takes an optional `{ signal }`. On abort it rejects with the signal's
+  reason (an `"AbortError"` `DOMException` by default).
+- Each closes (`return()`) every input that has not ended when it ends, when
+  an input errors (the error is rethrown), when the signal aborts, and when
+  the consumer exits early. An input whose `next()` is still pending is
+  closed without waiting for that `next()` to settle, so a stalled source
+  cannot block cleanup.
+- Like every generator here, nothing starts until the first `next()`.
+
+The "latest value" combinators (`combineLatestAsync`, `withLatestFromAsync`,
+`latestAsync`, `sampleAsync`) drain some inputs **eagerly**: they keep
+pulling whether or not the consumer is reading, and keep only the newest
+value. That is the point for live values, but it means they do **not**
+apply backpressure to those inputs, and a synchronous infinite iterable
+given as one of those inputs would be drained forever. Give them event
+sources, not generators of unbounded data.
+
+### `mergeAsync`
+
+`mergeAsync(...iterables, { signal })` yields each value as it arrives from
+any input, and ends when every input has ended.
+
+```javascript
+import { mergeAsync } from "@johnhenry/iteration";
+// or: import { mergeAsync } from "@johnhenry/iteration/combine";
+for await (const event of mergeAsync(clicks, keypresses, { signal })) {
+  handle(event);
+}
+```
+
+It does **not** read ahead: each input has at most one `next()` pending, and
+an input is asked for its next value only after its previous one has been
+consumed. Inputs that are ready at the same moment are served in rotation,
+so one fast (or synchronous) input cannot starve the rest. It does not tag
+values with their input; map each input first if you need that.
+
+### `combineLatestAsync`
+
+`combineLatestAsync(inputs, { signal, initial, endOn })`: `inputs` is an
+array or a record of iterables, and each output is a snapshot of the same
+shape holding every input's latest value. A snapshot is emitted whenever an
+input yields, once every input has a value.
+
+```javascript
+import { combineLatestAsync } from "@johnhenry/iteration";
+for await (const { width, theme } of combineLatestAsync(
+  { width: widths, theme: themes },
+  { initial: { theme: "light" } },
+)) {
+  render(width, theme);
+}
+```
+
+- **Latest wins:** while the consumer is busy, the snapshots it would have
+  received coalesce into one, holding the newest values.
+- `initial` supplies starting values for some or all inputs. It does **not**
+  emit on its own: the first snapshot still waits for an input to yield.
+- `endOn: "all"` (default) ends once every input has ended; `"any"` ends as
+  soon as one does. A snapshot still pending is delivered first. Either way,
+  an input that ends without ever having a value (and no `initial`) ends the
+  output at once, since no complete snapshot could follow.
+- It does **not** emit every intermediate combination, and it does not
+  compare values: an input that yields the same value again still produces
+  a snapshot. Each snapshot is a fresh object. An input error drops a
+  snapshot that was still pending.
+
+### `withLatestFromAsync`
+
+`withLatestFromAsync(source, others, { signal })` pairs each value of
+`source` with the latest value of each of `others` (an array or a record),
+yielding `[value, snapshot]`. This is the "an event samples values" pattern.
+
+```javascript
+import { withLatestFromAsync } from "@johnhenry/iteration";
+for await (const [click, { price, qty }] of withLatestFromAsync(buyClicks, { price: prices, qty: quantities })) {
+  placeOrder(price, qty);
+}
+```
+
+`source` is pulled as the consumer reads; `others` are drained eagerly.
+Values of `others` do **not** produce output by themselves. Source values that
+arrive before every one of `others` has a value are **dropped**, not
+buffered. An input in `others` that ends keeps its last value. The output
+ends when `source` ends.
+
+### `latestAsync`
+
+`latestAsync(iterable, { signal })` conflates a source: it drains the source
+eagerly and keeps only the newest value not yet read. `next()` returns that
+value, or waits for the next one.
+
+```javascript
+import { latestAsync } from "@johnhenry/iteration";
+for await (const position of latestAsync(pointerMoves)) {
+  await expensiveRender(position); // never falls behind: stale positions are skipped
+}
+```
+
+It does **not** repeat a value: each value is returned at most once, so a
+consumer faster than the source waits. It ends after the source ends and
+its last value has been read. A source error is rethrown on the next read,
+and an unread value is dropped. Closing it closes the source.
+
+### `sampleAsync`
+
+`sampleAsync(source, trigger, { signal })`: on each `trigger` value, yields
+the latest `source` value, if the source has produced one yet.
+
+```javascript
+import { sampleAsync } from "@johnhenry/iteration";
+for await (const position of sampleAsync(pointerMoves, animationFrames)) {
+  draw(position);
+}
+```
+
+Unlike RxJS `sample`, it does **not** skip a trigger when the source has not
+changed since the last one: the same value is yielded again. Triggers that
+fire before the source has a value yield nothing. The source is drained
+eagerly and the trigger is pulled as the consumer reads. It ends when the
+trigger ends; a source that ends keeps its last value.
+
+## Time operators (`@johnhenry/iteration/time`, new in 0.0.1)
+
+`debounceAsync` and `throttleAsync` drain their source eagerly (timing
+depends on when values arrive, not on when you read them) and queue what
+they emit until it is read. Both take `{ clock, signal }`. On abort, a source
+error or consumer exit they clear their timer and close the source.
+
+`clock` is `{ setTimeout(callback, ms), clearTimeout(handle), now() }`, and
+defaults to `systemClock` (the host's timers and `performance.now()`). Pass
+your own to drive them from a test's fake clock or from a host scheduler;
+`now()` must share the time base of the delays given to `setTimeout`.
+
+### `debounceAsync`
+
+`debounceAsync(ms, iterable, { clock, signal })` emits a value only after
+`ms` has passed with no newer value: a burst becomes its last value, `ms`
+after the burst ends. When the source ends, a value still waiting is
+emitted at once.
+
+```javascript
+import { debounceAsync } from "@johnhenry/iteration";
+// or: import { debounceAsync } from "@johnhenry/iteration/time";
+for await (const query of debounceAsync(250, searchInputs)) {
+  search(query);
+}
+```
+
+It has no `leading` or `maxWait` option: nothing is emitted during a burst
+that never pauses. A source error is rethrown after the values already
+emitted, and a value still waiting for its quiet period is dropped.
+
+### `throttleAsync`
+
+`throttleAsync(ms, iterable, { leading, trailing, clock, signal })` emits at
+most one value per `ms` window. A value arriving while no window is open
+opens one, and with `leading` (default `true`) is emitted at once. With
+`trailing` (default `true`), the newest value that arrived during the
+window is emitted when it closes, which opens the next window. When the
+source ends, a trailing value still waiting is emitted at once.
+
+```javascript
+import { throttleAsync } from "@johnhenry/iteration";
+for await (const position of throttleAsync(16, pointerMoves)) {
+  draw(position); // at most one per 16 ms, and always the final position
+}
+```
+
+`leading` and `trailing` cannot both be `false` (a `RangeError`). The
+defaults match lodash's `throttle`, not RxJS `throttleTime` (whose
+`trailing` defaults to `false`). It does **not** align windows to wall-clock
+boundaries, and a source error drops a trailing value still waiting.
+
 ## Utilities
 
 This library provides a number of iterator related utilities.
@@ -682,6 +916,28 @@ for (const x of transduce(filter((x) => x > 2))(i2)) {
 } // logs  3
 ```
 
+By default a branch that falls behind buffers without limit. Pass
+`{ limit, overflow }` as a second argument to bound each branch's unread
+items (new in 0.0.1):
+
+```javascript
+const [ui, log] = teeAsync(2, { limit: 100, overflow: "wait" })(events);
+```
+
+- `"wait"` (the `teeAsync` default when a `limit` is given): a branch that
+  wants a new item waits until the slowest branch has room, which is true
+  backpressure. Read the branches concurrently: draining one to the end
+  while another sits unread stalls once that one holds `limit` items.
+- `"drop-oldest"`: the item is delivered, and a full branch discards its
+  oldest unread item, so each branch keeps its newest `limit`.
+- `"error"` (the `teeSync` default when a `limit` is given): the pull throws
+  a `RangeError` instead of growing a buffer past `limit`.
+
+`teeSync` cannot block, so it does **not** support `"wait"` (a `TypeError`).
+`limit` must be an integer `>= 1`. A branch you are not going to read should
+be closed with `return()`: a closed branch stops receiving items and no
+longer counts toward the limit.
+
 ### `AsyncChannel`
 
 AsyncChannel is an experimental primative object.
@@ -698,6 +954,30 @@ behaves as a rendezvous channel (each `put` waits for its `take`).
 const bounded = new AsyncChannel({ limit: 100 });
 await bounded.put(item); // suspends the producer while the channel is full
 ```
+
+**Concurrent takers (fixed in 0.0.1):** several `take()` calls waiting at
+once are served in call order, one item each. Before 0.0.1 the channel kept
+a single waiting-taker slot, so a second `take()` replaced the first, which
+then never resolved. `break()` and `throw()` likewise reach only the
+longest-waiting taker; the others keep waiting.
+
+**Errors (`errors` option, new in 0.0.1):** `throw(message)` queues an error.
+A `take()` already waiting when it is called always rejects. For a later
+`take()`, the `errors` option decides:
+
+```javascript
+const lenient = new AsyncChannel(); // errors: "value" (default, unchanged)
+await lenient.throw("bad");
+await lenient.take(); // resolves with an Error object; iteration yields it
+
+const strict = new AsyncChannel({ errors: "throw" });
+await strict.throw("bad");
+await strict.take(); // rejects with the Error; `for await` throws
+```
+
+With `"throw"`, only errors queued by `throw()` reject. An `Error` passed to
+`put()` is still delivered as a value. The error does **not** close the
+channel: items queued after it are still delivered.
 
 ```javascript
 // file://declare.mjs

@@ -137,3 +137,100 @@ test("CHANNEL_END is exposed and take() surfaces it after break()", async () => 
   await channel.break();
   assert.strictEqual(await channel.take(), CHANNEL_END);
 });
+
+// Regression (#83): the channel kept a single waiting-taker slot, so a
+// second take() made while the first was still waiting replaced it -- the
+// first take() then never resolved, and its item went to the second.
+test("concurrent take() calls are served FIFO (regression #83)", async () => {
+  const channel = new AsyncChannel<number>();
+  const first = channel.take();
+  const second = channel.take();
+  const third = channel.take();
+  await channel.put(1);
+  await channel.put(2);
+  await channel.put(3);
+  assert.strictEqual(await settled(first), true, "the first take() must resolve");
+  assert.deepStrictEqual(await Promise.all([first, second, third]), [1, 2, 3], "takers are served in call order");
+  assert.strictEqual(channel.pending(), false);
+});
+
+test("two puts in the same tick reach two waiting takers (regression #83)", async () => {
+  const channel = new AsyncChannel<string>();
+  const takes = [channel.take(), channel.take()];
+  await Promise.all([channel.put("a"), channel.put("b")]);
+  assert.deepStrictEqual(await Promise.all(takes), ["a", "b"]);
+});
+
+test("break() ends one waiting taker at a time, in order (regression #83)", async () => {
+  const channel = new AsyncChannel<number>();
+  const first = channel.take();
+  const second = channel.take();
+  await channel.break();
+  assert.strictEqual(await first, CHANNEL_END, "the first waiter receives the end marker");
+  assert.strictEqual(await settled(second), false, "the second waiter keeps waiting");
+  await channel.put(7);
+  assert.strictEqual(await second, 7);
+});
+
+// Same root cause as the single taker slot: after throw() rejected a
+// waiting take(), the slot was never cleared, so the next put() resolved
+// the already-rejected promise and its item was lost.
+test("after throw() rejects a waiting take(), the channel keeps working (regression #83)", async () => {
+  const channel = new AsyncChannel<number>();
+  const waiting = channel.take();
+  await channel.throw("bad");
+  await assert.rejects(waiting, /bad/);
+  assert.strictEqual(channel.pending(), false);
+  await channel.put(1);
+  const next = channel.take();
+  assert.strictEqual(await settled(next), true, "the item put after the error must be delivered");
+  assert.strictEqual(await next, 1);
+});
+
+test('errors: "value" (default) returns a queued throw() as an Error value', async () => {
+  const channel = new AsyncChannel<number>();
+  await channel.throw("bad");
+  const value = await channel.take();
+  assert.ok(value instanceof Error);
+  assert.strictEqual((value as unknown as Error).message, "bad");
+});
+
+test('errors: "throw" makes take() reject with a queued throw()', async () => {
+  const channel = new AsyncChannel<number>({ errors: "throw" });
+  await channel.put(1);
+  await channel.throw("bad");
+  await channel.put(2);
+  assert.strictEqual(await channel.take(), 1);
+  await assert.rejects(channel.take(), /bad/);
+  assert.strictEqual(await channel.take(), 2, "the channel stays usable after the error");
+});
+
+test('errors: "throw" makes async iteration throw', async () => {
+  const channel = new AsyncChannel<number>({ errors: "throw" });
+  await channel.put(1);
+  await channel.throw("bad");
+  const seen: number[] = [];
+  await assert.rejects(async () => {
+    for await (const item of channel) seen.push(item);
+  }, /bad/);
+  assert.deepStrictEqual(seen, [1]);
+});
+
+test('errors: "throw" still delivers an Error that was put() as a value', async () => {
+  const channel = new AsyncChannel<Error>({ errors: "throw" });
+  const value = new Error("just data");
+  await channel.put(value);
+  assert.strictEqual(await channel.take(), value);
+});
+
+test('errors: "throw" rejects a queued throw() that waited behind blocked producers', async () => {
+  const channel = new AsyncChannel<number>({ limit: 1, errors: "throw" });
+  await channel.put(1);
+  const blocked = channel.put(2);
+  await pause(0);
+  await channel.throw("bad");
+  assert.strictEqual(await channel.take(), 1);
+  assert.strictEqual(await channel.take(), 2);
+  await blocked;
+  await assert.rejects(channel.take(), /bad/);
+});

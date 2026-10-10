@@ -19,7 +19,7 @@
  * Python's itertools module and the documented design divergences.
  */
 
-import { isAsyncIterator } from "./is-iterator.ts";
+import { closeAll, closeAllSync, entryOf, pull } from "./internal.ts";
 import { concatAsync, concatSync, zipAsync, zipSync } from "./iterator-tools.ts";
 
 /**
@@ -428,21 +428,33 @@ export async function* starmapAsync<Args extends unknown[], R>(
  * @param iteratorList iterables to zip
  */
 export function* zipLongestSync<T, F>(fillValue: F, ...iteratorList: Array<Iterable<T>>): Generator<Array<T | F>> {
-  const generators = iteratorList.map((iterator) => iterator[Symbol.iterator]());
-  while (true) {
-    const result: Array<T | F> = [];
-    let anyNotDone = false;
-    for (const generator of generators) {
-      const { value, done } = generator.next();
-      if (done) {
-        result.push(fillValue);
-      } else {
-        anyNotDone = true;
-        result.push(value);
+  const entries = iteratorList.map((iterator) => ({ it: iterator[Symbol.iterator](), done: false }));
+  try {
+    while (true) {
+      const result: Array<T | F> = [];
+      let anyNotDone = false;
+      for (const entry of entries) {
+        let step: IteratorResult<T>;
+        try {
+          step = entry.it.next();
+        } catch (error) {
+          entry.done = true; // an iterator that threw is not closed again
+          throw error;
+        }
+        if (step.done) {
+          entry.done = true;
+          result.push(fillValue);
+        } else {
+          anyNotDone = true;
+          result.push(step.value);
+        }
       }
+      if (!anyNotDone) return;
+      yield result;
     }
-    if (!anyNotDone) return;
-    yield result;
+  } finally {
+    // Close every input that has not ended, on an error or an early exit.
+    closeAllSync(entries);
   }
 }
 
@@ -456,15 +468,16 @@ export async function* zipLongestAsync<T, F>(
   fillValue: F,
   ...iteratorList: Array<AsyncIterable<T> | Iterable<T>>
 ): AsyncGenerator<Array<T | F>> {
-  const generators = iteratorList.map((iterator) =>
-    isAsyncIterator(iterator)
-      ? (iterator as AsyncIterable<T>)[Symbol.asyncIterator]()
-      : (iterator as Iterable<T>)[Symbol.iterator](),
-  );
-  while (true) {
-    const results = await Promise.all(generators.map((g) => g.next()));
-    if (results.every(({ done }) => done)) return;
-    yield results.map(({ value, done }) => (done ? fillValue : (value as T)));
+  const entries = iteratorList.map((iterator) => entryOf(iterator));
+  try {
+    while (true) {
+      const results = await Promise.all(entries.map((entry) => pull(entry)));
+      if (results.every(({ done }) => done)) return;
+      yield results.map(({ value, done }) => (done ? fillValue : (value as T)));
+    }
+  } finally {
+    // Close every input that has not ended, on an error or an early exit.
+    await closeAll(entries);
   }
 }
 
