@@ -28,6 +28,19 @@ export { HALT as HAULT };
 export interface ReducerStep<in In> {
   (buffer: unknown[], item: In, iterator?: Iterable<In> | AsyncIterable<In>): unknown[] | Halt;
   complete?: (buffer: unknown[]) => unknown[];
+  /**
+   * What this step (and the steps after it) keep between calls: a half-full
+   * `group`, `partitionBy`'s open run, `accumulate`'s running value,
+   * `dedupe`'s last key. Steps that keep nothing omit it. Cascades like
+   * `complete`.
+   */
+  held?: () => unknown[];
+  /**
+   * Let go of the held items for which `predicate` is true, and return how
+   * many were let go. It never emits, and never changes what is later
+   * emitted beyond leaving the dropped items out. Cascades like `complete`.
+   */
+  drop?: (predicate: (held: unknown) => boolean) => number;
 }
 
 /**

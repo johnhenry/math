@@ -18,9 +18,44 @@ import { HALT, type ReducerStep, type Transducer } from "./iterator-tools.ts";
  * outermost step, which had no `.complete`, and the flush was lost.
  * @ignore
  */
-const forwardComplete = <In>(next: Pick<ReducerStep<never>, "complete">, step: ReducerStep<In>): ReducerStep<In> => {
+const forwardComplete = <In>(
+  next: Pick<ReducerStep<never>, "complete" | "held" | "drop">,
+  step: ReducerStep<In>,
+): ReducerStep<In> => {
   if (next.complete) step.complete = next.complete;
+  if (next.held) step.held = next.held;
+  if (next.drop) step.drop = next.drop;
   return step;
+};
+
+/**
+ * Give a stateful step `held`/`drop` over its own state, then the inner
+ * step's, so the hooks cascade the way `.complete` does. `own` lists the
+ * step's held items; `ownDrop` lets go of the ones `predicate` matches and
+ * returns how many.
+ * @ignore
+ */
+const holding = <In>(
+  next: Pick<ReducerStep<never>, "held" | "drop">,
+  step: ReducerStep<In>,
+  own: () => unknown[],
+  ownDrop: (predicate: (held: unknown) => boolean) => number,
+): ReducerStep<In> => {
+  step.held = () => [...own(), ...(next.held ? next.held() : [])];
+  step.drop = (predicate) => ownDrop(predicate) + (next.drop ? next.drop(predicate) : 0);
+  return step;
+};
+
+/** Remove, in place, the items of `list` that `predicate` matches; returns how many. */
+const dropFrom = (list: unknown[], predicate: (held: unknown) => boolean): number => {
+  let kept = 0;
+  let dropped = 0;
+  for (const item of list) {
+    if (predicate(item)) dropped++;
+    else list[kept++] = item;
+  }
+  list.length = kept;
+  return dropped;
 };
 
 /**
@@ -124,7 +159,12 @@ export const group =
       const buffer = out === HALT ? init : out;
       return conjoin.complete ? conjoin.complete(buffer) : buffer;
     };
-    return step;
+    return holding(
+      conjoin,
+      step,
+      () => [...partition],
+      (predicate) => dropFrom(partition, predicate),
+    );
   };
 
 /**
@@ -149,10 +189,22 @@ export const accumulate =
     // directly here would carry accumulated state over into the *next*
     // transduce run that reuses this same accumulate(...) instance.
     let accumulated = initial;
-    return forwardComplete(conjoin, (init, item) => {
-      accumulated = func(accumulated, item);
-      return conjoin(init, accumulated);
-    });
+    let has = false;
+    return holding(
+      conjoin,
+      forwardComplete(conjoin, (init, item) => {
+        accumulated = func(accumulated, item);
+        has = true;
+        return conjoin(init, accumulated);
+      }),
+      () => (has ? [accumulated] : []),
+      (predicate) => {
+        if (!has || !predicate(accumulated)) return 0;
+        accumulated = initial;
+        has = false;
+        return 1;
+      },
+    );
   };
 
 /**
@@ -171,15 +223,25 @@ export const dedupe =
   (conjoin) => {
     let hasLast = false;
     let lastKey: unknown;
-    return forwardComplete(conjoin, (init, item) => {
-      const key = keyFn(item);
-      if (hasLast && Object.is(key, lastKey)) {
-        return init;
-      }
-      hasLast = true;
-      lastKey = key;
-      return conjoin(init, item);
-    });
+    return holding(
+      conjoin,
+      forwardComplete(conjoin, (init, item) => {
+        const key = keyFn(item);
+        if (hasLast && Object.is(key, lastKey)) {
+          return init;
+        }
+        hasLast = true;
+        lastKey = key;
+        return conjoin(init, item);
+      }),
+      () => (hasLast ? [lastKey] : []),
+      (predicate) => {
+        if (!hasLast || !predicate(lastKey)) return 0;
+        hasLast = false;
+        lastKey = undefined;
+        return 1;
+      },
+    );
   };
 
 /**
@@ -250,7 +312,21 @@ export const partitionBy =
       const buffer = out === HALT ? init : out;
       return conjoin.complete ? conjoin.complete(buffer) : buffer;
     };
-    return step;
+    return holding(
+      conjoin,
+      step,
+      () => (hasCurrent ? [...bucket] : []),
+      (predicate) => {
+        const dropped = dropFrom(bucket, predicate);
+        if (hasCurrent && bucket.length === 0) {
+          // A run with nothing left isn't open: the next item starts a fresh
+          // one, and complete() has no empty run to flush.
+          hasCurrent = false;
+          currentKey = undefined;
+        }
+        return dropped;
+      },
+    );
   };
 
 /**

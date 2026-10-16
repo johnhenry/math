@@ -420,6 +420,40 @@ socket.onmessage = (event) => pipe.step(event.data).forEach(send); // "a+b", "c+
 socket.onclose = () => pipe.complete().forEach(send); // a trailing "e", if any
 ```
 
+#### `held()` and `drop(predicate)`: see and let go of what a pipeline keeps
+
+Stateful transducers keep items between steps: a half-full `group`,
+`partitionBy`'s open run, `accumulate`'s running value, `dedupe`'s last key.
+`pipe.held()` returns a copy of what is held (upstream stages first), and
+`pipe.drop(predicate)` lets go of the held items `predicate` matches and returns
+how many. Use it when something held must go (a value removed elsewhere, a
+buffer that must not keep a large object alive).
+
+```javascript
+const pipe = transducePush(group(3));
+pipe.step(a);
+pipe.step(b);
+pipe.held(); // [a, b]
+pipe.drop((x) => x === a); // 1
+pipe.step(c); // [] -- still waiting for a full group of 3
+pipe.step(d); // [[b, c, d]]
+```
+
+Dropping never emits and never changes what is later emitted beyond leaving the
+dropped items out:
+
+- `group` keeps waiting for its full size (the batch stays that long), and
+  `complete()` flushes what is left.
+- `partitionBy` removes the items from its open run; a run left empty is closed
+  without being emitted.
+- `accumulate` can't un-fold one item, so when the predicate matches its running
+  value it starts again from its initial value.
+- `dedupe` forgets its last key when the predicate matches it, so the next item
+  passes even if equal to it.
+- Stateless transducers (`map`, `filter`, ...) hold nothing and pass the hooks
+  through. A custom stateful transducer takes part by setting `held` and `drop`
+  on its step (as it does `complete`) and calling the inner step's.
+
 It uses the same composition order, `.complete` flush and `HALT` as
 `transduceSync`: pushing every item of `xs` and then calling `complete()`
 returns exactly what `transduceSync(...)(xs)` yields. What it does **not**
