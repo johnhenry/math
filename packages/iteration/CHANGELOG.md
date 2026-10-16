@@ -1,5 +1,11 @@
 # @johnhenry/iteration
 
+## 0.1.1
+
+### Patch Changes
+
+- be09888: `held()`/`drop(predicate)` no longer leave a dropped item referenced by derived keys. `partitionBy` re-derives its open run's key from the run's last surviving item after a drop, and `dedupe` keeps the item its last key came from so `drop(predicate)` tests that item (as well as the key) and forgets the key when it matches. Neither makes an operator emit early.
+
 ## 0.1.0
 
 ### Minor Changes
