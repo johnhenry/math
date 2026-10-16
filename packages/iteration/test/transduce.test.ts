@@ -329,3 +329,133 @@ test("the trailing group is flushed after a stateless transducer (regression #85
     [[2, 4], [6]],
   );
 });
+
+// Held items: what a stateful transducer keeps between steps is visible
+// (`held()`) and can be let go of (`drop(predicate)`) without making an
+// operator emit early or reshaping what it sends beyond the dropped items.
+test("held/drop: group's half-full batch", () => {
+  const pipe = transducePush(group<number>(3));
+  pipe.step(1);
+  pipe.step(2);
+  assert.deepStrictEqual(pipe.held(), [1, 2]);
+  assert.strictEqual(
+    pipe.drop((x) => x === 1),
+    1,
+  );
+  assert.deepStrictEqual(pipe.held(), [2]);
+  assert.deepStrictEqual(pipe.step(3), [], "a batch is still 3 long: dropping doesn't make it emit early");
+  assert.deepStrictEqual(pipe.step(4), [[2, 3, 4]], "the batch is the held items, less the dropped one");
+  assert.deepStrictEqual(pipe.held(), []);
+});
+
+test("held/drop: dropping everything held leaves nothing for complete to flush", () => {
+  const pipe = transducePush(group<number>(3));
+  pipe.step(1);
+  assert.strictEqual(
+    pipe.drop(() => true),
+    1,
+  );
+  assert.deepStrictEqual(pipe.complete(), []);
+});
+
+test("held/drop: partitionBy's open run", () => {
+  const pipe = transducePush(partitionBy<number>((x) => x % 2));
+  pipe.step(1);
+  pipe.step(3);
+  assert.deepStrictEqual(pipe.held(), [1, 3]);
+  assert.strictEqual(
+    pipe.drop((x) => x === 1),
+    1,
+  );
+  assert.deepStrictEqual(pipe.step(5), [], "the run is still open");
+  assert.deepStrictEqual(pipe.step(2), [[3, 5]]);
+});
+
+test("held/drop: a partitionBy run dropped to nothing never emits an empty run", () => {
+  const pipe = transducePush(partitionBy<number>((x) => x % 2));
+  pipe.step(1);
+  pipe.drop(() => true);
+  assert.deepStrictEqual(pipe.held(), []);
+  assert.deepStrictEqual(pipe.step(2), []);
+  assert.deepStrictEqual(pipe.complete(), [[2]]);
+});
+
+test("held/drop: accumulate's running value", () => {
+  const pipe = transducePush(accumulate<number>((a, b) => a + b, 0));
+  assert.deepStrictEqual(pipe.held(), [], "nothing before the first step");
+  pipe.step(1);
+  pipe.step(2);
+  assert.deepStrictEqual(pipe.held(), [3]);
+  assert.strictEqual(
+    pipe.drop((v) => v === 99),
+    0,
+  );
+  assert.deepStrictEqual(pipe.held(), [3]);
+  assert.strictEqual(
+    pipe.drop((v) => v === 3),
+    1,
+  );
+  assert.deepStrictEqual(pipe.held(), []);
+  assert.deepStrictEqual(pipe.step(5), [5], "the fold starts again from its initial value");
+});
+
+test("held/drop: dedupe's last key", () => {
+  const pipe = transducePush(dedupe<number>());
+  pipe.step(1);
+  assert.deepStrictEqual(pipe.held(), [1]);
+  assert.strictEqual(
+    pipe.drop((k) => k === 2),
+    0,
+  );
+  assert.deepStrictEqual(pipe.step(1), [], "an unmatched predicate changes nothing");
+  assert.strictEqual(
+    pipe.drop((k) => k === 1),
+    1,
+  );
+  assert.deepStrictEqual(pipe.held(), []);
+  assert.deepStrictEqual(pipe.step(1), [1], "a forgotten key lets an equal item through");
+});
+
+test("held/drop: reaches through stateless transducers and lists upstream first", () => {
+  const pipe = transducePush(
+    partitionBy<number>((x) => x % 2),
+    map((run: number[]) => run.length),
+    group<number>(2),
+    map((x: number[]) => x),
+  );
+  pipe.step(1);
+  pipe.step(3);
+  pipe.step(5);
+  pipe.step(4); // closes the run [1, 3, 5] -> 3, which group(2) now holds; partitionBy holds 4
+  assert.deepStrictEqual(pipe.held(), [4, 3]);
+  assert.strictEqual(
+    pipe.drop((x) => x === 3),
+    1,
+  );
+  assert.deepStrictEqual(pipe.held(), [4]);
+});
+
+test("held/drop: a pipeline with nothing stateful holds nothing", () => {
+  const pipe = transducePush(map((x: number) => x + 1));
+  pipe.step(1);
+  assert.deepStrictEqual(pipe.held(), []);
+  assert.strictEqual(
+    pipe.drop(() => true),
+    0,
+  );
+});
+
+test("held/drop: the transduceSync equivalence holds when a drop happens between steps", () => {
+  const items = [1, 2, 3, 4, 5, 6, 7];
+  const pipe = transducePush(group<number>(3));
+  const out: unknown[] = [];
+  for (const item of items) {
+    out.push(...pipe.step(item));
+    if (item === 4) pipe.drop((x) => x === 4);
+  }
+  out.push(...pipe.complete());
+  assert.deepStrictEqual(out, [
+    [1, 2, 3],
+    [5, 6, 7],
+  ]);
+});

@@ -177,6 +177,22 @@ export interface PushTransducer<In, Out> {
    * ends, or after `halted` becomes true. Later calls return `[]`.
    */
   complete(): Out[];
+  /**
+   * What the stateful transducers keep between steps, upstream first: a
+   * half-full `group`'s items, `partitionBy`'s open run, `accumulate`'s
+   * running value, `dedupe`'s last key. A copy: changing it changes nothing.
+   */
+  held(): unknown[];
+  /**
+   * Let go of the held items `predicate` matches, and return how many. For a
+   * caller that must stop an operator keeping something (a value removed
+   * elsewhere). It never emits and never changes what is later emitted
+   * beyond leaving the dropped items out: a `group` still waits for its full
+   * size, a `partitionBy` run left empty is closed without being emitted,
+   * `accumulate` starts again from its initial value, and `dedupe` forgets
+   * its key (so an equal item passes once).
+   */
+  drop(predicate: (held: unknown) => boolean): number;
   /** True once a transducer returned HALT (e.g. `take(n)` saw item n + 1). */
   readonly halted: boolean;
 }
@@ -243,6 +259,12 @@ export function transducePush(...functions: Array<Transducer<any, any>>): PushTr
       if (completed) return [];
       completed = true;
       return step.complete ? step.complete([]) : [];
+    },
+    held() {
+      return step.held ? step.held() : [];
+    },
+    drop(predicate) {
+      return step.drop ? step.drop(predicate) : 0;
     },
     get halted() {
       return halted;
