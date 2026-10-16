@@ -444,12 +444,15 @@ dropped items out:
 
 - `group` keeps waiting for its full size (the batch stays that long), and
   `complete()` flushes what is left.
-- `partitionBy` removes the items from its open run; a run left empty is closed
-  without being emitted.
+- `partitionBy` removes the items from its open run and re-derives the run's
+  current key from its last surviving item (so a derived key never refers to a
+  dropped item); a run left empty is closed without being emitted.
 - `accumulate` can't un-fold one item, so when the predicate matches its running
   value it starts again from its initial value.
-- `dedupe` forgets its last key when the predicate matches it, so the next item
-  passes even if equal to it.
+- `dedupe` holds the item its last key came from as well as the key (`held()`
+  lists the item first, then the key unless it is the item itself). It forgets
+  the key when the predicate matches either one, so the next item passes even if
+  equal to it. This covers a key derived from the item as an object.
 - Stateless transducers (`map`, `filter`, ...) hold nothing and pass the hooks
   through. A custom stateful transducer takes part by setting `held` and `drop`
   on its step (as it does `complete`) and calling the inner step's.

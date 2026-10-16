@@ -380,6 +380,88 @@ test("held/drop: a partitionBy run dropped to nothing never emits an empty run",
   assert.deepStrictEqual(pipe.complete(), [[2]]);
 });
 
+test("held/drop: partitionBy re-derives its key from the last surviving item", () => {
+  type Item = { id: number; tag: string };
+  const dropped = { id: 1, tag: "t" };
+  const kept = { id: 2, tag: "t" };
+  const keys: Array<{ tag: string; from: Item }> = [];
+  // A derived-object key, tied to the item it came from. Runs compare by tag.
+  const byTag = new Map<string, { tag: string; from: Item }>();
+  const pipe = transducePush(
+    partitionBy<Item>((i) => {
+      let k = byTag.get(i.tag);
+      if (!k) byTag.set(i.tag, (k = { tag: i.tag, from: i }));
+      keys.push(k);
+      return k;
+    }),
+  );
+  pipe.step(kept);
+  pipe.step(dropped);
+  byTag.clear(); // a re-derived key is a fresh object, as for any derived key
+  assert.strictEqual(
+    pipe.drop((i) => i === dropped),
+    1,
+  );
+  assert.strictEqual(keys.at(-1)?.from, kept, "the current key was re-derived from the surviving item");
+  assert.deepStrictEqual(pipe.held(), [kept]);
+  // The next item derives the same fresh key (interned again), so it joins the run.
+  const next = { id: 3, tag: "t" };
+  assert.deepStrictEqual(pipe.step(next), [], "the run is still open");
+  assert.deepStrictEqual(pipe.complete(), [[kept, next]]);
+});
+
+test("held/drop: partitionBy re-derive leaves an emptied run closed, not emitted", () => {
+  const pipe = transducePush(partitionBy<{ k: number }>((i) => ({ k: i.k })));
+  const only = { k: 1 };
+  pipe.step(only);
+  pipe.drop((i) => i === only);
+  assert.deepStrictEqual(pipe.held(), []);
+  assert.deepStrictEqual(pipe.complete(), []);
+});
+
+test("held/drop: dedupe holds the item its last key came from", () => {
+  type Item = { id: number; kind: string };
+  const first = { id: 1, kind: "x" };
+  const pipe = transducePush(dedupe<Item>((i) => i.kind));
+  pipe.step(first);
+  assert.ok(pipe.held().includes(first), "the item is held, though its key is a derived string");
+  assert.strictEqual(
+    pipe.drop((h) => h === first),
+    1,
+  );
+  assert.deepStrictEqual(pipe.held(), []);
+  assert.strictEqual(pipe.step({ id: 2, kind: "x" }).length, 1, "the forgotten key lets an equal-key item through");
+});
+
+test("held/drop: dedupe with a derived-object key forgets it when the item matches", () => {
+  const item = { id: 1 };
+  const pipe = transducePush(dedupe<{ id: number }>((i) => ({ id: i.id })));
+  pipe.step(item);
+  assert.strictEqual(
+    pipe.drop((h) => h === item),
+    1,
+  );
+  assert.deepStrictEqual(pipe.held(), []);
+  assert.deepStrictEqual(pipe.step({ id: 1 }), [{ id: 1 }]);
+});
+
+test("held/drop: dedupe still forgets by key; item and key both matching counts one", () => {
+  const item = { id: 1 };
+  const byKey = transducePush(dedupe<{ id: number }>((i) => i.id));
+  byKey.step(item);
+  assert.strictEqual(
+    byKey.drop((h) => h === 1),
+    1,
+  );
+  assert.deepStrictEqual(byKey.held(), []);
+  const both = transducePush(dedupe<{ id: number }>((i) => i.id));
+  both.step(item);
+  assert.strictEqual(
+    both.drop((h) => h === 1 || h === item),
+    1,
+  );
+});
+
 test("held/drop: accumulate's running value", () => {
   const pipe = transducePush(accumulate<number>((a, b) => a + b, 0));
   assert.deepStrictEqual(pipe.held(), [], "nothing before the first step");
