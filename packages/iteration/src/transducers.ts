@@ -223,6 +223,9 @@ export const dedupe =
   (conjoin) => {
     let hasLast = false;
     let lastKey: unknown;
+    // The item lastKey was derived from, kept so drop() can test it too: a
+    // derived key (an object built from the item) may hold the item alive.
+    let lastItem: In | undefined;
     return holding(
       conjoin,
       forwardComplete(conjoin, (init, item) => {
@@ -232,13 +235,17 @@ export const dedupe =
         }
         hasLast = true;
         lastKey = key;
+        lastItem = item;
         return conjoin(init, item);
       }),
-      () => (hasLast ? [lastKey] : []),
+      () => (hasLast ? (Object.is(lastItem, lastKey) ? [lastKey] : [lastItem, lastKey]) : []),
       (predicate) => {
-        if (!hasLast || !predicate(lastKey)) return 0;
+        if (!hasLast) return 0;
+        const sameValue = Object.is(lastItem, lastKey);
+        if (!predicate(lastItem) && (sameValue || !predicate(lastKey))) return 0;
         hasLast = false;
         lastKey = undefined;
+        lastItem = undefined;
         return 1;
       },
     );
@@ -323,6 +330,10 @@ export const partitionBy =
           // one, and complete() has no empty run to flush.
           hasCurrent = false;
           currentKey = undefined;
+        } else if (dropped > 0) {
+          // The key may have been derived from a dropped item: re-derive it
+          // from the run's last survivor so nothing references what was dropped.
+          currentKey = keyFn(bucket[bucket.length - 1] as In);
         }
         return dropped;
       },
