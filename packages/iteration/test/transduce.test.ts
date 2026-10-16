@@ -389,8 +389,8 @@ test("held/drop: partitionBy re-derives its key from the last surviving item", (
   const byTag = new Map<string, { tag: string; from: Item }>();
   const pipe = transducePush(
     partitionBy<Item>((i) => {
-      let k = byTag.get(i.tag);
-      if (!k) byTag.set(i.tag, (k = { tag: i.tag, from: i }));
+      const k = byTag.get(i.tag) ?? { tag: i.tag, from: i };
+      byTag.set(i.tag, k);
       keys.push(k);
       return k;
     }),
