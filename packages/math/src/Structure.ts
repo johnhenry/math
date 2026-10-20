@@ -262,6 +262,16 @@ export class Structure<T = unknown> {
     return VectorUtils.collapse(powerList, (a, b) => this.multiplyMatrix(a, b)) as SMat<T>;
   }
 
+  /** Whether `x` has a usable multiplicative inverse (a `NaN` reciprocal marks "none", as in Z/nZ for composite n). */
+  private hasInverse(x: T): boolean {
+    const r = this.reciprocal(x) as unknown;
+    return !(typeof r === "number" && Number.isNaN(r));
+  }
+
+  private noInverse(op: string, x: T): RangeError {
+    return new RangeError(`${op}: element ${String(x)} has no multiplicative inverse in this structure`);
+  }
+
   /**
    * Determinant via Gaussian elimination with row-swap pivoting, O(n^3)
    * instead of the previous O(n!) cofactor (Laplace) expansion.
@@ -276,15 +286,19 @@ export class Structure<T = unknown> {
     let sign = this.one;
 
     for (let col = 0; col < n; col++) {
-      if (this.equality(mat[col][col] as T, this.zero)) {
+      if (this.equality(mat[col][col] as T, this.zero) || !this.hasInverse(mat[col][col] as T)) {
+        const wasZero = this.equality(mat[col][col] as T, this.zero);
         let swap = -1;
         for (let r = col + 1; r < n; r++) {
-          if (!this.equality(mat[r][col] as T, this.zero)) {
+          if (!this.equality(mat[r][col] as T, this.zero) && this.hasInverse(mat[r][col] as T)) {
             swap = r;
             break;
           }
         }
-        if (swap === -1) return this.zero;
+        if (swap === -1) {
+          if (wasZero && mat.slice(col + 1).every((row) => this.equality(row[col] as T, this.zero))) return this.zero;
+          throw this.noInverse("determinant", mat[col][col] as T);
+        }
         [mat[col], mat[swap]] = [mat[swap], mat[col]];
         sign = this.negative(sign);
       }
@@ -316,27 +330,37 @@ export class Structure<T = unknown> {
    * Matrix inverse by Gauss-Jordan elimination over the structure's field
    * operations, with a zero-pivot row swap (bug fix — the AS3 version had no
    * pivoting and divided by a zero pivot).
+   *
+   * @throws RangeError if the matrix is not square, is singular, or (over a ring
+   *   such as Z/nZ with composite n) a pivot has no multiplicative inverse.
    */
   invertMatrix(alpha: SMat<T>, checkDeterminant = true): SMat<T> {
     const n = VectorUtils.height(alpha);
     const w = VectorUtils.width(alpha);
+    if (n !== w) throw new RangeError(`invertMatrix: matrix must be square, got ${n}x${w}`);
     if (checkDeterminant && this.equality(this.determinant(alpha), this.zero)) {
-      return VectorUtils.constantMatrix(n, w, this.zero);
+      throw new RangeError("invertMatrix: matrix is singular");
     }
 
     const mat: T[][] = [...alpha].map((row) => [...(row as SVec<T>)]);
     const inv: T[][] = [...this.generateIdentity(n, n)].map((row) => [...(row as SVec<T>)]);
 
     for (let col = 0; col < n; col++) {
-      if (this.equality(mat[col][col] as T, this.zero)) {
+      if (this.equality(mat[col][col] as T, this.zero) || !this.hasInverse(mat[col][col] as T)) {
+        const wasZero = this.equality(mat[col][col] as T, this.zero);
         let swap = -1;
         for (let r = col + 1; r < n; r++) {
-          if (!this.equality(mat[r][col] as T, this.zero)) {
+          if (!this.equality(mat[r][col] as T, this.zero) && this.hasInverse(mat[r][col] as T)) {
             swap = r;
             break;
           }
         }
-        if (swap === -1) continue; // singular column
+        if (swap === -1) {
+          if (wasZero && mat.slice(col + 1).every((row) => this.equality(row[col] as T, this.zero))) {
+            throw new RangeError("invertMatrix: matrix is singular");
+          }
+          throw this.noInverse("invertMatrix", mat[col][col] as T);
+        }
         [mat[col], mat[swap]] = [mat[swap], mat[col]];
         [inv[col], inv[swap]] = [inv[swap], inv[col]];
       }
@@ -404,6 +428,8 @@ export class Structure<T = unknown> {
   static integersModulo(n: number): Structure<number> {
     const mod = (x: number) => ((x % n) + n) % n;
     const modInverse = (a: number): number => {
+      // NaN/Infinity/fractions have no inverse (and would loop forever below).
+      if (!Number.isInteger(a)) return Number.NaN;
       let [oldR, r] = [mod(a), n];
       let [oldS, s] = [1, 0];
       while (r !== 0) {

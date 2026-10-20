@@ -209,3 +209,104 @@ test("determinant and invertMatrix stay fast at n=10-12 (O(n^3) regression guard
     }
   }
 });
+
+// -- invertMatrix: composite moduli and singular matrices --------------------
+
+const z6 = Structure.integersModulo(6);
+const isIdentity = (s: Structure<number>, m: Vector<Vector<number>>) =>
+  deep(m as Vector<unknown>).every((row, i) => (row as number[]).every((x, j) => s.equality(x, i === j ? 1 : 0)));
+
+test("integersModulo(n): reciprocal of a non-invertible or non-finite element is NaN and never hangs", () => {
+  assert.ok(Number.isNaN(z6.reciprocal(2)));
+  assert.ok(Number.isNaN(z6.reciprocal(0)));
+  assert.ok(Number.isNaN(z6.reciprocal(Number.NaN)));
+  assert.ok(Number.isNaN(z6.reciprocal(Number.POSITIVE_INFINITY)));
+  assert.ok(Number.isNaN(z6.reciprocal(1.5)));
+  assert.equal(z6.reciprocal(5), 5);
+});
+
+test("invertMatrix over Z/6Z throws a clear error instead of hanging when an element has no inverse", () => {
+  assert.throws(
+    () =>
+      z6.invertMatrix(
+        mat([
+          [2, 0],
+          [0, 1],
+        ]),
+      ),
+    (e: Error) => e instanceof RangeError && /no multiplicative inverse/.test(e.message),
+  );
+  assert.throws(
+    () =>
+      z6.invertMatrix(
+        mat([
+          [2, 0],
+          [0, 1],
+        ]),
+        false,
+      ),
+    RangeError,
+  );
+  assert.throws(
+    () =>
+      z6.determinant(
+        mat([
+          [2, 0],
+          [0, 1],
+        ]),
+      ),
+    RangeError,
+  );
+});
+
+test("invertMatrix over Z/6Z inverts when a unit pivot is available", () => {
+  for (const rows of [
+    [
+      [1, 2],
+      [3, 5],
+    ],
+    [
+      [2, 1],
+      [1, 1],
+    ],
+  ]) {
+    const a = mat(rows);
+    assert.ok(isIdentity(z6, z6.multiplyMatrix(a, z6.invertMatrix(a)) as Vector<Vector<number>>), JSON.stringify(rows));
+  }
+});
+
+test("invertMatrix throws on a singular matrix instead of returning zeros", () => {
+  const singular = mat([
+    [1, 2],
+    [2, 4],
+  ]);
+  assert.throws(
+    () => realField.invertMatrix(singular),
+    (e: Error) => e instanceof RangeError && /singular/.test(e.message),
+  );
+  assert.throws(() => realField.invertMatrix(singular, false), /singular/);
+  assert.throws(
+    () =>
+      realField.invertMatrix(
+        mat([
+          [0, 0],
+          [0, 0],
+        ]),
+      ),
+    /singular/,
+  );
+  assert.throws(() => realField.powerMatrix(singular, -1), /singular/);
+});
+
+test("invertMatrix throws on a non-square matrix", () => {
+  assert.throws(
+    () =>
+      realField.invertMatrix(
+        mat([
+          [1, 2, 3],
+          [4, 5, 6],
+        ]),
+      ),
+    /square/,
+  );
+});
