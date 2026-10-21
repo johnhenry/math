@@ -273,8 +273,51 @@ export class Structure<T = unknown> {
   }
 
   /**
+   * Determinant of a square matrix using only addition, subtraction and
+   * multiplication (Berkowitz's algorithm, O(n^4)), so it is valid over any
+   * commutative ring, including Z/nZ with composite `n` where a pivot may have
+   * no multiplicative inverse.
+   */
+  private determinantDivisionFree(alpha: SMat<T>): T {
+    const n = VectorUtils.width(alpha);
+    const a: T[][] = [...alpha].map((row) => [...(row as SVec<T>)]);
+    // p holds the characteristic-polynomial coefficients of the leading r x r block.
+    let p: T[] = [this.one];
+    for (let r = 1; r <= n; r++) {
+      const m = r - 1; // size of the leading block A_{r-1}
+      // Toeplitz column: [1, -a_rr, -R C, -R A C, -R A^2 C, ...]
+      const col: T[] = [this.one, this.negative(a[m][m] as T)];
+      let v: T[] = Array.from({ length: m }, (_, i) => a[i][m] as T); // C
+      for (let k = 2; k <= r; k++) {
+        let dot = this.zero;
+        for (let i = 0; i < m; i++) dot = this.add(dot, this.multiply(a[m][i] as T, v[i]));
+        col.push(this.negative(dot));
+        if (k < r) {
+          v = Array.from({ length: m }, (_, i) => {
+            let acc = this.zero;
+            for (let j = 0; j < m; j++) acc = this.add(acc, this.multiply(a[i][j] as T, v[j]));
+            return acc;
+          });
+        }
+      }
+      const next: T[] = [];
+      for (let i = 0; i <= r; i++) {
+        let acc = this.zero;
+        for (let j = 0; j < r && j <= i; j++) acc = this.add(acc, this.multiply(col[i - j], p[j]));
+        next.push(acc);
+      }
+      p = next;
+    }
+    // p = coefficients of det(xI - A); det(A) = (-1)^n * constant term.
+    const c = p[n];
+    return n % 2 === 0 ? c : this.negative(c);
+  }
+
+  /**
    * Determinant via Gaussian elimination with row-swap pivoting, O(n^3)
-   * instead of the previous O(n!) cofactor (Laplace) expansion.
+   * instead of the previous O(n!) cofactor (Laplace) expansion. Over a ring where
+   * a needed pivot has no multiplicative inverse (e.g. Z/nZ, composite `n`) it
+   * falls back to a division-free method, so the result is always defined.
    */
   determinant(alpha: SMat<T>): T {
     if (VectorUtils.width(alpha) !== VectorUtils.height(alpha)) return this.zero;
@@ -297,7 +340,7 @@ export class Structure<T = unknown> {
         }
         if (swap === -1) {
           if (wasZero && mat.slice(col + 1).every((row) => this.equality(row[col] as T, this.zero))) return this.zero;
-          throw this.noInverse("determinant", mat[col][col] as T);
+          return this.determinantDivisionFree(alpha);
         }
         [mat[col], mat[swap]] = [mat[swap], mat[col]];
         sign = this.negative(sign);
@@ -331,8 +374,12 @@ export class Structure<T = unknown> {
    * operations, with a zero-pivot row swap (bug fix — the AS3 version had no
    * pivoting and divided by a zero pivot).
    *
-   * @throws RangeError if the matrix is not square, is singular, or (over a ring
-   *   such as Z/nZ with composite n) a pivot has no multiplicative inverse.
+   * Over a ring such as Z/nZ with composite `n`, when elimination hits a pivot
+   * with no inverse it falls back to `det⁻¹ · adj(A)`, which succeeds exactly
+   * when the determinant is a unit.
+   *
+   * @throws RangeError if the matrix is not square, is singular, or (over a ring)
+   *   its determinant has no multiplicative inverse.
    */
   invertMatrix(alpha: SMat<T>, checkDeterminant = true): SMat<T> {
     const n = VectorUtils.height(alpha);
@@ -341,7 +388,32 @@ export class Structure<T = unknown> {
     if (checkDeterminant && this.equality(this.determinant(alpha), this.zero)) {
       throw new RangeError("invertMatrix: matrix is singular");
     }
+    return this.invertByElimination(alpha) ?? this.invertByAdjugate(alpha);
+  }
 
+  /** `det⁻¹ · adj(A)`; needs no pivot inverses, only that det(A) is a unit. */
+  private invertByAdjugate(alpha: SMat<T>): SMat<T> {
+    const n = VectorUtils.height(alpha);
+    const rows: T[][] = [...alpha].map((row) => [...(row as SVec<T>)]);
+    const det = this.determinant(alpha);
+    if (this.equality(det, this.zero)) throw new RangeError("invertMatrix: matrix is singular");
+    if (!this.hasInverse(det)) throw this.noInverse("invertMatrix", det);
+    const detInv = this.reciprocal(det);
+    const out: T[][] = Array.from({ length: n }, () => new Array<T>(n));
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        const sub = rows.filter((_, r) => r !== i).map((row) => Vector.fromArray(row.filter((_, c) => c !== j)));
+        const minor = this.determinant(Vector.fromArray(sub));
+        const cofactor = (i + j) % 2 === 0 ? minor : this.negative(minor);
+        out[j][i] = this.multiply(detInv, cofactor); // adjugate is the transposed cofactor matrix
+      }
+    }
+    return Vector.fromArray(out.map((row) => Vector.fromArray(row)));
+  }
+
+  /** Gauss-Jordan; returns `null` if a pivot has no inverse (caller falls back to the adjugate). */
+  private invertByElimination(alpha: SMat<T>): SMat<T> | null {
+    const n = VectorUtils.height(alpha);
     const mat: T[][] = [...alpha].map((row) => [...(row as SVec<T>)]);
     const inv: T[][] = [...this.generateIdentity(n, n)].map((row) => [...(row as SVec<T>)]);
 
@@ -359,7 +431,7 @@ export class Structure<T = unknown> {
           if (wasZero && mat.slice(col + 1).every((row) => this.equality(row[col] as T, this.zero))) {
             throw new RangeError("invertMatrix: matrix is singular");
           }
-          throw this.noInverse("invertMatrix", mat[col][col] as T);
+          return null;
         }
         [mat[col], mat[swap]] = [mat[swap], mat[col]];
         [inv[col], inv[swap]] = [inv[swap], inv[col]];

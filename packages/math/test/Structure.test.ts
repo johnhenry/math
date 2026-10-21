@@ -225,7 +225,7 @@ test("integersModulo(n): reciprocal of a non-invertible or non-finite element is
   assert.equal(z6.reciprocal(5), 5);
 });
 
-test("invertMatrix over Z/6Z throws a clear error instead of hanging when an element has no inverse", () => {
+test("invertMatrix over Z/6Z throws a clear error instead of hanging when the determinant is not a unit", () => {
   assert.throws(
     () =>
       z6.invertMatrix(
@@ -244,16 +244,6 @@ test("invertMatrix over Z/6Z throws a clear error instead of hanging when an ele
           [0, 1],
         ]),
         false,
-      ),
-    RangeError,
-  );
-  assert.throws(
-    () =>
-      z6.determinant(
-        mat([
-          [2, 0],
-          [0, 1],
-        ]),
       ),
     RangeError,
   );
@@ -308,5 +298,159 @@ test("invertMatrix throws on a non-square matrix", () => {
         ]),
       ),
     /square/,
+  );
+});
+
+// -- ring determinant / inverse without unit pivots (issue #96) ---------------
+
+test("determinant over Z/6Z works when a pivot is not a unit", () => {
+  assert.equal(
+    z6.determinant(
+      mat([
+        [2, 0],
+        [0, 1],
+      ]),
+    ),
+    2,
+  );
+  assert.equal(
+    z6.determinant(
+      mat([
+        [2, 3],
+        [3, 2],
+      ]),
+    ),
+    1,
+  );
+  // 2x2 where every entry of the first column is a non-unit
+  assert.equal(
+    z6.determinant(
+      mat([
+        [2, 1],
+        [4, 5],
+      ]),
+    ),
+    0, // 2*5 - 1*4 = 6 = 0 (mod 6)
+  );
+});
+
+test("invertMatrix over Z/6Z inverts when pivots are not units but the determinant is", () => {
+  const inv = z6.invertMatrix(
+    mat([
+      [2, 3],
+      [3, 2],
+    ]),
+  );
+  // det = 4 - 9 = -5 = 1 (mod 6) and adj(A) = [[2, -3], [-3, 2]] = [[2, 3], [3, 2]], so A is its own inverse.
+  // (Issue #96 quotes [[4, 3], [3, 4]], which is not an inverse: 2*4 + 3*3 = 17 = 5 (mod 6).)
+  assert.deepEqual(deep(inv as Vector<unknown>), [
+    [2, 3],
+    [3, 2],
+  ]);
+});
+
+test("invertMatrix over a composite modulus still throws RangeError when the determinant is not a unit", () => {
+  assert.throws(
+    () =>
+      z6.invertMatrix(
+        mat([
+          [2, 0],
+          [0, 1],
+        ]),
+      ),
+    (e: Error) => e instanceof RangeError && /no multiplicative inverse/.test(e.message),
+  );
+  assert.throws(
+    () =>
+      z6.invertMatrix(
+        mat([
+          [2, 3],
+          [4, 3],
+        ]),
+        false,
+      ),
+    RangeError,
+  );
+  // genuinely singular (determinant 0) is still reported as singular
+  assert.throws(
+    () =>
+      z6.invertMatrix(
+        mat([
+          [2, 4],
+          [1, 2],
+        ]),
+      ),
+    /singular/,
+  );
+});
+
+test("randomized: determinant is multiplicative and A * inv(A) = I over composite moduli", () => {
+  let seed = 12345;
+  const rand = (m: number) => {
+    // mulberry32
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((((t ^ (t >>> 14)) >>> 0) / 4294967296) * m) | 0;
+  };
+  for (const modulus of [6, 10, 12, 15]) {
+    const ring = Structure.integersModulo(modulus);
+    const units = new Set<number>();
+    for (let x = 0; x < modulus; x++) if (!Number.isNaN(ring.reciprocal(x))) units.add(x);
+    let inverted = 0;
+    let rejected = 0;
+    for (let trial = 0; trial < 150; trial++) {
+      const n = 2 + rand(3); // 2..4
+      const rows = Array.from({ length: n }, () => Array.from({ length: n }, () => rand(modulus)));
+      const b = mat(rows);
+      const det = ring.determinant(b) as number;
+      assert.ok(Number.isInteger(det) && det >= 0 && det < modulus, `det in range for ${JSON.stringify(rows)}`);
+      if (units.has(det)) {
+        const inv = ring.invertMatrix(b);
+        assert.ok(
+          isIdentity(ring, ring.multiplyMatrix(b, inv) as Vector<Vector<number>>),
+          `A*inv for ${JSON.stringify(rows)} mod ${modulus}`,
+        );
+        assert.ok(
+          isIdentity(ring, ring.multiplyMatrix(inv, b) as Vector<Vector<number>>),
+          `inv*A for ${JSON.stringify(rows)} mod ${modulus}`,
+        );
+        inverted++;
+      } else {
+        assert.throws(
+          () => ring.invertMatrix(b),
+          RangeError,
+          `non-unit det ${det} for ${JSON.stringify(rows)} mod ${modulus}`,
+        );
+        rejected++;
+      }
+      // det(AB) = det(A) det(B)
+      const rows2 = Array.from({ length: n }, () => Array.from({ length: n }, () => rand(modulus)));
+      const c = mat(rows2);
+      const prod = ring.multiplyMatrix(b, c) as Vector<Vector<number>>;
+      assert.equal(ring.determinant(prod), ring.multiply(det, ring.determinant(c) as number));
+    }
+    assert.ok(inverted > 0 && rejected > 0, `modulus ${modulus} exercised both branches`);
+  }
+});
+
+test("determinant over a field is unchanged (GF(7), reals)", () => {
+  assert.equal(
+    gf7.determinant(
+      mat([
+        [3, 5],
+        [1, 2],
+      ]),
+    ),
+    (((6 - 5) % 7) + 7) % 7,
+  );
+  assert.equal(
+    realField.determinant(
+      mat([
+        [2, 0],
+        [0, 1],
+      ]),
+    ),
+    2,
   );
 });
