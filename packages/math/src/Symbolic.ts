@@ -3947,7 +3947,11 @@ function polyDivMod(a: Poly, b: Poly): { q: Poly; r: Poly } {
 
 function polyAtoms(...ps: Poly[]): Set<number> {
   const s = new Set<number>();
-  for (const p of ps) for (const t of p) t.exps.forEach((e, i) => e > 0 && s.add(i));
+  for (const p of ps) {
+    for (const t of p) {
+      for (let i = 0; i < t.exps.length; i++) if (t.exps[i] > 0) s.add(i);
+    }
+  }
   return s;
 }
 
@@ -4186,9 +4190,7 @@ function nodeCount(e: Expr): number {
     case "pow":
       return 1 + nodeCount(e.base) + nodeCount(e.exp);
     case "piecewise":
-      return (
-        1 + nodeCount(e.otherwise) + e.branches.reduce((s, br) => s + nodeCount(br.cond) + nodeCount(br.expr), 0)
-      );
+      return 1 + nodeCount(e.otherwise) + e.branches.reduce((s, br) => s + nodeCount(br.cond) + nodeCount(br.expr), 0);
     case "sum":
     case "product":
       return 1 + nodeCount(e.from) + nodeCount(e.to) + nodeCount(e.body);
