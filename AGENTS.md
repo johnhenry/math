@@ -1,7 +1,7 @@
 # Agent playbook
 
-npm workspaces monorepo, 3 packages under `packages/` (`math`, `iteration`,
-`math-prototype-patch`), Node >= 26, `node:test` (native TypeScript type
+npm workspaces monorepo, 4 packages under `packages/` (`math`, `iteration`,
+`math-prototype-patch`, `math-sample`), Node >= 26, `node:test` (native TypeScript type
 stripping, no build step needed to run tests), Biome for lint/format,
 orchestrated with plain `npm run <script> --workspaces --if-present` (no
 Turborepo, no per-package registration list — `workspaces: ["packages/*"]`
@@ -14,7 +14,7 @@ scripts can run straight off `src/` via type stripping.
 
 ## Workspace structure and build order
 
-There is no dependency-ordering concern between the three packages for
+There is no dependency-ordering concern between the packages for
 build/test — `math-prototype-patch` is the only one with an internal
 dependency (`@johnhenry/math`), and npm workspaces resolves that via the
 published version range, not the workspace symlink build order:
@@ -23,6 +23,7 @@ published version range, not the workspace symlink build order:
 | --- | --- |
 | [`packages/math`](packages/math) | The core: exact/symbolic mathematics, `Structure<T>` linear algebra, CAS, number theory, plotting geometry. Everything else in the family depends on it. |
 | [`packages/iteration`](packages/iteration) | Sync + async iterator algebra. Independent of `packages/math` — no internal dependency either direction. |
+| [`packages/math-sample`](packages/math-sample) | DOM-free, Worker-safe 1D plot sampling (adaptive samplers, viewport, ticks, SVG paths). Core takes plain functions; `@johnhenry/math` is an optional peer used only by the `./expr` subpath. |
 | [`packages/math-prototype-patch`](packages/math-prototype-patch) | Opt-in `Number.prototype` patch; depends on `@johnhenry/math` (pinned `^0.0.x`, bump deliberately alongside a `math` release). |
 
 ## The verification loop (before every push)

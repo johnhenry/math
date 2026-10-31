@@ -36,12 +36,14 @@ name: Release
 # done; until then every package publishes to "latest", matching today's
 # default behavior for stable versions.
 #
-# All three current packages (@johnhenry/math, @johnhenry/iteration,
+# The three original packages (@johnhenry/math, @johnhenry/iteration,
 # @johnhenry/math-prototype-patch) are already published at their current
 # `package.json` versions, so the first run of this workflow is a no-op
 # publish-wise (changesets skips versions already on the registry, same as
 # the old script did) -- nothing to "arm" carefully here, unlike a
-# from-scratch monorepo.
+# from-scratch monorepo. @johnhenry/math-sample is newer and unpublished: its
+# first version ships through the Version Packages PR from its changeset, and
+# its npm trusted-publisher entry must exist before that PR merges.
 
 on:
   push:
@@ -125,7 +127,7 @@ jobs:
       # sync-jsr-configs.mjs).
       - name: Sync jsr.json versions from package.json
         run: |
-          for dir in packages/math packages/iteration packages/math-prototype-patch; do
+          for dir in packages/math packages/iteration packages/math-prototype-patch packages/math-sample; do
             node -e "
               const fs = require('fs');
               const pkg = JSON.parse(fs.readFileSync('$dir/package.json', 'utf8'));
@@ -138,7 +140,7 @@ jobs:
       - name: Publish to JSR
         continue-on-error: true
         run: |
-          for dir in packages/math packages/iteration packages/math-prototype-patch; do
+          for dir in packages/math packages/iteration packages/math-prototype-patch packages/math-sample; do
             echo "::group::jsr publish — $dir"
             (cd "$dir" && npx --yes jsr publish --allow-slow-types --allow-dirty) || \
               echo "::warning title=JSR publish skipped/failed::$dir (already published at this version, or trusted publishing not configured)"

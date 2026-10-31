@@ -1,0 +1,72 @@
+{
+  "name": "@johnhenry/math-sample",
+  "version": "0.0.0",
+  "description": "Pure-ESM, DOM-free, Web-Worker-safe 1D function sampling for plotting: adaptive sampling with NaN gaps and discontinuity detection, a DPR-aware viewport model, nice ticks, and SVG path output. Typed arrays out.",
+  "type": "module",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./expr": {
+      "types": "./dist/expr.d.ts",
+      "import": "./dist/expr.js"
+    }
+  },
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test --experimental-strip-types 'test/**/*.test.ts'",
+    "lint": "biome lint .",
+    "format": "biome format --write .",
+    "check": "biome check .",
+    "check:fix": "biome check --write .",
+    "prepublishOnly": "npm run typecheck && npm run check && npm test && npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/johnhenry/math.git",
+    "directory": "packages/math-sample"
+  },
+  "keywords": [
+    "plot",
+    "graph",
+    "sampling",
+    "adaptive",
+    "ticks",
+    "viewport",
+    "svg",
+    "web-worker",
+    "typescript"
+  ],
+  "author": "John Henry",
+  "license": "MIT",
+  "peerDependencies": {
+    "@johnhenry/math": "^0.1.0"
+  },
+  "peerDependenciesMeta": {
+    "@johnhenry/math": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@johnhenry/math": "^0.1.0",
+    "@types/node": "^22.10.0",
+    "typescript": "^5.9.0"
+  },
+  "engines": {
+    "node": ">=26.0.0"
+  }
+}

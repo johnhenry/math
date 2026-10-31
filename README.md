@@ -31,6 +31,7 @@ tree plus a 1100-line reference).
 | Do exact/symbolic mathematics — complex numbers, rationals, decimals, symbolic calculus, solve/series/LaTeX | [`math`](./packages/math) — everything scalar-math-shaped here builds on it |
 | Do linear algebra over something other than plain floats (GF(7), quaternions, arbitrary rings) | [`math`](./packages/math)'s `Structure<T>` — Gauss-Jordan, matrices and vectors generic over any algebraic structure |
 | Iterate over things lazily, asynchronously, with backpressure or bounded concurrency | [`iteration`](./packages/iteration) — independent of the rest of the family; shipped for years under two earlier names, don't judge it by the `0.0.0` |
+| Sample a function for plotting (adaptive, gap-aware, off the main thread), with viewport maths, ticks and SVG output | [`math-sample`](./packages/math-sample) — plain `(x) => number` in, `Float64Array` out; no DOM, runs in a Web Worker |
 | Write `(3).add(z)` on plain JS numbers | [`math-prototype-patch`](./packages/math-prototype-patch) — opt-in, collision-checked; read its README's warnings first |
 | The engineering / high-performance counterpart — fixed-width tensors, WASM, WebGPU | not in this repo — see [math-plus](https://github.com/johnhenry/math-plus), a separate sibling repo |
 
@@ -40,6 +41,7 @@ tree plus a 1100-line reference).
 |---|---|---|
 | [`packages/math`](./packages/math) | [`@johnhenry/math`](https://www.npmjs.com/package/@johnhenry/math) | Advanced college-level mathematics for TypeScript: complex/rational/decimal/interval/quaternion/dual numbers, linear algebra over arbitrary algebraic structures, a symbolic CAS, combinatorics, number theory, statistics, and renderer-agnostic plotting geometry |
 | [`packages/iteration`](./packages/iteration) | [`@johnhenry/iteration`](https://www.npmjs.com/package/@johnhenry/iteration) | Sync + async iterator algebra: transducers, Python-`itertools` parity, terminal consumers, bounded concurrency, cancellation, and backpressure-aware channels |
+| [`packages/math-sample`](./packages/math-sample) | [`@johnhenry/math-sample`](https://www.npmjs.com/package/@johnhenry/math-sample) | Plot sampling that runs in a Web Worker: adaptive `y = f(x)` sampling with NaN gaps and discontinuity detection, a DPR-aware viewport, nice ticks, SVG path output. Typed arrays out |
 | [`packages/math-prototype-patch`](./packages/math-prototype-patch) | [`@johnhenry/math-prototype-patch`](https://www.npmjs.com/package/@johnhenry/math-prototype-patch) | OPT-IN, collision-checked `Number.prototype` patch adding `@johnhenry/math`'s `ComplexNumber` fluent arithmetic to plain numbers |
 
 ## Examples

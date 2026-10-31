@@ -1,0 +1,12 @@
+{
+  "name": "@johnhenry/math-sample",
+  "version": "0.0.0",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts",
+    "./expr": "./src/expr.ts"
+  },
+  "publish": {
+    "exclude": ["test", "**/*.test.ts"]
+  }
+}
