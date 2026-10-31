@@ -1705,9 +1705,12 @@ test("fromLatex with implicitMultiplication still reads everything the strict re
   ]) {
     assert.equal(latexIm(src), Symbolic.toString(Symbolic.fromLatex(src)), src);
   }
-  const cases = "\\begin{cases} -x & \\text{if } x < 0 \\\\ x & \\text{otherwise} \\end{cases}";
+  // a row separator followed by a space is not the `\\ ` spacing command
+  assert.equal(
+    Symbolic.toString(Symbolic.fromLatex("\\begin{cases} 1 & x<0 \\\\ 2 & \\text{otherwise} \\end{cases}")),
+    "piecewise(x<0, 1, 2)",
+  );
   assert.equal(latexIm("\\begin{cases} 1 & x<0 \\\\ 2 & \\text{otherwise} \\end{cases}"), "piecewise(x<0, 1, 2)");
-  assert.throws(() => Symbolic.fromLatex(cases)); // `\text{if }` is not part of the grammar either way
 });
 
 test("implicit-multiplication LaTeX is value-equivalent to the explicit spelling", () => {

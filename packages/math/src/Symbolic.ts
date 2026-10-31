@@ -3631,7 +3631,7 @@ const CMP_LATEX_CMDS: Record<string, string> = {
 
 /** Convert a LaTeX math string into the plain-infix syntax `Symbolic.parse`'s `Parser` understands. */
 function latexToInfix(latex: string, opts: ParseOptions = {}): string {
-  const cleaned = latex.replace(/\\left|\\right/g, "").replace(/\\(?:,|;|!|quad|qquad| )/g, "");
+  const cleaned = latex.replace(/\\left|\\right/g, "").replace(/(?<!\\)\\(?:,|;|!|quad|qquad| )/g, "");
   return transformLatex(cleaned, opts);
 }
 
