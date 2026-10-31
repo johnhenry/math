@@ -129,3 +129,84 @@ test("pointMatrixToMesh3D uses alpha1 for the first sweep (bug fix)", () => {
   assert.equal(meshes[1]?.material.alpha, 0.75);
   assert.ok((meshes[0]?.faces.length ?? 0) >= 1);
 });
+
+test("vectorToCurve breaks the path at NaN and infinite points instead of drawing through them", () => {
+  const path = GraphUtils.vectorToCurve(
+    mat([
+      [0, 0],
+      [1, 1],
+      [2, Number.NaN],
+      [3, 3],
+      [4, 4],
+      [Number.POSITIVE_INFINITY, 5],
+      [6, 6],
+      [7, Number.NEGATIVE_INFINITY],
+    ]),
+  );
+  assert.deepEqual(path.commands, [
+    { op: "moveTo", x: 0, y: 0 },
+    { op: "lineTo", x: 1, y: 1 },
+    { op: "moveTo", x: 3, y: 3 },
+    { op: "lineTo", x: 4, y: 4 },
+    { op: "moveTo", x: 6, y: 6 },
+  ]);
+});
+
+test("vectorToCurve starts with moveTo when the leading points are non-finite, and is empty when all are", () => {
+  const lead = GraphUtils.vectorToCurve(
+    mat([
+      [Number.NaN, 0],
+      [1, 1],
+      [2, 2],
+    ]),
+  );
+  assert.deepEqual(lead.commands, [
+    { op: "moveTo", x: 1, y: 1 },
+    { op: "lineTo", x: 2, y: 2 },
+  ]);
+  const none = GraphUtils.vectorToCurve(
+    mat([
+      [Number.NaN, 0],
+      [1, Number.POSITIVE_INFINITY],
+    ]),
+  );
+  assert.deepEqual(none.commands, []);
+});
+
+test("vectorToCurve breaks a sampled function at its poles", () => {
+  const ys = GraphUtils.singleRangeVector((x) => (x === 2 ? Number.POSITIVE_INFINITY : x), 0, 4, 1);
+  const pts = Vector.fromArray([...ys].map((y, i) => pt(i, y)));
+  const ops = GraphUtils.vectorToCurve(pts).commands.map((c) => c.op);
+  assert.deepEqual(ops, ["moveTo", "lineTo", "moveTo", "lineTo"]);
+});
+
+test("pointMatrixToMesh3D omits faces that touch a NaN or infinite vertex", () => {
+  const full = mat([
+    [pt(0, 0, 0), pt(0, 1, 0), pt(0, 2, 0)],
+    [pt(1, 0, 0), pt(1, 1, 0), pt(1, 2, 0)],
+    [pt(2, 0, 0), pt(2, 1, 0), pt(2, 2, 0)],
+  ]);
+  const base = Graph3DUtils.pointMatrixToMesh3D(full);
+  const total = (ms: typeof base) => ms.reduce((n, m) => n + m.faces.length, 0);
+  assert.equal(total(base), 8);
+
+  const holed = mat([
+    [pt(0, 0, 0), pt(0, 1, 0), pt(0, 2, 0)],
+    [pt(1, 0, 0), pt(1, 1, Number.NaN), pt(1, 2, 0)],
+    [pt(2, 0, 0), pt(2, 1, 0), pt(2, 2, 0)],
+  ]);
+  const meshes = Graph3DUtils.pointMatrixToMesh3D(holed);
+  assert.ok(total(meshes) < 8, "faces touching the NaN vertex are dropped");
+  for (const m of meshes) {
+    for (const face of m.faces) {
+      for (const v of face) assert.ok(Number.isFinite(v.x) && Number.isFinite(v.y) && Number.isFinite(v.z));
+    }
+  }
+  const inf = mat([
+    [pt(0, 0, Number.POSITIVE_INFINITY), pt(0, 1, 0)],
+    [pt(1, 0, 0), pt(1, 1, 0)],
+  ]);
+  for (const m of Graph3DUtils.pointMatrixToMesh3D(inf)) {
+    for (const face of m.faces) for (const v of face) assert.ok(Number.isFinite(v.z));
+  }
+});
