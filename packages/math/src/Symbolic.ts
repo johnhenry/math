@@ -451,7 +451,7 @@ export class Symbolic {
 
   static differentiate(expr: Expr | string, variable = "x"): Expr {
     const e = typeof expr === "string" ? Symbolic.parse(expr) : expr;
-    return Symbolic.simplify(diff(e, variable));
+    return simplifyCore(diff(e, variable));
   }
 
   /**
@@ -465,7 +465,7 @@ export class Symbolic {
     const e = typeof expr === "string" ? Symbolic.parse(expr) : expr;
     const steps: DifferentiationStep[] = [];
     const raw = diffTraced(e, variable, steps);
-    return { steps, result: Symbolic.simplify(raw) };
+    return { steps, result: simplifyCore(raw) };
   }
 
   /**
@@ -479,7 +479,7 @@ export class Symbolic {
    * original is undefined at `x = 1`.
    */
   static simplify(expr: Expr | string): Expr {
-    return normalizeRational(simplifyCore(typeof expr === "string" ? Symbolic.parse(expr) : expr));
+    return normalizeRational(simplifyCore(expr));
   }
 
   /**
@@ -499,15 +499,15 @@ export class Symbolic {
    * assumptions (e.g. "x+y is positive" isn't expressible).
    */
   static simplifyAssuming(expr: Expr | string, assumptions: Record<string, Assumption>): Expr {
-    const simplified = Symbolic.simplify(expr);
+    const simplified = simplifyCore(expr);
     const rewritten = applyAssumptions(simplified, assumptions);
-    return Symbolic.simplify(rewritten);
+    return simplifyCore(rewritten);
   }
 
   /** Symbolic anti-derivative (elementary rules; throws {@link NotIntegrableError} otherwise). */
   static integrate(expr: Expr | string, variable = "x"): Expr {
     const e = typeof expr === "string" ? Symbolic.parse(expr) : expr;
-    return Symbolic.simplify(integ(e, variable));
+    return simplifyCore(integ(e, variable));
   }
 
   /**
@@ -546,13 +546,13 @@ export class Symbolic {
     variable = "x",
     env: Record<string, number> = {},
   ): number {
-    const e = Symbolic.simplify(typeof expr === "string" ? Symbolic.parse(expr) : expr);
+    const e = simplifyCore(typeof expr === "string" ? Symbolic.parse(expr) : expr);
     const probe = compileExpr(e);
     if (hasInteriorSingularity((val: number) => probe({ ...env, [variable]: val }), lower, upper)) {
       throw new IntegrationSingularityError();
     }
     try {
-      const F = Symbolic.simplify(integ(e, variable));
+      const F = simplifyCore(integ(e, variable));
       const at = (val: number) => evalExpr(F, { ...env, [variable]: val });
       return at(upper) - at(lower);
     } catch (err) {
@@ -612,7 +612,7 @@ export class Symbolic {
     xVar = "x",
     yVar = "y",
   ): OdeClosedFormResult {
-    const e = Symbolic.simplify(typeof dyDxExpr === "string" ? Symbolic.parse(dyDxExpr) : dyDxExpr);
+    const e = simplifyCore(typeof dyDxExpr === "string" ? Symbolic.parse(dyDxExpr) : dyDxExpr);
     const sep = matchSeparable(e, xVar, yVar);
     if (sep) return solveSeparableOde(sep, xVar, yVar, x0, y0);
     const lin = matchLinearOde(e, xVar, yVar);
@@ -728,14 +728,14 @@ export class Symbolic {
       }
       term = diff(term, variable);
     }
-    return Symbolic.simplify(result);
+    return simplifyCore(result);
   }
 
   /** Replace every occurrence of a variable with a sub-expression (e.g. for changing variables or plugging in a solved value). */
   static substitute(expr: Expr | string, variable: string, replacement: Expr | string): Expr {
     const e = typeof expr === "string" ? Symbolic.parse(expr) : expr;
     const r = typeof replacement === "string" ? Symbolic.parse(replacement) : replacement;
-    return Symbolic.simplify(subst(e, variable, r));
+    return simplifyCore(subst(e, variable, r));
   }
 
   /** Distribute multiplication over addition/subtraction and expand small integer powers of sums, e.g. `(x+1)^2 -> x^2+2*x+1`. */
@@ -882,11 +882,11 @@ export class Symbolic {
    */
   static solve(expr: Expr | string, variable = "x"): Expr[] {
     const e = typeof expr === "string" ? Symbolic.parse(expr) : expr;
-    const coeffs = polynomialCoeffs(Symbolic.simplify(e), variable, 6);
+    const coeffs = polynomialCoeffs(simplifyCore(e), variable, 6);
     if (!coeffs) {
       throw new Error(`solve: expression is not a polynomial in "${variable}" of degree ≤ 6.`);
     }
-    return solvePolynomial(coeffs).map((r) => Symbolic.simplify(r));
+    return solvePolynomial(coeffs).map((r) => simplifyCore(r));
   }
 
   /**
@@ -904,7 +904,7 @@ export class Symbolic {
    * @throws {SingularSystemError} if the coefficient matrix is singular/rank-deficient.
    */
   static solveSystem(equations: (Expr | string)[], variables: string[]): Record<string, number> {
-    const exprs = equations.map((eq) => Symbolic.simplify(typeof eq === "string" ? Symbolic.parse(eq) : eq));
+    const exprs = equations.map((eq) => simplifyCore(typeof eq === "string" ? Symbolic.parse(eq) : eq));
     if (exprs.length !== variables.length) {
       throw new Error(
         `solveSystem: expected ${variables.length} equations for ${variables.length} variables, got ${exprs.length}.`,
@@ -1153,7 +1153,7 @@ export class Symbolic {
    */
   static factor(expr: Expr | string, variable = "x"): Expr {
     const e = typeof expr === "string" ? Symbolic.parse(expr) : expr;
-    const simplified = Symbolic.simplify(e);
+    const simplified = simplifyCore(e);
     const coeffs = polynomialCoeffs(simplified, variable, 6);
     if (!coeffs) return simplified;
     return factorPolynomial(coeffs, variable);
@@ -1373,8 +1373,8 @@ function diff(e: Expr, x: string): Expr {
 
 // -- simplification ---------------------------------------------------------
 /** Constant folding and like-term collection to a fixed point -- no expansion or cancellation. */
-function simplifyCore(expr: Expr): Expr {
-  let e = expr;
+function simplifyCore(expr: Expr | string): Expr {
+  let e = typeof expr === "string" ? Symbolic.parse(expr) : expr;
   for (let i = 0; i < 30; i++) {
     const next = collectLikeTerms(simplifyOnce(e));
     if (equal(next, e)) return next;
@@ -2130,7 +2130,7 @@ function freshVariableName(e: Expr, x: string): string {
  * legitimately hit a domain error/NaN on either side).
  */
 function verifyByDifferentiation(candidate: Expr, e: Expr, x: string): boolean {
-  const check = Symbolic.simplify(diff(candidate, x));
+  const check = simplifyCore(diff(candidate, x));
   let agreements = 0;
   for (const p of [0.7, 1.3, -0.9]) {
     const expected = evalExpr(e, { [x]: p });
@@ -2155,16 +2155,16 @@ function verifyByDifferentiation(candidate: Expr, e: Expr, x: string): boolean {
  */
 function tryUSubstitution(e: Expr, x: string): Expr | null {
   for (const g of collectSubstitutionCandidates(e, x)) {
-    const gPrime = Symbolic.simplify(diff(g, x));
+    const gPrime = simplifyCore(diff(g, x));
     if (isConst(gPrime, 0)) continue;
-    const quotient = Symbolic.simplify(divideOutFactors(e, gPrime) ?? div(e, gPrime));
+    const quotient = simplifyCore(divideOutFactors(e, gPrime) ?? div(e, gPrime));
     if (!containsExpr(quotient, g)) continue;
     const uName = freshVariableName(quotient, x);
     const substituted = substExpr(quotient, g, v(uName));
     if (containsVar(substituted, x)) continue;
     try {
       const antiderivativeInU = integRules(substituted, uName);
-      const candidate = Symbolic.simplify(substExpr(antiderivativeInU, v(uName), g));
+      const candidate = simplifyCore(substExpr(antiderivativeInU, v(uName), g));
       if (verifyByDifferentiation(candidate, e, x)) return candidate;
     } catch (err) {
       if (!(err instanceof NotIntegrableError)) throw err;
@@ -2285,11 +2285,11 @@ function matchSeparable(e: Expr, xVar: string, yVar: string): { g: Expr; h: Expr
  */
 function matchLinearOde(e: Expr, xVar: string, yVar: string): { p: Expr; q: Expr } | null {
   if (!containsVar(e, yVar)) return null; // handled by matchSeparable's h(y)=1 case instead
-  const negP = Symbolic.simplify(diff(e, yVar));
+  const negP = simplifyCore(diff(e, yVar));
   if (containsVar(negP, yVar)) return null; // not affine in y
-  const q = Symbolic.simplify(sub(e, mul(negP, v(yVar))));
+  const q = simplifyCore(sub(e, mul(negP, v(yVar))));
   if (containsVar(q, yVar)) return null; // sanity check
-  const p = Symbolic.simplify(neg(negP));
+  const p = simplifyCore(neg(negP));
   // Conservative, matching matchSeparable's philosophy: p/q must depend on
   // no free variable other than xVar (an extra symbolic parameter, or a
   // stray reference to yVar that survived simplification, both bail out).
@@ -2352,21 +2352,21 @@ function solveSeparableOde(
   x0: number,
   y0: number,
 ): OdeClosedFormResult {
-  const invH = Symbolic.simplify(div(num(1), sep.h));
+  const invH = simplifyCore(div(num(1), sep.h));
   let H: Expr;
   let G: Expr;
   try {
-    H = Symbolic.simplify(integ(invH, yVar));
-    G = Symbolic.simplify(integ(sep.g, xVar));
+    H = simplifyCore(integ(invH, yVar));
+    G = simplifyCore(integ(sep.g, xVar));
   } catch (err) {
     if (err instanceof NotIntegrableError) throw new NoClosedFormError();
     throw err;
   }
   const C = evalExpr(H, { [yVar]: y0 }) - evalExpr(G, { [xVar]: x0 });
-  const rhs = Symbolic.simplify(add(G, num(C)));
+  const rhs = simplifyCore(add(G, num(C)));
   const explicitY = tryInvertForY(H, yVar, rhs, y0);
-  if (explicitY) return { explicit: true, y: Symbolic.simplify(explicitY) };
-  return { explicit: false, implicitRelation: Symbolic.simplify(sub(H, rhs)) };
+  if (explicitY) return { explicit: true, y: simplifyCore(explicitY) };
+  return { explicit: false, implicitRelation: simplifyCore(sub(H, rhs)) };
 }
 
 function solveLinearOde(
@@ -2380,9 +2380,9 @@ function solveLinearOde(
   let mu: Expr;
   let muQIntegral: Expr;
   try {
-    integralP = Symbolic.simplify(integ(lin.p, xVar));
-    mu = Symbolic.simplify(fn("exp", integralP));
-    muQIntegral = Symbolic.simplify(integ(Symbolic.simplify(mul(mu, lin.q)), xVar));
+    integralP = simplifyCore(integ(lin.p, xVar));
+    mu = simplifyCore(fn("exp", integralP));
+    muQIntegral = simplifyCore(integ(simplifyCore(mul(mu, lin.q)), xVar));
   } catch (err) {
     if (err instanceof NotIntegrableError) throw new NoClosedFormError();
     throw err;
@@ -2391,7 +2391,7 @@ function solveLinearOde(
   const muAtX0 = evalExpr(mu, { [xVar]: x0 });
   const muQIntegralAtX0 = evalExpr(muQIntegral, { [xVar]: x0 });
   const C = y0 * muAtX0 - muQIntegralAtX0;
-  const y = Symbolic.simplify(div(add(muQIntegral, num(C)), mu));
+  const y = simplifyCore(div(add(muQIntegral, num(C)), mu));
   return { explicit: true, y };
 }
 
@@ -2444,7 +2444,7 @@ function matchHomogeneous(e: Expr, xVar: string, yVar: string): { vName: string;
     }
   }
   if (attempts === 0 || agreements < 4) return null; // not enough usable probes to trust the match
-  const F = Symbolic.simplify(subst(substituted, xVar, num(1)));
+  const F = simplifyCore(subst(substituted, xVar, num(1)));
   return { vName, F };
 }
 
@@ -2476,15 +2476,15 @@ function solveHomogeneousOde(
 ): OdeClosedFormResult {
   const { vName, F } = hom;
   const v0 = y0 / x0;
-  const FMinusV = Symbolic.simplify(sub(F, v(vName)));
+  const FMinusV = simplifyCore(sub(F, v(vName)));
   if (FMinusV.type === "const" && FMinusV.value === 0) {
-    return { explicit: true, y: Symbolic.simplify(mul(num(v0), v(xVar))) };
+    return { explicit: true, y: simplifyCore(mul(num(v0), v(xVar))) };
   }
   const sepResult = solveSeparableOde({ g: div(num(1), v(xVar)), h: FMinusV }, xVar, vName, x0, v0);
   if (sepResult.explicit && sepResult.y) {
-    return { explicit: true, y: Symbolic.simplify(mul(sepResult.y, v(xVar))) };
+    return { explicit: true, y: simplifyCore(mul(sepResult.y, v(xVar))) };
   }
-  const implicitRelation = Symbolic.simplify(subst(sepResult.implicitRelation as Expr, vName, div(v(yVar), v(xVar))));
+  const implicitRelation = simplifyCore(subst(sepResult.implicitRelation as Expr, vName, div(v(yVar), v(xVar))));
   return { explicit: false, implicitRelation };
 }
 
@@ -2569,8 +2569,8 @@ function matchBernoulli(e: Expr, xVar: string, yVar: string): { p: Expr; q: Expr
     return null;
   }
   if (powMatch.n === 0) return null; // y^0=1: really just linear, matchLinearOde's job
-  const q = powSign === 1 ? powMatch.coef : Symbolic.simplify(neg(powMatch.coef));
-  const p = linSign === 1 ? Symbolic.simplify(neg(linMatch.coef)) : linMatch.coef;
+  const q = powSign === 1 ? powMatch.coef : simplifyCore(neg(powMatch.coef));
+  const p = linSign === 1 ? simplifyCore(neg(linMatch.coef)) : linMatch.coef;
   return { p, q, n: powMatch.n };
 }
 
@@ -2597,10 +2597,10 @@ function solveBernoulliOde(
 ): OdeClosedFormResult {
   const oneMinusN = 1 - bern.n;
   const w0 = y0 ** oneMinusN;
-  const transformedP = Symbolic.simplify(mul(num(oneMinusN), bern.p));
-  const transformedQ = Symbolic.simplify(mul(num(oneMinusN), bern.q));
+  const transformedP = simplifyCore(mul(num(oneMinusN), bern.p));
+  const transformedQ = simplifyCore(mul(num(oneMinusN), bern.q));
   const wResult = solveLinearOde({ p: transformedP, q: transformedQ }, xVar, yVar, x0, w0);
-  const y = Symbolic.simplify(pow(wResult.y as Expr, num(1 / oneMinusN)));
+  const y = simplifyCore(pow(wResult.y as Expr, num(1 / oneMinusN)));
   return { explicit: true, y };
 }
 
@@ -2622,7 +2622,7 @@ function matchExact(e: Expr, xVar: string, yVar: string): { M: Expr; N: Expr } |
   const vars = collectFreeVars(e);
   if (![...vars].every((n) => n === xVar || n === yVar)) return null;
   const M = e.left;
-  const N = Symbolic.simplify(neg(e.right));
+  const N = simplifyCore(neg(e.right));
   const dMdy = diff(M, yVar);
   const dNdx = diff(N, xVar);
   let agreements = 0;
@@ -2677,8 +2677,8 @@ function solveExactOde(
   let g: Expr;
   let gPrime: Expr;
   try {
-    F0 = Symbolic.simplify(integ(M, xVar));
-    gPrime = Symbolic.simplify(sub(N, diff(F0, yVar)));
+    F0 = simplifyCore(integ(M, xVar));
+    gPrime = simplifyCore(sub(N, diff(F0, yVar)));
     if (containsVar(gPrime, xVar)) {
       // Symbolic cancellation fell short -- verify x-independence
       // numerically, then pin x to a probe value that evaluates finitely.
@@ -2690,18 +2690,18 @@ function solveExactOde(
         if (Math.abs(atProbe - atOther) > 1e-6 * Math.max(1, Math.abs(atProbe))) {
           throw new NoClosedFormError();
         }
-        pinned = Symbolic.simplify(subst(gPrime, xVar, num(xp)));
+        pinned = simplifyCore(subst(gPrime, xVar, num(xp)));
         break;
       }
       if (!pinned) throw new NoClosedFormError();
       gPrime = pinned;
     }
-    g = Symbolic.simplify(integ(gPrime, yVar));
+    g = simplifyCore(integ(gPrime, yVar));
   } catch (err) {
     if (err instanceof NotIntegrableError) throw new NoClosedFormError();
     throw err;
   }
-  const F = Symbolic.simplify(add(F0, g));
+  const F = simplifyCore(add(F0, g));
   const C = evalExpr(F, { [xVar]: x0, [yVar]: y0 });
   if (!Number.isFinite(C)) throw new NoClosedFormError();
   // Cheap explicit attempt: F = H(y) + G(x) (either order) inverts via the
@@ -2716,12 +2716,12 @@ function solveExactOde(
     ] as const) {
       if (!isPureFunctionOf(yPart, yOnly) || !isPureFunctionOf(xPartSigned, xOnly)) continue;
       if (F.type === "sub" && yPart === b) continue; // F = G(x) - H(y): inverting -H is out of tryInvertForY's shapes
-      const rhs = Symbolic.simplify(sub(num(C), xPartSigned));
+      const rhs = simplifyCore(sub(num(C), xPartSigned));
       const explicitY = tryInvertForY(yPart, yVar, rhs, y0);
-      if (explicitY) return { explicit: true, y: Symbolic.simplify(explicitY) };
+      if (explicitY) return { explicit: true, y: simplifyCore(explicitY) };
     }
   }
-  return { explicit: false, implicitRelation: Symbolic.simplify(sub(F, num(C))) };
+  return { explicit: false, implicitRelation: simplifyCore(sub(F, num(C))) };
 }
 
 /** If `e` is `a·x + b` (a, b constant), return `{ a, b }`, else `null`. */
@@ -4248,7 +4248,7 @@ function linearCoeffsForSystem(eq: Expr, variables: string[]): number[] | null {
   if (!Number.isFinite(constant)) return null;
   const coeffs: number[] = [];
   for (const name of variables) {
-    const derivative = Symbolic.simplify(diff(eq, name));
+    const derivative = simplifyCore(diff(eq, name));
     if (variables.some((other) => containsVar(derivative, other))) return null;
     const coeff = evalExpr(derivative, zeroEnv);
     if (!Number.isFinite(coeff)) return null;
@@ -4277,7 +4277,7 @@ function polynomialCoeffs(expr: Expr, variable: string, maxDegree: number): numb
     // derivative of x^0 (`0·x^-1`) evaluates to `0·Infinity = NaN` at x=0
     // even though it is symbolically zero — simplifying collapses `0·anything`
     // to `0` before that indeterminate form can arise.
-    term = Symbolic.simplify(diff(term, variable));
+    term = simplifyCore(diff(term, variable));
   }
   while (coeffs.length > 1 && Math.abs(coeffs[coeffs.length - 1]) < 1e-9) coeffs.pop();
   for (const p of [1.3, -2.1, 3.7]) {
@@ -4465,7 +4465,7 @@ function factorPolynomial(coeffsIn: number[], variable: string): Expr {
   } else if (Math.abs(remaining[0] - 1) > 1e-9) {
     result = mul(result, toExactExpr(remaining[0]));
   }
-  return Symbolic.simplify(result);
+  return simplifyCore(result);
 }
 
 // -- limits ---------------------------------------------------------------------
@@ -4490,8 +4490,8 @@ function limitAt(e: Expr, x: string, point: number, direction: "left" | "right" 
       // operand verbatim into the result) and a limit needing more than a
       // couple of rounds (e.g. most limits at infinity) blows up memory
       // long before the depth<12 cap is reached.
-      const df = Symbolic.simplify(diff(e.left, x));
-      const dg = Symbolic.simplify(diff(e.right, x));
+      const df = simplifyCore(diff(e.left, x));
+      const dg = simplifyCore(diff(e.right, x));
       return limitAt(div(df, dg), x, point, direction, depth + 1);
     }
   }
