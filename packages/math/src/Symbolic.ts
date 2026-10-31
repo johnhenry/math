@@ -4390,7 +4390,9 @@ class Parser {
       return num(Number(numMatch[0]));
     }
     // identifier (function or variable or constant)
-    const idMatch = this.implicit ? /^[a-zA-Z_]/.exec(this.s.slice(this.pos)) : /^[a-zA-Z_]\w*/.exec(this.s.slice(this.pos));
+    const idMatch = this.implicit
+      ? /^[a-zA-Z_]/.exec(this.s.slice(this.pos))
+      : /^[a-zA-Z_]\w*/.exec(this.s.slice(this.pos));
     if (idMatch) {
       const name = this.implicit ? this.implicitIdentifier() : idMatch[0];
       this.pos += name.length;
