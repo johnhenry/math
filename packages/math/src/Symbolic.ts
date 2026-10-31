@@ -3772,7 +3772,8 @@ function transformLatex(s: string, opts: ParseOptions = {}): string {
             if (otherwise !== null) throw new Error("\\begin{cases} may have only one \\text{otherwise} row");
             otherwise = transformLatex(exprPart, opts);
           } else {
-            parts.push(`${transformLatex(condPart, opts)}, ${transformLatex(exprPart, opts)}`);
+            const condition = condPart.replace(/^\s*\\text\{\s*(?:if|when)\s*\}/, ""); // "x & \text{if } x<0" as MathLive writes it
+            parts.push(`${transformLatex(condition, opts)}, ${transformLatex(exprPart, opts)}`);
           }
         }
         if (otherwise === null) {
@@ -3781,7 +3782,7 @@ function transformLatex(s: string, opts: ParseOptions = {}): string {
         out += `piecewise(${parts.concat(otherwise).join(", ")})`;
         continue;
       }
-      if (cmd === "\\frac") {
+      if (cmd === "\\frac" || cmd === "\\dfrac" || cmd === "\\tfrac") {
         const numerator = readGroupOrToken();
         const denominator = readGroupOrToken();
         out += `((${transformLatex(numerator, opts)})/(${transformLatex(denominator, opts)}))`;

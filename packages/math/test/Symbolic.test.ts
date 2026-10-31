@@ -1724,3 +1724,12 @@ test("implicit-multiplication LaTeX is value-equivalent to the explicit spelling
   ];
   for (const [l, e] of pairs) sameValue(Symbolic.toString(Symbolic.fromLatex(l, IM)), e);
 });
+
+test("fromLatex reads \\dfrac, \\tfrac and a \\text{if } label in a cases row", () => {
+  assert.equal(latex("\\dfrac{x}{2}"), "x/2");
+  assert.equal(latex("\\tfrac12"), "1/2");
+  assert.equal(
+    latex("\\begin{cases} -x & \\text{if } x < 0 \\\\ x & \\text{otherwise} \\end{cases}"),
+    "piecewise(x<0, -x, x)",
+  );
+});
