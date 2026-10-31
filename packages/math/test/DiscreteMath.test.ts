@@ -221,3 +221,19 @@ test("Floyd-Warshall all-pairs distances", () => {
   const ci = order.indexOf("c");
   assert.equal(distances[ai][ci], 3, "a->b->c shorter than a->c");
 });
+
+test("topologicalSort returns null (does not throw) on a cycle: self-loop, 2-cycle, a cycle reachable from a DAG part", () => {
+  const selfLoop = new Graph<number>(true);
+  selfLoop.addEdge(1, 1);
+  assert.doesNotThrow(() => selfLoop.topologicalSort());
+  assert.equal(selfLoop.topologicalSort(), null);
+
+  const g = new Graph<string>(true);
+  g.addEdge("a", "b").addEdge("b", "c").addEdge("c", "b");
+  assert.equal(g.topologicalSort(), null);
+  assert.equal(g.hasCycle(), true);
+
+  const dag = new Graph<string>(true);
+  dag.addEdge("a", "b").addEdge("b", "c");
+  assert.deepEqual(dag.topologicalSort(), ["a", "b", "c"]);
+});

@@ -1558,3 +1558,64 @@ test("solveOde2ndOrderConstCoeff solves the complex-roots case (y''+y=0, y(0)=1,
 test("solveOde2ndOrderConstCoeff throws DegenerateOdeError when a === 0", () => {
   assert.throws(() => Symbolic.solveOde2ndOrderConstCoeff(0, 1, 1, 0, 1, 0), DegenerateOdeError);
 });
+
+// --- simplify expands products and cancels common factors (math#92) ---
+
+const simp = (s: string) => Symbolic.toString(Symbolic.simplify(s));
+
+test("simplify expands (x+1)^2 - x^2 - 2*x to 1 (math#92)", () => {
+  assert.equal(simp("(x+1)^2 - x^2 - 2*x"), "1");
+});
+
+test("simplify cancels common polynomial factors: (x^2-1)/(x-1) is x+1 (math#92)", () => {
+  assert.equal(simp("(x^2-1)/(x-1)"), "x + 1");
+  assert.equal(simp("(x^3-1)/(x^2+x+1)"), "x - 1");
+  assert.equal(simp("(x-1)/(x^2-1)"), "1/(x + 1)");
+  assert.equal(simp("(x^2-y^2)/(x-y)"), "x + y");
+  assert.equal(simp("(a*b)/b"), "a");
+  assert.equal(simp("x/x"), "1");
+  assert.equal(simp("x^2/x^3"), "1/x");
+});
+
+test("simplify treats non-polynomial subexpressions as opaque symbols", () => {
+  assert.equal(simp("sin(x)*(x+1) - sin(x)*x"), "sin(x)");
+  assert.equal(simp("(sin(x)^2 - 1)/(sin(x) - 1)"), "sin(x) + 1");
+  assert.equal(simp("sin((x+1)^2 - x^2 - 2*x)"), simp("sin(1)"));
+});
+
+test("simplify only uses the expanded form when it is smaller; existing shapes are kept", () => {
+  assert.equal(simp("(x+1)*2"), "2*(x + 1)");
+  assert.equal(simp("(x+1)^2"), "(x + 1)^2");
+  assert.equal(simp("a*b + b*a"), "2*(a*b)");
+});
+
+test("simplify keeps value: random spot checks of expand/cancel results", () => {
+  for (const src of [
+    "(x+1)^2 - x^2 - 2*x",
+    "(x^2-1)/(x-1)",
+    "(x^3-1)/(x^2+x+1)",
+    "(x^2-y^2)/(x-y) + (x+y)^2 - x^2",
+    "(2*x^2 - 2)/(4*x - 4)",
+  ]) {
+    const before = Symbolic.parse(src);
+    const after = Symbolic.simplify(src);
+    for (const [x, y] of [
+      [2.5, 0.5],
+      [-3.25, 1.75],
+      [7, -2],
+    ]) {
+      const a = Symbolic.evaluate(before, { x, y });
+      const b = Symbolic.evaluate(after, { x, y });
+      assert.ok(Math.abs(a - b) < 1e-9 * Math.max(1, Math.abs(a)), `${src} at (${x},${y}): ${a} vs ${b}`);
+    }
+  }
+});
+
+test("simplify leaves division by zero alone", () => {
+  assert.equal(simp("0/0"), "0/0");
+  assert.equal(simp("x/0"), "x/0");
+});
+
+test("Symbolic.expand still expands without cancelling", () => {
+  assert.equal(Symbolic.toString(Symbolic.expand("(x+1)^2")), "x^2 + 2*x + 1");
+});
