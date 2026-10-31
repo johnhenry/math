@@ -1558,3 +1558,154 @@ test("solveOde2ndOrderConstCoeff solves the complex-roots case (y''+y=0, y(0)=1,
 test("solveOde2ndOrderConstCoeff throws DegenerateOdeError when a === 0", () => {
   assert.throws(() => Symbolic.solveOde2ndOrderConstCoeff(0, 1, 1, 0, 1, 0), DegenerateOdeError);
 });
+
+// --- simplify expands products and cancels common factors (math#92) ---
+
+const simp = (s: string) => Symbolic.toString(Symbolic.simplify(s));
+
+test("simplify expands (x+1)^2 - x^2 - 2*x to 1 (math#92)", () => {
+  assert.equal(simp("(x+1)^2 - x^2 - 2*x"), "1");
+});
+
+test("simplify cancels common polynomial factors: (x^2-1)/(x-1) is x+1 (math#92)", () => {
+  assert.equal(simp("(x^2-1)/(x-1)"), "x + 1");
+  assert.equal(simp("(x^3-1)/(x^2+x+1)"), "x - 1");
+  assert.equal(simp("(x-1)/(x^2-1)"), "1/(x + 1)");
+  assert.equal(simp("(x^2-y^2)/(x-y)"), "x + y");
+  assert.equal(simp("(a*b)/b"), "a");
+  assert.equal(simp("x/x"), "1");
+  assert.equal(simp("x^2/x^3"), "1/x");
+});
+
+test("simplify treats non-polynomial subexpressions as opaque symbols", () => {
+  assert.equal(simp("sin(x)*(x+1) - sin(x)*x"), "sin(x)");
+  assert.equal(simp("(sin(x)^2 - 1)/(sin(x) - 1)"), "sin(x) + 1");
+  assert.equal(simp("sin((x+1)^2 - x^2 - 2*x)"), simp("sin(1)"));
+});
+
+test("simplify only uses the expanded form when it is smaller; existing shapes are kept", () => {
+  assert.equal(simp("(x+1)*2"), "2*(x + 1)");
+  assert.equal(simp("(x+1)^2"), "(x + 1)^2");
+  assert.equal(simp("a*b + b*a"), "2*(a*b)");
+});
+
+test("simplify keeps value: random spot checks of expand/cancel results", () => {
+  for (const src of [
+    "(x+1)^2 - x^2 - 2*x",
+    "(x^2-1)/(x-1)",
+    "(x^3-1)/(x^2+x+1)",
+    "(x^2-y^2)/(x-y) + (x+y)^2 - x^2",
+    "(2*x^2 - 2)/(4*x - 4)",
+  ]) {
+    const before = Symbolic.parse(src);
+    const after = Symbolic.simplify(src);
+    for (const [x, y] of [
+      [2.5, 0.5],
+      [-3.25, 1.75],
+      [7, -2],
+    ]) {
+      const a = Symbolic.evaluate(before, { x, y });
+      const b = Symbolic.evaluate(after, { x, y });
+      assert.ok(Math.abs(a - b) < 1e-9 * Math.max(1, Math.abs(a)), `${src} at (${x},${y}): ${a} vs ${b}`);
+    }
+  }
+});
+
+test("simplify leaves division by zero alone", () => {
+  assert.equal(simp("0/0"), "0/0");
+  assert.equal(simp("x/0"), "x/0");
+});
+
+test("Symbolic.expand still expands without cancelling", () => {
+  assert.equal(Symbolic.toString(Symbolic.expand("(x+1)^2")), "x^2 + 2*x + 1");
+});
+
+// --- simplify: property-style numeric checks (review of math#100) ---
+
+/** Tiny deterministic PRNG so the property tests are reproducible. */
+function lcg(seed: number): () => number {
+  let s = seed >>> 0;
+  return () => {
+    s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
+    return s / 2 ** 32;
+  };
+}
+
+function randomExprSource(rnd: () => number, depth: number): string {
+  const pick = <T>(a: T[]): T => a[Math.floor(rnd() * a.length)] as T;
+  if (depth === 0 || rnd() < 0.15) return pick(["x", "y", "x", "y", "1", "2", "3", "0.5", "sin(x)", "(x+1)", "(x-y)"]);
+  const a = randomExprSource(rnd, depth - 1);
+  const b = randomExprSource(rnd, depth - 1);
+  const k = rnd();
+  if (k < 0.2) return `(${a})+(${b})`;
+  if (k < 0.35) return `(${a})-(${b})`;
+  if (k < 0.6) return `(${a})*(${b})`;
+  if (k < 0.8) return `(${a})/(${b})`;
+  if (k < 0.92) return `(${a})^${pick([0, 1, 2, 3])}`;
+  return `-(${a})`;
+}
+
+test("simplify preserves value on random rational expressions (property check, seeded)", () => {
+  const rnd = lcg(20261031);
+  let compared = 0;
+  for (let i = 0; i < 400; i++) {
+    const src = randomExprSource(rnd, 1 + Math.floor(rnd() * 4));
+    const before = Symbolic.parse(src);
+    const after = Symbolic.simplify(before);
+    for (let k = 0; k < 4; k++) {
+      const env = { x: (rnd() - 0.5) * 8, y: (rnd() - 0.5) * 8 };
+      const a = Symbolic.evaluate(before, env);
+      if (!Number.isFinite(a) || Math.abs(a) > 1e6) continue; // outside the original's domain / overflow
+      const b = Symbolic.evaluate(after, env);
+      compared++;
+      assert.ok(
+        Math.abs(a - b) <= 1e-6 * Math.max(1, Math.abs(a), Math.abs(b)),
+        `${src} => ${Symbolic.toString(after)} at x=${env.x}, y=${env.y}: ${a} vs ${b}`,
+      );
+    }
+  }
+  assert.ok(compared > 500, `only ${compared} comparisons ran`);
+});
+
+test("simplify does not grow when applied to its own output", () => {
+  const rnd = lcg(99);
+  for (let i = 0; i < 100; i++) {
+    const src = randomExprSource(rnd, 3);
+    const once = Symbolic.toString(Symbolic.simplify(src));
+    const twice = Symbolic.toString(Symbolic.simplify(once));
+    assert.ok(twice.length <= once.length, `${src}: ${once} grew to ${twice}`);
+  }
+});
+
+test("simplify with negative powers and nested fractions keeps value", () => {
+  const cases = ["(x+1)^-8/(x+1)^-7", "1/(1/(1/(1/(x+1)+1)+1)+1)", "x^-1*x + y^-2*y^2", "(x^200-1)/(x^100-1)"];
+  for (const src of cases) {
+    const before = Symbolic.parse(src);
+    const after = Symbolic.simplify(before);
+    for (const x of [2.5, -3.25, 0.4]) {
+      const a = Symbolic.evaluate(before, { x, y: 1.5 });
+      const b = Symbolic.evaluate(after, { x, y: 1.5 });
+      assert.ok(Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(a)), `${src} at ${x}: ${a} vs ${b}`);
+    }
+  }
+});
+
+test("simplify does not hang or throw on large expressions (falls back to the collected form)", () => {
+  const big = [
+    "(x+y+z+w+1)^8",
+    "((x+1)^8)^8",
+    "((x+y+1)^8)*((x-y+1)^8)",
+    "(x+1)^1000",
+    Array.from({ length: 60 }, (_, i) => `(x+${i})`).join("*"),
+    "(x^50-1)/(x-1)",
+  ];
+  const t0 = Date.now();
+  for (const src of big) assert.doesNotThrow(() => Symbolic.simplify(src), src);
+  assert.ok(Date.now() - t0 < 5000, `took ${Date.now() - t0}ms`);
+});
+
+test("simplify cancels only exact factors: x/(x+1) and sin(x)/(sin(x)+1) are left alone", () => {
+  assert.equal(simp("x/(x+1)"), "x/(x + 1)");
+  assert.equal(simp("sin(x)/(sin(x)+1)"), "sin(x)/(sin(x) + 1)");
+  assert.equal(simp("(x+1)/(x+2)"), "(x + 1)/(x + 2)");
+});

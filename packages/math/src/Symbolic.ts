@@ -451,7 +451,7 @@ export class Symbolic {
 
   static differentiate(expr: Expr | string, variable = "x"): Expr {
     const e = typeof expr === "string" ? Symbolic.parse(expr) : expr;
-    return Symbolic.simplify(diff(e, variable));
+    return simplifyCore(diff(e, variable));
   }
 
   /**
@@ -465,17 +465,21 @@ export class Symbolic {
     const e = typeof expr === "string" ? Symbolic.parse(expr) : expr;
     const steps: DifferentiationStep[] = [];
     const raw = diffTraced(e, variable, steps);
-    return { steps, result: Symbolic.simplify(raw) };
+    return { steps, result: simplifyCore(raw) };
   }
 
+  /**
+   * Algebraic simplification: constant folding, like-term collection, and, as a last
+   * step, expanding the expression as a rational function and cancelling common
+   * factors -- `(x+1)^2 - x^2 - 2*x` gives `1` and `(x^2-1)/(x-1)` gives `x+1`.
+   * The expanded/cancelled form is used only when it is strictly smaller than the
+   * collected form, so a product such as `(x+1)*2` keeps its shape. Non-polynomial
+   * subexpressions (`sin(x)`, `x^y`) are treated as opaque symbols. Like any CAS
+   * cancellation, `(x^2-1)/(x-1)` is `x+1` as an expression, ignoring that the
+   * original is undefined at `x = 1`.
+   */
   static simplify(expr: Expr | string): Expr {
-    let e = typeof expr === "string" ? Symbolic.parse(expr) : expr;
-    for (let i = 0; i < 30; i++) {
-      const next = collectLikeTerms(simplifyOnce(e));
-      if (equal(next, e)) return next;
-      e = next;
-    }
-    return e;
+    return normalizeRational(simplifyCore(expr));
   }
 
   /**
@@ -495,15 +499,15 @@ export class Symbolic {
    * assumptions (e.g. "x+y is positive" isn't expressible).
    */
   static simplifyAssuming(expr: Expr | string, assumptions: Record<string, Assumption>): Expr {
-    const simplified = Symbolic.simplify(expr);
+    const simplified = simplifyCore(expr);
     const rewritten = applyAssumptions(simplified, assumptions);
-    return Symbolic.simplify(rewritten);
+    return simplifyCore(rewritten);
   }
 
   /** Symbolic anti-derivative (elementary rules; throws {@link NotIntegrableError} otherwise). */
   static integrate(expr: Expr | string, variable = "x"): Expr {
     const e = typeof expr === "string" ? Symbolic.parse(expr) : expr;
-    return Symbolic.simplify(integ(e, variable));
+    return simplifyCore(integ(e, variable));
   }
 
   /**
@@ -542,13 +546,13 @@ export class Symbolic {
     variable = "x",
     env: Record<string, number> = {},
   ): number {
-    const e = Symbolic.simplify(typeof expr === "string" ? Symbolic.parse(expr) : expr);
+    const e = simplifyCore(typeof expr === "string" ? Symbolic.parse(expr) : expr);
     const probe = compileExpr(e);
     if (hasInteriorSingularity((val: number) => probe({ ...env, [variable]: val }), lower, upper)) {
       throw new IntegrationSingularityError();
     }
     try {
-      const F = Symbolic.simplify(integ(e, variable));
+      const F = simplifyCore(integ(e, variable));
       const at = (val: number) => evalExpr(F, { ...env, [variable]: val });
       return at(upper) - at(lower);
     } catch (err) {
@@ -608,7 +612,7 @@ export class Symbolic {
     xVar = "x",
     yVar = "y",
   ): OdeClosedFormResult {
-    const e = Symbolic.simplify(typeof dyDxExpr === "string" ? Symbolic.parse(dyDxExpr) : dyDxExpr);
+    const e = simplifyCore(typeof dyDxExpr === "string" ? Symbolic.parse(dyDxExpr) : dyDxExpr);
     const sep = matchSeparable(e, xVar, yVar);
     if (sep) return solveSeparableOde(sep, xVar, yVar, x0, y0);
     const lin = matchLinearOde(e, xVar, yVar);
@@ -724,14 +728,14 @@ export class Symbolic {
       }
       term = diff(term, variable);
     }
-    return Symbolic.simplify(result);
+    return simplifyCore(result);
   }
 
   /** Replace every occurrence of a variable with a sub-expression (e.g. for changing variables or plugging in a solved value). */
   static substitute(expr: Expr | string, variable: string, replacement: Expr | string): Expr {
     const e = typeof expr === "string" ? Symbolic.parse(expr) : expr;
     const r = typeof replacement === "string" ? Symbolic.parse(replacement) : replacement;
-    return Symbolic.simplify(subst(e, variable, r));
+    return simplifyCore(subst(e, variable, r));
   }
 
   /** Distribute multiplication over addition/subtraction and expand small integer powers of sums, e.g. `(x+1)^2 -> x^2+2*x+1`. */
@@ -739,7 +743,7 @@ export class Symbolic {
     const e = typeof expr === "string" ? Symbolic.parse(expr) : expr;
     let cur = e;
     for (let i = 0; i < 30; i++) {
-      const next = Symbolic.simplify(expandOnce(cur));
+      const next = simplifyCore(expandOnce(cur));
       if (equal(next, cur)) return next;
       cur = next;
     }
@@ -878,11 +882,11 @@ export class Symbolic {
    */
   static solve(expr: Expr | string, variable = "x"): Expr[] {
     const e = typeof expr === "string" ? Symbolic.parse(expr) : expr;
-    const coeffs = polynomialCoeffs(Symbolic.simplify(e), variable, 6);
+    const coeffs = polynomialCoeffs(simplifyCore(e), variable, 6);
     if (!coeffs) {
       throw new Error(`solve: expression is not a polynomial in "${variable}" of degree ≤ 6.`);
     }
-    return solvePolynomial(coeffs).map((r) => Symbolic.simplify(r));
+    return solvePolynomial(coeffs).map((r) => simplifyCore(r));
   }
 
   /**
@@ -900,7 +904,7 @@ export class Symbolic {
    * @throws {SingularSystemError} if the coefficient matrix is singular/rank-deficient.
    */
   static solveSystem(equations: (Expr | string)[], variables: string[]): Record<string, number> {
-    const exprs = equations.map((eq) => Symbolic.simplify(typeof eq === "string" ? Symbolic.parse(eq) : eq));
+    const exprs = equations.map((eq) => simplifyCore(typeof eq === "string" ? Symbolic.parse(eq) : eq));
     if (exprs.length !== variables.length) {
       throw new Error(
         `solveSystem: expected ${variables.length} equations for ${variables.length} variables, got ${exprs.length}.`,
@@ -1149,7 +1153,7 @@ export class Symbolic {
    */
   static factor(expr: Expr | string, variable = "x"): Expr {
     const e = typeof expr === "string" ? Symbolic.parse(expr) : expr;
-    const simplified = Symbolic.simplify(e);
+    const simplified = simplifyCore(e);
     const coeffs = polynomialCoeffs(simplified, variable, 6);
     if (!coeffs) return simplified;
     return factorPolynomial(coeffs, variable);
@@ -1368,6 +1372,17 @@ function diff(e: Expr, x: string): Expr {
 }
 
 // -- simplification ---------------------------------------------------------
+/** Constant folding and like-term collection to a fixed point -- no expansion or cancellation. */
+function simplifyCore(expr: Expr | string): Expr {
+  let e = typeof expr === "string" ? Symbolic.parse(expr) : expr;
+  for (let i = 0; i < 30; i++) {
+    const next = collectLikeTerms(simplifyOnce(e));
+    if (equal(next, e)) return next;
+    e = next;
+  }
+  return e;
+}
+
 function simplifyOnce(e: Expr): Expr {
   if (e.type === "const" || e.type === "var") return e;
   if (e.type === "neg") {
@@ -2115,7 +2130,7 @@ function freshVariableName(e: Expr, x: string): string {
  * legitimately hit a domain error/NaN on either side).
  */
 function verifyByDifferentiation(candidate: Expr, e: Expr, x: string): boolean {
-  const check = Symbolic.simplify(diff(candidate, x));
+  const check = simplifyCore(diff(candidate, x));
   let agreements = 0;
   for (const p of [0.7, 1.3, -0.9]) {
     const expected = evalExpr(e, { [x]: p });
@@ -2140,16 +2155,16 @@ function verifyByDifferentiation(candidate: Expr, e: Expr, x: string): boolean {
  */
 function tryUSubstitution(e: Expr, x: string): Expr | null {
   for (const g of collectSubstitutionCandidates(e, x)) {
-    const gPrime = Symbolic.simplify(diff(g, x));
+    const gPrime = simplifyCore(diff(g, x));
     if (isConst(gPrime, 0)) continue;
-    const quotient = Symbolic.simplify(divideOutFactors(e, gPrime) ?? div(e, gPrime));
+    const quotient = simplifyCore(divideOutFactors(e, gPrime) ?? div(e, gPrime));
     if (!containsExpr(quotient, g)) continue;
     const uName = freshVariableName(quotient, x);
     const substituted = substExpr(quotient, g, v(uName));
     if (containsVar(substituted, x)) continue;
     try {
       const antiderivativeInU = integRules(substituted, uName);
-      const candidate = Symbolic.simplify(substExpr(antiderivativeInU, v(uName), g));
+      const candidate = simplifyCore(substExpr(antiderivativeInU, v(uName), g));
       if (verifyByDifferentiation(candidate, e, x)) return candidate;
     } catch (err) {
       if (!(err instanceof NotIntegrableError)) throw err;
@@ -2270,11 +2285,11 @@ function matchSeparable(e: Expr, xVar: string, yVar: string): { g: Expr; h: Expr
  */
 function matchLinearOde(e: Expr, xVar: string, yVar: string): { p: Expr; q: Expr } | null {
   if (!containsVar(e, yVar)) return null; // handled by matchSeparable's h(y)=1 case instead
-  const negP = Symbolic.simplify(diff(e, yVar));
+  const negP = simplifyCore(diff(e, yVar));
   if (containsVar(negP, yVar)) return null; // not affine in y
-  const q = Symbolic.simplify(sub(e, mul(negP, v(yVar))));
+  const q = simplifyCore(sub(e, mul(negP, v(yVar))));
   if (containsVar(q, yVar)) return null; // sanity check
-  const p = Symbolic.simplify(neg(negP));
+  const p = simplifyCore(neg(negP));
   // Conservative, matching matchSeparable's philosophy: p/q must depend on
   // no free variable other than xVar (an extra symbolic parameter, or a
   // stray reference to yVar that survived simplification, both bail out).
@@ -2337,21 +2352,21 @@ function solveSeparableOde(
   x0: number,
   y0: number,
 ): OdeClosedFormResult {
-  const invH = Symbolic.simplify(div(num(1), sep.h));
+  const invH = simplifyCore(div(num(1), sep.h));
   let H: Expr;
   let G: Expr;
   try {
-    H = Symbolic.simplify(integ(invH, yVar));
-    G = Symbolic.simplify(integ(sep.g, xVar));
+    H = simplifyCore(integ(invH, yVar));
+    G = simplifyCore(integ(sep.g, xVar));
   } catch (err) {
     if (err instanceof NotIntegrableError) throw new NoClosedFormError();
     throw err;
   }
   const C = evalExpr(H, { [yVar]: y0 }) - evalExpr(G, { [xVar]: x0 });
-  const rhs = Symbolic.simplify(add(G, num(C)));
+  const rhs = simplifyCore(add(G, num(C)));
   const explicitY = tryInvertForY(H, yVar, rhs, y0);
-  if (explicitY) return { explicit: true, y: Symbolic.simplify(explicitY) };
-  return { explicit: false, implicitRelation: Symbolic.simplify(sub(H, rhs)) };
+  if (explicitY) return { explicit: true, y: simplifyCore(explicitY) };
+  return { explicit: false, implicitRelation: simplifyCore(sub(H, rhs)) };
 }
 
 function solveLinearOde(
@@ -2365,9 +2380,9 @@ function solveLinearOde(
   let mu: Expr;
   let muQIntegral: Expr;
   try {
-    integralP = Symbolic.simplify(integ(lin.p, xVar));
-    mu = Symbolic.simplify(fn("exp", integralP));
-    muQIntegral = Symbolic.simplify(integ(Symbolic.simplify(mul(mu, lin.q)), xVar));
+    integralP = simplifyCore(integ(lin.p, xVar));
+    mu = simplifyCore(fn("exp", integralP));
+    muQIntegral = simplifyCore(integ(simplifyCore(mul(mu, lin.q)), xVar));
   } catch (err) {
     if (err instanceof NotIntegrableError) throw new NoClosedFormError();
     throw err;
@@ -2376,7 +2391,7 @@ function solveLinearOde(
   const muAtX0 = evalExpr(mu, { [xVar]: x0 });
   const muQIntegralAtX0 = evalExpr(muQIntegral, { [xVar]: x0 });
   const C = y0 * muAtX0 - muQIntegralAtX0;
-  const y = Symbolic.simplify(div(add(muQIntegral, num(C)), mu));
+  const y = simplifyCore(div(add(muQIntegral, num(C)), mu));
   return { explicit: true, y };
 }
 
@@ -2429,7 +2444,7 @@ function matchHomogeneous(e: Expr, xVar: string, yVar: string): { vName: string;
     }
   }
   if (attempts === 0 || agreements < 4) return null; // not enough usable probes to trust the match
-  const F = Symbolic.simplify(subst(substituted, xVar, num(1)));
+  const F = simplifyCore(subst(substituted, xVar, num(1)));
   return { vName, F };
 }
 
@@ -2461,15 +2476,15 @@ function solveHomogeneousOde(
 ): OdeClosedFormResult {
   const { vName, F } = hom;
   const v0 = y0 / x0;
-  const FMinusV = Symbolic.simplify(sub(F, v(vName)));
+  const FMinusV = simplifyCore(sub(F, v(vName)));
   if (FMinusV.type === "const" && FMinusV.value === 0) {
-    return { explicit: true, y: Symbolic.simplify(mul(num(v0), v(xVar))) };
+    return { explicit: true, y: simplifyCore(mul(num(v0), v(xVar))) };
   }
   const sepResult = solveSeparableOde({ g: div(num(1), v(xVar)), h: FMinusV }, xVar, vName, x0, v0);
   if (sepResult.explicit && sepResult.y) {
-    return { explicit: true, y: Symbolic.simplify(mul(sepResult.y, v(xVar))) };
+    return { explicit: true, y: simplifyCore(mul(sepResult.y, v(xVar))) };
   }
-  const implicitRelation = Symbolic.simplify(subst(sepResult.implicitRelation as Expr, vName, div(v(yVar), v(xVar))));
+  const implicitRelation = simplifyCore(subst(sepResult.implicitRelation as Expr, vName, div(v(yVar), v(xVar))));
   return { explicit: false, implicitRelation };
 }
 
@@ -2554,8 +2569,8 @@ function matchBernoulli(e: Expr, xVar: string, yVar: string): { p: Expr; q: Expr
     return null;
   }
   if (powMatch.n === 0) return null; // y^0=1: really just linear, matchLinearOde's job
-  const q = powSign === 1 ? powMatch.coef : Symbolic.simplify(neg(powMatch.coef));
-  const p = linSign === 1 ? Symbolic.simplify(neg(linMatch.coef)) : linMatch.coef;
+  const q = powSign === 1 ? powMatch.coef : simplifyCore(neg(powMatch.coef));
+  const p = linSign === 1 ? simplifyCore(neg(linMatch.coef)) : linMatch.coef;
   return { p, q, n: powMatch.n };
 }
 
@@ -2582,10 +2597,10 @@ function solveBernoulliOde(
 ): OdeClosedFormResult {
   const oneMinusN = 1 - bern.n;
   const w0 = y0 ** oneMinusN;
-  const transformedP = Symbolic.simplify(mul(num(oneMinusN), bern.p));
-  const transformedQ = Symbolic.simplify(mul(num(oneMinusN), bern.q));
+  const transformedP = simplifyCore(mul(num(oneMinusN), bern.p));
+  const transformedQ = simplifyCore(mul(num(oneMinusN), bern.q));
   const wResult = solveLinearOde({ p: transformedP, q: transformedQ }, xVar, yVar, x0, w0);
-  const y = Symbolic.simplify(pow(wResult.y as Expr, num(1 / oneMinusN)));
+  const y = simplifyCore(pow(wResult.y as Expr, num(1 / oneMinusN)));
   return { explicit: true, y };
 }
 
@@ -2607,7 +2622,7 @@ function matchExact(e: Expr, xVar: string, yVar: string): { M: Expr; N: Expr } |
   const vars = collectFreeVars(e);
   if (![...vars].every((n) => n === xVar || n === yVar)) return null;
   const M = e.left;
-  const N = Symbolic.simplify(neg(e.right));
+  const N = simplifyCore(neg(e.right));
   const dMdy = diff(M, yVar);
   const dNdx = diff(N, xVar);
   let agreements = 0;
@@ -2662,8 +2677,8 @@ function solveExactOde(
   let g: Expr;
   let gPrime: Expr;
   try {
-    F0 = Symbolic.simplify(integ(M, xVar));
-    gPrime = Symbolic.simplify(sub(N, diff(F0, yVar)));
+    F0 = simplifyCore(integ(M, xVar));
+    gPrime = simplifyCore(sub(N, diff(F0, yVar)));
     if (containsVar(gPrime, xVar)) {
       // Symbolic cancellation fell short -- verify x-independence
       // numerically, then pin x to a probe value that evaluates finitely.
@@ -2675,18 +2690,18 @@ function solveExactOde(
         if (Math.abs(atProbe - atOther) > 1e-6 * Math.max(1, Math.abs(atProbe))) {
           throw new NoClosedFormError();
         }
-        pinned = Symbolic.simplify(subst(gPrime, xVar, num(xp)));
+        pinned = simplifyCore(subst(gPrime, xVar, num(xp)));
         break;
       }
       if (!pinned) throw new NoClosedFormError();
       gPrime = pinned;
     }
-    g = Symbolic.simplify(integ(gPrime, yVar));
+    g = simplifyCore(integ(gPrime, yVar));
   } catch (err) {
     if (err instanceof NotIntegrableError) throw new NoClosedFormError();
     throw err;
   }
-  const F = Symbolic.simplify(add(F0, g));
+  const F = simplifyCore(add(F0, g));
   const C = evalExpr(F, { [xVar]: x0, [yVar]: y0 });
   if (!Number.isFinite(C)) throw new NoClosedFormError();
   // Cheap explicit attempt: F = H(y) + G(x) (either order) inverts via the
@@ -2701,12 +2716,12 @@ function solveExactOde(
     ] as const) {
       if (!isPureFunctionOf(yPart, yOnly) || !isPureFunctionOf(xPartSigned, xOnly)) continue;
       if (F.type === "sub" && yPart === b) continue; // F = G(x) - H(y): inverting -H is out of tryInvertForY's shapes
-      const rhs = Symbolic.simplify(sub(num(C), xPartSigned));
+      const rhs = simplifyCore(sub(num(C), xPartSigned));
       const explicitY = tryInvertForY(yPart, yVar, rhs, y0);
-      if (explicitY) return { explicit: true, y: Symbolic.simplify(explicitY) };
+      if (explicitY) return { explicit: true, y: simplifyCore(explicitY) };
     }
   }
-  return { explicit: false, implicitRelation: Symbolic.simplify(sub(F, num(C))) };
+  return { explicit: false, implicitRelation: simplifyCore(sub(F, num(C))) };
 }
 
 /** If `e` is `a·x + b` (a, b constant), return `{ a, b }`, else `null`. */
@@ -3810,6 +3825,398 @@ function transformLatex(s: string): string {
   return out;
 }
 
+// -- rational-function normalization (expand + cancel) ----------------------------
+// `simplify` finishes by trying to read the expression as a quotient of two
+// polynomials (over the rationals, in "atoms": variables and any subexpression that
+// is not itself polynomial, such as `sin(x)`), expanding both, cancelling their
+// greatest common divisor, and printing the result back out. The result is used only
+// when it is strictly smaller than what `simplify` had already reached, so products
+// like `(x+1)*2` that are no smaller expanded keep their form.
+
+/** A monomial's exponent per atom, and its coefficient. */
+interface PolyTerm {
+  exps: number[];
+  c: Rational;
+}
+type Poly = PolyTerm[]; // sorted by lex order descending, no zero coefficients, no duplicate monomials
+
+const MAX_POLY_TERMS = 400;
+const MAX_RATIONAL_POWER = 8;
+
+class RatBail extends Error {}
+
+interface RatCtx {
+  atoms: Expr[];
+  keys: string[];
+}
+
+function atomIndex(ctx: RatCtx, e: Expr): number {
+  const key = render(e, 0);
+  let i = ctx.keys.indexOf(key);
+  if (i < 0) {
+    i = ctx.keys.length;
+    ctx.keys.push(key);
+    ctx.atoms.push(e);
+  }
+  return i;
+}
+
+function expsCmp(a: number[], b: number[]): number {
+  const n = Math.max(a.length, b.length);
+  for (let i = 0; i < n; i++) {
+    const d = (a[i] ?? 0) - (b[i] ?? 0);
+    if (d !== 0) return d;
+  }
+  return 0;
+}
+
+function expsKey(a: number[]): string {
+  let end = a.length;
+  while (end > 0 && !a[end - 1]) end--;
+  return a.slice(0, end).join(",");
+}
+
+function polyNormalize(terms: PolyTerm[]): Poly {
+  const byKey = new Map<string, PolyTerm>();
+  for (const t of terms) {
+    const k = expsKey(t.exps);
+    const prev = byKey.get(k);
+    if (prev) byKey.set(k, { exps: prev.exps, c: prev.c.add(t.c) });
+    else byKey.set(k, { exps: t.exps, c: t.c });
+  }
+  const out = [...byKey.values()].filter((t) => !t.c.isZero());
+  out.sort((a, b) => expsCmp(b.exps, a.exps));
+  if (out.length > MAX_POLY_TERMS) throw new RatBail();
+  return out;
+}
+
+const polyConst = (c: Rational): Poly => (c.isZero() ? [] : [{ exps: [], c }]);
+const polyAdd = (a: Poly, b: Poly): Poly => polyNormalize([...a, ...b]);
+const polyNeg = (a: Poly): Poly => a.map((t) => ({ exps: t.exps, c: t.c.negate() }));
+const polySub = (a: Poly, b: Poly): Poly => polyAdd(a, polyNeg(b));
+
+function polyMul(a: Poly, b: Poly): Poly {
+  if (a.length * b.length > MAX_POLY_TERMS * 20) throw new RatBail();
+  const out: PolyTerm[] = [];
+  for (const x of a) {
+    for (const y of b) {
+      const n = Math.max(x.exps.length, y.exps.length);
+      const exps: number[] = [];
+      for (let i = 0; i < n; i++) exps.push((x.exps[i] ?? 0) + (y.exps[i] ?? 0));
+      out.push({ exps, c: x.c.multiply(y.c) });
+    }
+  }
+  return polyNormalize(out);
+}
+
+function polyEqual(a: Poly, b: Poly): boolean {
+  return a.length === b.length && a.every((t, i) => expsKey(t.exps) === expsKey(b[i].exps) && t.c.equals(b[i].c));
+}
+
+const polyIsConst = (a: Poly): boolean => a.length === 0 || (a.length === 1 && expsKey(a[0].exps) === "");
+
+/** Division in lex order: `a = q*b + r` (`b` must be nonzero). */
+function polyDivMod(a: Poly, b: Poly): { q: Poly; r: Poly } {
+  const lead = b[0];
+  let rem = a;
+  const q: PolyTerm[] = [];
+  const r: PolyTerm[] = [];
+  let guard = 0;
+  while (rem.length > 0) {
+    if (++guard > 20_000) throw new RatBail();
+    const t = rem[0];
+    const n = Math.max(t.exps.length, lead.exps.length);
+    const exps: number[] = [];
+    let divisible = true;
+    for (let i = 0; i < n; i++) {
+      const d = (t.exps[i] ?? 0) - (lead.exps[i] ?? 0);
+      if (d < 0) divisible = false;
+      exps.push(d);
+    }
+    if (!divisible) {
+      r.push(t);
+      rem = rem.slice(1);
+      continue;
+    }
+    const qt: PolyTerm = { exps, c: t.c.divide(lead.c) };
+    q.push(qt);
+    rem = polySub(rem, polyMul([qt], b));
+  }
+  return { q: polyNormalize(q), r: polyNormalize(r) };
+}
+
+function polyAtoms(...ps: Poly[]): Set<number> {
+  const s = new Set<number>();
+  for (const p of ps) {
+    for (const t of p) {
+      for (let i = 0; i < t.exps.length; i++) if (t.exps[i] > 0) s.add(i);
+    }
+  }
+  return s;
+}
+
+/** Monic GCD of two polynomials in one atom (Euclid); 1 when several atoms are involved. */
+function polyGcd(a: Poly, b: Poly): Poly {
+  if (polyAtoms(a, b).size > 1) return polyConst(Rational.One);
+  let x = a;
+  let y = b;
+  while (y.length > 0) {
+    const { r } = polyDivMod(x, y);
+    x = y;
+    y = r;
+  }
+  if (x.length === 0) return polyConst(Rational.One);
+  const lc = x[0].c;
+  return x.map((t) => ({ exps: t.exps, c: t.c.divide(lc) }));
+}
+
+/** The largest monomial dividing every term (exponent-wise minimum). */
+function monomialContent(p: Poly): number[] {
+  if (p.length === 0) return [];
+  const n = Math.max(...p.map((t) => t.exps.length));
+  const out: number[] = [];
+  for (let i = 0; i < n; i++) out.push(Math.min(...p.map((t) => t.exps[i] ?? 0)));
+  return out;
+}
+
+function polyDivMonomial(p: Poly, m: number[]): Poly {
+  return p.map((t) => ({ exps: t.exps.map((e, i) => e - (m[i] ?? 0)), c: t.c }));
+}
+
+interface Ratio {
+  n: Poly;
+  d: Poly;
+}
+
+const ratioFromPoly = (n: Poly): Ratio => ({ n, d: polyConst(Rational.One) });
+
+function ratioAdd(a: Ratio, b: Ratio, subtract: boolean): Ratio {
+  const bn = subtract ? polyNeg(b.n) : b.n;
+  if (polyEqual(a.d, b.d)) return { n: polyAdd(a.n, bn), d: a.d };
+  return { n: polyAdd(polyMul(a.n, b.d), polyMul(bn, a.d)), d: polyMul(a.d, b.d) };
+}
+
+const ratioMul = (a: Ratio, b: Ratio): Ratio => ({ n: polyMul(a.n, b.n), d: polyMul(a.d, b.d) });
+
+function ratioDiv(a: Ratio, b: Ratio): Ratio {
+  if (b.n.length === 0) throw new RatBail(); // division by zero: leave it to evaluation
+  return { n: polyMul(a.n, b.d), d: polyMul(a.d, b.n) };
+}
+
+function ratioPow(a: Ratio, n: number): Ratio {
+  const k = Math.abs(n);
+  if (k > 1000) throw new RatBail();
+  const singleTerm = a.n.length === 1 && a.d.length === 1;
+  if (!singleTerm && k > MAX_RATIONAL_POWER) throw new RatBail();
+  let result: Ratio;
+  if (singleTerm) {
+    const mono = (t: PolyTerm): PolyTerm => ({ exps: t.exps.map((e) => e * k), c: t.c.pow(k) });
+    result = { n: [mono(a.n[0])], d: [mono(a.d[0])] };
+  } else {
+    result = ratioFromPoly(polyConst(Rational.One));
+    for (let i = 0; i < k; i++) result = ratioMul(result, a);
+  }
+  return n < 0 ? ratioDiv(ratioFromPoly(polyConst(Rational.One)), result) : result;
+}
+
+function exactRational(value: number): Rational | null {
+  if (!Number.isFinite(value)) return null;
+  if (Number.isInteger(value)) return new Rational(BigInt(value));
+  const r = Rational.fromNumber(value, 10_000);
+  return r.toNumber() === value ? r : null;
+}
+
+function toRatio(e: Expr, ctx: RatCtx): Ratio {
+  const atom = (x: Expr): Ratio => {
+    const i = atomIndex(ctx, x);
+    const exps: number[] = new Array(i + 1).fill(0);
+    exps[i] = 1;
+    return ratioFromPoly([{ exps, c: Rational.One }]);
+  };
+  switch (e.type) {
+    case "const": {
+      const r = exactRational(e.value);
+      return r ? ratioFromPoly(polyConst(r)) : atom(e);
+    }
+    case "var":
+      return atom(e);
+    case "neg": {
+      const a = toRatio(e.arg, ctx);
+      return { n: polyNeg(a.n), d: a.d };
+    }
+    case "add":
+      return ratioAdd(toRatio(e.left, ctx), toRatio(e.right, ctx), false);
+    case "sub":
+      return ratioAdd(toRatio(e.left, ctx), toRatio(e.right, ctx), true);
+    case "mul":
+      return ratioMul(toRatio(e.left, ctx), toRatio(e.right, ctx));
+    case "div":
+      return ratioDiv(toRatio(e.left, ctx), toRatio(e.right, ctx));
+    case "pow": {
+      if (e.exp.type === "const" && Number.isInteger(e.exp.value)) {
+        return ratioPow(toRatio(e.base, ctx), e.exp.value);
+      }
+      return atom(pow(normalizeRational(e.base), normalizeRational(e.exp)));
+    }
+    case "func":
+      return atom(fn(e.name, normalizeRational(e.arg)));
+    case "call2":
+      return atom(call2(e.name, normalizeRational(e.left), normalizeRational(e.right)));
+    case "cmp":
+      return atom(cmp(e.op, normalizeRational(e.left), normalizeRational(e.right)));
+    case "piecewise":
+      return atom(
+        piecewise(
+          e.branches.map((br) => ({ cond: normalizeRational(br.cond), expr: normalizeRational(br.expr) })),
+          normalizeRational(e.otherwise),
+        ),
+      );
+    case "sum":
+      return atom(sumExpr(e.variable, normalizeRational(e.from), normalizeRational(e.to), normalizeRational(e.body)));
+    case "product":
+      return atom(
+        productExpr(e.variable, normalizeRational(e.from), normalizeRational(e.to), normalizeRational(e.body)),
+      );
+  }
+}
+
+function bigGcd(a: bigint, b: bigint): bigint {
+  let x = a < 0n ? -a : a;
+  let y = b < 0n ? -b : b;
+  while (y) [x, y] = [y, x % y];
+  return x;
+}
+
+/** Cancel common factors, then scale to coprime integer coefficients with a positive denominator lead. */
+function ratioReduce(r: Ratio): Ratio {
+  if (r.n.length === 0) return ratioFromPoly([]);
+  let { n, d } = r;
+  const m = monomialContent([...n, ...d]);
+  if (m.some((e) => e > 0)) {
+    n = polyDivMonomial(n, m);
+    d = polyDivMonomial(d, m);
+  }
+  if (!polyIsConst(d)) {
+    const g = polyGcd(n, d);
+    if (!polyIsConst(g)) {
+      n = polyDivMod(n, g).q;
+      d = polyDivMod(d, g).q;
+    } else {
+      // Several atoms: still cancel when one side divides the other exactly.
+      const dn = polyDivMod(n, d);
+      if (dn.r.length === 0) {
+        n = dn.q;
+        d = polyConst(Rational.One);
+      } else {
+        const nd = polyDivMod(d, n);
+        if (nd.r.length === 0) {
+          d = nd.q;
+          n = polyConst(Rational.One);
+        }
+      }
+    }
+  }
+  if (polyIsConst(d)) {
+    const c = d[0].c;
+    return { n: n.map((t) => ({ exps: t.exps, c: t.c.divide(c) })), d: polyConst(Rational.One) };
+  }
+  // integer coefficients: multiply through by the lcm of the denominators, divide by the content
+  let lcm = 1n;
+  for (const t of [...n, ...d]) {
+    const den = t.c.denominator;
+    lcm = (lcm / bigGcd(lcm, den)) * den;
+  }
+  const scale = new Rational(lcm);
+  n = n.map((t) => ({ exps: t.exps, c: t.c.multiply(scale) }));
+  d = d.map((t) => ({ exps: t.exps, c: t.c.multiply(scale) }));
+  let content = 0n;
+  for (const t of [...n, ...d]) content = bigGcd(content, t.c.numerator);
+  if (content > 1n) {
+    const inv = new Rational(1n, content);
+    n = n.map((t) => ({ exps: t.exps, c: t.c.multiply(inv) }));
+    d = d.map((t) => ({ exps: t.exps, c: t.c.multiply(inv) }));
+  }
+  if (d[0].c.sign < 0) {
+    n = polyNeg(n);
+    d = polyNeg(d);
+  }
+  return { n, d };
+}
+
+function monomialExpr(exps: number[], ctx: RatCtx): Expr | null {
+  let out: Expr | null = null;
+  for (let i = 0; i < exps.length; i++) {
+    const e = exps[i] ?? 0;
+    if (e === 0) continue;
+    const factor = e === 1 ? ctx.atoms[i] : pow(ctx.atoms[i], num(e));
+    out = out ? mul(out, factor) : factor;
+  }
+  return out;
+}
+
+/** A polynomial as a descending-degree sum; fractional coefficients print as `p*m/q`. */
+function polyToTree(p: Poly, ctx: RatCtx): Expr {
+  if (p.length === 0) return num(0);
+  const ordered = [...p].sort((a, b) => {
+    const da = a.exps.reduce((s, x) => s + x, 0);
+    const db = b.exps.reduce((s, x) => s + x, 0);
+    return db - da || expsCmp(b.exps, a.exps);
+  });
+  let out: Expr | null = null;
+  for (const t of ordered) {
+    const negative = t.c.sign < 0;
+    const abs = t.c.abs();
+    const mono = monomialExpr(t.exps, ctx);
+    const numer = abs.numerator;
+    let body: Expr;
+    if (!mono) body = num(abs.toNumber());
+    else if (numer === 1n && abs.denominator === 1n) body = mono;
+    else if (abs.denominator === 1n) body = mul(num(Number(numer)), mono);
+    else body = div(numer === 1n ? mono : mul(num(Number(numer)), mono), num(Number(abs.denominator)));
+    if (!out) out = negative ? neg(body) : body;
+    else out = negative ? sub(out, body) : add(out, body);
+  }
+  return out as Expr;
+}
+
+function nodeCount(e: Expr): number {
+  switch (e.type) {
+    case "const":
+    case "var":
+      return 1;
+    case "neg":
+    case "func":
+      return 1 + nodeCount(e.arg);
+    case "pow":
+      return 1 + nodeCount(e.base) + nodeCount(e.exp);
+    case "piecewise":
+      return 1 + nodeCount(e.otherwise) + e.branches.reduce((s, br) => s + nodeCount(br.cond) + nodeCount(br.expr), 0);
+    case "sum":
+    case "product":
+      return 1 + nodeCount(e.from) + nodeCount(e.to) + nodeCount(e.body);
+    default:
+      return 1 + nodeCount(e.left) + nodeCount(e.right);
+  }
+}
+
+/**
+ * Expand `e` as a rational function and cancel common factors, returning the result only
+ * when it has strictly fewer nodes than `e`; otherwise returns `e` itself.
+ */
+function normalizeRational(e: Expr): Expr {
+  if (e.type === "const" || e.type === "var") return e;
+  try {
+    const ctx: RatCtx = { atoms: [], keys: [] };
+    const reduced = ratioReduce(toRatio(e, ctx));
+    const numer = polyToTree(reduced.n, ctx);
+    const candidate = polyIsConst(reduced.d) ? numer : div(numer, polyToTree(reduced.d, ctx));
+    return nodeCount(candidate) < nodeCount(e) ? candidate : e;
+  } catch (err) {
+    if (err instanceof RatBail) return e;
+    throw err;
+  }
+}
+
 // -- equation solving & factoring ----------------------------------------------
 /** Best-effort exact `Expr` for a numeric value: an integer, a reduced fraction, or (as a last resort) the raw float. */
 function toExactExpr(value: number): Expr {
@@ -3841,7 +4248,7 @@ function linearCoeffsForSystem(eq: Expr, variables: string[]): number[] | null {
   if (!Number.isFinite(constant)) return null;
   const coeffs: number[] = [];
   for (const name of variables) {
-    const derivative = Symbolic.simplify(diff(eq, name));
+    const derivative = simplifyCore(diff(eq, name));
     if (variables.some((other) => containsVar(derivative, other))) return null;
     const coeff = evalExpr(derivative, zeroEnv);
     if (!Number.isFinite(coeff)) return null;
@@ -3870,7 +4277,7 @@ function polynomialCoeffs(expr: Expr, variable: string, maxDegree: number): numb
     // derivative of x^0 (`0·x^-1`) evaluates to `0·Infinity = NaN` at x=0
     // even though it is symbolically zero — simplifying collapses `0·anything`
     // to `0` before that indeterminate form can arise.
-    term = Symbolic.simplify(diff(term, variable));
+    term = simplifyCore(diff(term, variable));
   }
   while (coeffs.length > 1 && Math.abs(coeffs[coeffs.length - 1]) < 1e-9) coeffs.pop();
   for (const p of [1.3, -2.1, 3.7]) {
@@ -4058,7 +4465,7 @@ function factorPolynomial(coeffsIn: number[], variable: string): Expr {
   } else if (Math.abs(remaining[0] - 1) > 1e-9) {
     result = mul(result, toExactExpr(remaining[0]));
   }
-  return Symbolic.simplify(result);
+  return simplifyCore(result);
 }
 
 // -- limits ---------------------------------------------------------------------
@@ -4083,8 +4490,8 @@ function limitAt(e: Expr, x: string, point: number, direction: "left" | "right" 
       // operand verbatim into the result) and a limit needing more than a
       // couple of rounds (e.g. most limits at infinity) blows up memory
       // long before the depth<12 cap is reached.
-      const df = Symbolic.simplify(diff(e.left, x));
-      const dg = Symbolic.simplify(diff(e.right, x));
+      const df = simplifyCore(diff(e.left, x));
+      const dg = simplifyCore(diff(e.right, x));
       return limitAt(div(df, dg), x, point, direction, depth + 1);
     }
   }
