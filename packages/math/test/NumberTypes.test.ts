@@ -96,6 +96,25 @@ test("DualNumber.pow(0) at value===0 is 1 with derivative 0, not NaN", () => {
   assert.equal(r2.deriv, 0);
 });
 
+test("DualNumber.log of a negative value is NaN in both value and derivative (domain error, not a finite-looking gradient)", () => {
+  const r = DualNumber.log(DualNumber.variable(-1));
+  assert.ok(Number.isNaN(r.value));
+  assert.ok(Number.isNaN(r.deriv), `expected NaN derivative, got ${r.deriv}`);
+  const ok = DualNumber.log(DualNumber.variable(2));
+  assert.ok(close(ok.value, Math.log(2)) && close(ok.deriv, 0.5));
+});
+
+test("DualNumber functions outside their domain give NaN derivatives, never a finite one", () => {
+  for (const r of [
+    DualNumber.sqrt(DualNumber.variable(-4)),
+    DualNumber.variable(-8).pow(0.5),
+    DualNumber.log(new DualNumber(-1, 0)),
+    DualNumber.log(new DualNumber(Number.NaN, 1)),
+  ]) {
+    assert.ok(Number.isNaN(r.value) && Number.isNaN(r.deriv), `${r.toString()}`);
+  }
+});
+
 // --- Interval ---
 
 // Every non-exact Interval op now outward-rounds its result by ~1 ULP per
