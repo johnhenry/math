@@ -30,7 +30,7 @@
  */
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -40,12 +40,28 @@ const execFileAsync = promisify(execFile);
 const PACKAGE_ROOT = path.resolve(import.meta.dirname, "..");
 
 /** A minimal but structurally real `@johnhenry/math` fixture at a version that has never actually been published (real npm only has 0.0.0/0.0.1) -- standing in for "whatever math's next patch release is", the exact case a caret-bump fix (rather than a genuinely open range) fails to survive. */
-async function writeFutureMathFixture(dir: string): Promise<string> {
+/**
+ * A version that satisfies this package's declared `@johnhenry/math` range and is two patches above its
+ * lower bound, so it can never be one that is already published. Derived from package.json rather than
+ * hard-coded: the range moves whenever `math` bumps out of it (`>=0.0.0 <0.1.0` became `>=0.1.0`), and a
+ * fixed fixture version then stops satisfying it and npm falls back to a registry that has no match yet.
+ */
+async function futureMathVersion(): Promise<string> {
+  const pkg = JSON.parse(await readFile(path.join(PACKAGE_ROOT, "package.json"), "utf8")) as {
+    dependencies?: Record<string, string>;
+  };
+  const range = pkg.dependencies?.["@johnhenry/math"] ?? "";
+  const m = /^>=\s*(\d+)\.(\d+)\.(\d+)/.exec(range);
+  if (!m) throw new Error(`cannot derive a fixture version from the @johnhenry/math range ${JSON.stringify(range)}`);
+  return `${m[1]}.${m[2]}.${Number(m[3]) + 2}`;
+}
+
+async function writeFutureMathFixture(dir: string, version: string): Promise<string> {
   await mkdir(dir, { recursive: true });
   await writeFile(
     path.join(dir, "package.json"),
     JSON.stringify(
-      { name: "@johnhenry/math", version: "0.0.2", type: "module", main: "index.js", exports: { ".": "./index.js" } },
+      { name: "@johnhenry/math", version, type: "module", main: "index.js", exports: { ".": "./index.js" } },
       null,
       2,
     ),
@@ -65,7 +81,8 @@ test("install-time dedupe: a fresh consumer depending on a NEWER (future, not-ye
     const tarballName = packOut.trim().split("\n").pop()!.trim();
     const tarballPath = path.join(work, tarballName);
 
-    const mathFixtureDir = await writeFutureMathFixture(path.join(work, "math-0.0.2"));
+    const futureVersion = await futureMathVersion();
+    const mathFixtureDir = await writeFutureMathFixture(path.join(work, `math-${futureVersion}`), futureVersion);
 
     const consumerDir = path.join(work, "consumer");
     await mkdir(consumerDir);
@@ -101,7 +118,7 @@ test("install-time dedupe: a fresh consumer depending on a NEWER (future, not-ye
     const nested = tree.dependencies["@johnhenry/math-prototype-patch"]?.dependencies?.["@johnhenry/math"];
     assert.equal(
       topLevel?.version,
-      "0.0.2",
+      futureVersion,
       "expected the top-level @johnhenry/math to resolve to the future-fixture version",
     );
     // A single deduped copy means math-prototype-patch's OWN
