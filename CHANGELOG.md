@@ -1,11 +1,17 @@
 # Changelog
 
 Notable changes to the `math` monorepo (`@johnhenry/math`, `@johnhenry/iteration`,
-`@johnhenry/math-prototype-patch`). The format follows
+`@johnhenry/math-prototype-patch`, `@johnhenry/math-sample`). The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Per-package release history is on npm;
 versions were reset to `0.0.0` when the packages moved under the `@johnhenry` scope.
 
 ## [Unreleased]
+
+### Added
+
+- New package `@johnhenry/math-sample` (part 1: 1D): adaptive/uniform sampling with NaN gaps and jump
+  detection, viewport model, nice ticks, SVG path/axes output, root and intersection finders. SciPy/SymPy/NumPy
+  goldens committed as JSON. See `packages/math-sample/README.md`. Refs viaframe#753.
 
 ### Changed
 

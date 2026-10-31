@@ -1,0 +1,36 @@
+export {
+  type AdaptiveOptions,
+  type CancelSignal,
+  type Domain,
+  type Fn1,
+  findCrossings,
+  findDiscontinuities,
+  findIntersections,
+  findRoots,
+  type Point,
+  type RootOptions,
+  runsOf,
+  SampleCancelledError,
+  type SampleOptions,
+  type Samples,
+  sampleAdaptive,
+  sampleUniform,
+  toPoints,
+  type YRange,
+} from "./sample.ts";
+export { type AxesOptions, axesToSvg, type PathOptions, samplesToSvgPath, svgDocument, type XY } from "./svg.ts";
+export { formatTick, niceTicks, tickStep } from "./ticks.ts";
+export {
+  backingStoreSize,
+  fitViewport,
+  panViewport,
+  pinchZoomFactor,
+  toDataX,
+  toDataY,
+  toScreenX,
+  toScreenY,
+  type Viewport,
+  viewportFromAnchor,
+  wheelZoomFactor,
+  zoomViewport,
+} from "./viewport.ts";

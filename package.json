@@ -19,6 +19,7 @@
     "example:03": "node examples/03-exact-numbers-and-autodiff.mjs",
     "example:04": "node examples/04-iteration-pipelines.mjs",
     "example:05": "node examples/05-prototype-patch.mjs",
+    "example:06": "node examples/06-plot-sampling.mjs",
     "lint": "biome lint .",
     "format": "biome format --write .",
     "check": "biome check .",

@@ -18,6 +18,7 @@ npm run example:01        # or one at a time
 | `03-exact-numbers-and-autodiff.mjs` | `ComplexNumber`/`Rational`/`Decimal`, `Interval`'s outward rounding, and exact gradients/Hessians via `DualNumber` forward-mode |
 | `04-iteration-pipelines.mjs` | `@johnhenry/iteration`: transducers, itertools parity, `foldSync`, `mapConcurrentAsync` bounded concurrency, `AsyncChannel` backpressure |
 | `05-prototype-patch.mjs` | `@johnhenry/math-prototype-patch`: opt-in patch, collision error handling, reversibility |
+| `06-plot-sampling.mjs` | `@johnhenry/math-sample`: adaptive gap-aware sampling of `tan(x)`, discontinuity edges, viewport pan, nice ticks, SVG output |
 
 The deeper source of truth is [`packages/math/docs/COOKBOOK.md`](../packages/math/docs/COOKBOOK.md)
 — every fenced block there runs as a test — and
