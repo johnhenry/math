@@ -1,5 +1,14 @@
 # @johnhenry/math-prototype-patch
 
+## 0.0.2
+
+### Patch Changes
+
+- Updated dependencies [a02c502]
+- Updated dependencies [142b75b]
+- Updated dependencies [aaa0a0d]
+  - @johnhenry/math@0.1.0
+
 ## 0.0.1
 
 ### Patch Changes
