@@ -59,6 +59,12 @@ export interface Placement3D {
 
 const v3 = (x: number, y: number, z = 0): Vec3 => ({ x, y, z });
 const asPoint = (p: Vector<number>): Vec3 => ({ x: p.x as number, y: p.y as number, z: p.z as number });
+const isFinitePoint = (p: Vec3): boolean => Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z);
+/** A triangle face, or `null` when any vertex is NaN / infinite (so the surface breaks there instead of drawing garbage). */
+const finiteFace = (a: Vector<number>, b: Vector<number>, c: Vector<number>): Face | null => {
+  const face: Face = [asPoint(a), asPoint(b), asPoint(c)];
+  return face.every(isFinitePoint) ? face : null;
+};
 
 export class Graph3DUtils {
   /** Sample `binaryOperation` over a 2D grid, returning a matrix of results. */
@@ -222,6 +228,8 @@ export class Graph3DUtils {
   /**
    * Build a surface mesh from a grid (matrix) of points, as two triangle
    * sweeps with distinct materials (bug fix: the first sweep now uses `alpha1`).
+   * Triangles touching a NaN or infinite vertex are omitted, so the surface
+   * breaks into pieces around them.
    */
   static pointMatrixToMesh3D(
     vector: Vector<Vector<Vector<number>>>,
@@ -239,11 +247,12 @@ export class Graph3DUtils {
     for (let i = 0; i < width - 1; i++) {
       for (let j = 0; j < height - 1; j++) {
         if (at(i, j) && vector[i + 1] && at(i, j + 1)) {
-          faces1.push([
-            asPoint(at(i, j) as Vector<number>),
-            asPoint(at(i + 1, j) as Vector<number>),
-            asPoint(at(i, j + 1) as Vector<number>),
-          ]);
+          const face = finiteFace(
+            at(i, j) as Vector<number>,
+            at(i + 1, j) as Vector<number>,
+            at(i, j + 1) as Vector<number>,
+          );
+          if (face) faces1.push(face);
         }
       }
     }
@@ -252,11 +261,12 @@ export class Graph3DUtils {
     for (let i = 1; i < width; i++) {
       for (let j = 1; j < height; j++) {
         if (at(i, j) && vector[i - 1] && at(i, j - 1)) {
-          faces2.push([
-            asPoint(at(i, j) as Vector<number>),
-            asPoint(at(i - 1, j) as Vector<number>),
-            asPoint(at(i, j - 1) as Vector<number>),
-          ]);
+          const face = finiteFace(
+            at(i, j) as Vector<number>,
+            at(i - 1, j) as Vector<number>,
+            at(i, j - 1) as Vector<number>,
+          );
+          if (face) faces2.push(face);
         }
       }
     }
