@@ -98,7 +98,10 @@ export class GraphUtils {
     return [...points].map((p) => GraphUtils.barPlacement(p, barWidth));
   }
 
-  /** A poly-line path through the given points. */
+  /**
+   * A poly-line path through the given points. Points with a non-finite x or y
+   * (NaN, +/-Infinity) are skipped and split the line into separate segments.
+   */
   static vectorToCurve(
     points: Vector<Vector<number>>,
     thickness = 0,
@@ -112,13 +115,18 @@ export class GraphUtils {
   ): Path2D {
     const stroke: StrokeStyle = { thickness, color, alpha, pixelHinting, scaleMode, caps, joints, miterLimit };
     const commands: PathCommand[] = [];
-    if (points.length > 0) {
-      const first = point(points[0] as Vector<number>);
-      commands.push({ op: "moveTo", x: first.x, y: first.y });
-      for (let i = 1; i < points.length; i++) {
-        const pt = point(points[i] as Vector<number>);
-        commands.push({ op: "lineTo", x: pt.x, y: pt.y });
+    // A NaN or +/-Infinity coordinate (a pole, a domain error) breaks the path: the
+    // run before it ends, and the next finite point starts a new run with `moveTo`
+    // rather than a `lineTo` drawn through the gap.
+    let penDown = false;
+    for (let i = 0; i < points.length; i++) {
+      const pt = point(points[i] as Vector<number>);
+      if (!Number.isFinite(pt.x) || !Number.isFinite(pt.y)) {
+        penDown = false;
+        continue;
       }
+      commands.push({ op: penDown ? "lineTo" : "moveTo", x: pt.x, y: pt.y });
+      penDown = true;
     }
     return { stroke, commands };
   }

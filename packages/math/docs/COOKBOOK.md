@@ -212,6 +212,10 @@ Symbolic.evaluate("x^2 + 1", { x: 3 }); // => 10
 // Algebraic simplification collects like terms, not just identities:
 Symbolic.toString(Symbolic.simplify("a*b + b*a")); // => "2*(a*b)"
 Symbolic.toString(Symbolic.expand("(x+1)^2")); // => "x^2 + 2*x + 1"
+// ...and it expands products and cancels common factors when that makes the result smaller
+// (cancellation ignores points where the original is undefined, e.g. x = 1 below):
+Symbolic.toString(Symbolic.simplify("(x+1)^2 - x^2 - 2*x")); // => "1"
+Symbolic.toString(Symbolic.simplify("(x^2-1)/(x-1)")); // => "x + 1"
 Symbolic.toString(Symbolic.substitute("x^2 + 1", "x", "y+1")); // in terms of y
 
 // Polynomial solving/factoring (degree <= 6; real roots only):
@@ -227,6 +231,18 @@ Symbolic.toString(Symbolic.fromLatex("\\frac{x^{2}}{2}")); // => "x^2/2"
 Symbolic.toString(Symbolic.fromLatex("\\sqrt[3]{x}")); // "cbrt(x)" — not a fractional power,
 // since Math.cbrt(-8) = -2 but (-8)^(1/3) is NaN under JS's `**`.
 Symbolic.toString(Symbolic.fromLatex("\\sqrt[5]{x}")); // "x^(1/5)" — any other root stays a fractional power
+
+// What people type into a math field is looser than the strict grammar. With
+// `implicitMultiplication`, juxtaposition multiplies (default off: `2x` is an error):
+Symbolic.toString(Symbolic.parse("2x + 3(x+1)", { implicitMultiplication: true })); // => "2*x + 3*(x + 1)"
+Symbolic.toString(Symbolic.parse("x y", { implicitMultiplication: true })); // => "x*y"
+// ...and fromLatex then reads Desmos-style LaTeX: bare arguments and one-token exponents.
+Symbolic.toString(Symbolic.fromLatex("\\sin 2x", { implicitMultiplication: true })); // => "sin(2*x)"
+Symbolic.toString(Symbolic.fromLatex("3\\left(x+1\\right)", { implicitMultiplication: true })); // => "3*(x + 1)"
+// \frac12, \sqrt2 and \sin^{2}(x) need no option:
+Symbolic.toString(Symbolic.fromLatex("\\frac12")); // => "1/2"
+Symbolic.toString(Symbolic.fromLatex("\\sin^{2}(x)")); // => "sin(x)^2"
+// \sin^{-1} throws as ambiguous (arcsin or 1/sin?): spell it \arcsin(x) or (\sin x)^{-1}.
 
 // arcsin/arccos/arctan/arcsinh/arccosh/arctanh are accepted as aliases for
 // asin/acos/atan/asinh/acosh/atanh — both spellings parse identically:

@@ -122,6 +122,7 @@ export {
   NotIntegrableError,
   NotSeparableError,
   type OdeClosedFormResult,
+  type ParseOptions,
   ProductNotDifferentiableError,
   SeriesDivergesError,
   SingularSystemError,
