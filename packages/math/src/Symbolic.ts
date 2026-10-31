@@ -443,10 +443,33 @@ export interface OdeClosedFormResult {
   implicitRelation?: Expr;
 }
 
+/** Options for {@link Symbolic.parse} and {@link Symbolic.fromLatex}. */
+export interface ParseOptions {
+  /**
+   * Read juxtaposition as multiplication, the way people type maths: `2x`, `x y`, `xy`, `2(x+1)`,
+   * `(x+1)(x-1)`, `x(x+1)`, `3sin(x)`. Default `false`, which keeps the strict grammar (`2x` is an
+   * error and `xy` is one variable named `xy`).
+   *
+   * With this on, a run of letters that is not a function call (`name(`) or `pi` is split into
+   * single-letter variables, so `xy` is `x*y` and multi-letter variable names such as `theta` are
+   * unavailable (use a subscript: `x_1` or `x_a`, which stays one variable). A letter followed by
+   * digits is a product too (`x3` is `x*3`). A function name must be followed by `(`. Space
+   * between two numbers multiplies (`2 3` is `6`). Juxtaposition has the same precedence as `*`
+   * and `/` and binds left to right, so `1/2x` is `(1/2)*x`; `^` binds tighter (`2x^2` is `2*(x^2)`).
+   * For `fromLatex` it also lets a function with no brackets take a whole product as its argument
+   * (`\sin 2x` is `sin(2*x)`, `\sin x\cos x` is `sin(x)*cos(x)`), and `^` take one token (`x^23` is
+   * `x^2*3`, as TeX reads it; `x^{23}` is `x^23`).
+   */
+  implicitMultiplication?: boolean;
+}
+
 export class Symbolic {
-  /** Parse an expression string such as `"sin(x^2) + 3*x"` into an AST. */
-  static parse(input: string): Expr {
-    return new Parser(input).parse();
+  /**
+   * Parse an expression string such as `"sin(x^2) + 3*x"` into an AST.
+   * Pass `{ implicitMultiplication: true }` to also read `2x`, `x y` and `2(x+1)`; see {@link ParseOptions}.
+   */
+  static parse(input: string, options: ParseOptions = {}): Expr {
+    return new Parser(input, options ?? {}).parse();
   }
 
   static differentiate(expr: Expr | string, variable = "x"): Expr {
@@ -856,12 +879,16 @@ export class Symbolic {
    * commands (`\sin`, `\arcsin`, `\sinh`, `\operatorname{sech}`, ...), and the
    * two-argument `BinaryFuncName` commands (`\min`, `\max`, `\gcd`,
    * `\operatorname{atan2}`, `\operatorname{hypot}`, `\operatorname{lcm}`).
-   * Spacing commands (`\,`, `\;`, `\!`, `\quad`) are ignored.
+   * Spacing commands (`\,`, `\;`, `\!`, `\quad`) are ignored. Single-token arguments as TeX
+   * reads them (`\frac12`, `\frac1x`, `\sqrt2`) and a power on a function command
+   * (`\sin^{2}(x)` is `sin(x)^2`) are accepted. An exponent of `-1` on a function command (`\sin^{-1}`) is
+   * refused as ambiguous (inverse function or reciprocal): write `\arcsin(x)` or `(\sin x)^{-1}`. For what people type into a math field
+   * (`2x`, `\sin 2x`, `(x+1)(x-1)`, `x^23`) pass `{ implicitMultiplication: true }`; see {@link ParseOptions}.
    *
    * @throws on LaTeX constructs with no `Expr` equivalent, e.g. `\int` or `\sum`.
    */
-  static fromLatex(latex: string): Expr {
-    return Symbolic.parse(latexToInfix(latex));
+  static fromLatex(latex: string, options: ParseOptions = {}): Expr {
+    return Symbolic.parse(latexToInfix(latex, options), options);
   }
 
   /**
@@ -3619,12 +3646,47 @@ const CMP_LATEX_CMDS: Record<string, string> = {
 };
 
 /** Convert a LaTeX math string into the plain-infix syntax `Symbolic.parse`'s `Parser` understands. */
-function latexToInfix(latex: string): string {
-  const cleaned = latex.replace(/\\left|\\right/g, "").replace(/\\(?:,|;|!|quad|qquad| )/g, "");
-  return transformLatex(cleaned);
+function latexToInfix(latex: string, opts: ParseOptions = {}): string {
+  const cleaned = latex.replace(/\\left|\\right/g, "").replace(/(?<!\\)\\(?:,|;|!|quad|qquad| )/g, "");
+  return transformLatex(cleaned, opts);
 }
 
-function transformLatex(s: string): string {
+/**
+ * Where the unbracketed argument of a function command ends under implicit multiplication: the longest
+ * product of numbers, letters, `\\pi`, powers, subscripts and bracket groups starting at `start`
+ * (`\\sin 2x` takes `2x`; `\\sin x\\cos x` takes just `x`). Returns `start` when there is none.
+ */
+function bareArgumentEnd(s: string, start: number): number {
+  let j = start;
+  const group = (at: number): number => {
+    const open = s[at];
+    return findGroupEnd(s, at, open, open === "{" ? "}" : ")") + 1;
+  };
+  while (j < s.length) {
+    const c = s[j];
+    if (/[A-Za-z0-9.]/.test(c)) {
+      j++;
+    } else if (c === "(" || c === "{") {
+      j = group(j);
+    } else if (c === "_" && s[j + 1] === "{") {
+      j = group(j + 1);
+    } else if (c === "^") {
+      if (s[j + 1] === "{") j = group(j + 1);
+      else if (s[j + 1] === "\\") j += 1 + (/^\\[a-zA-Z]+/.exec(s.slice(j + 1))?.[0].length ?? 1);
+      else j += 2;
+    } else if (/^\\pi(?![a-zA-Z])/.test(s.slice(j))) {
+      j += 3;
+    } else if (c === " " && /^ +(?:[A-Za-z0-9.({]|\\pi(?![a-zA-Z]))/.test(s.slice(j))) {
+      j += s.slice(j).length - s.slice(j).trimStart().length;
+    } else {
+      break;
+    }
+  }
+  return j;
+}
+
+function transformLatex(s: string, opts: ParseOptions = {}): string {
+  const implicit = opts.implicitMultiplication === true;
   let out = "";
   let i = 0;
 
@@ -3636,10 +3698,19 @@ function transformLatex(s: string): string {
   };
 
   const readGroupOrParenOrToken = (): string => {
+    while (s[i] === " ") i++;
     if (s[i] === "{" || s[i] === "(") {
       const { content, next } = extractGroup(s, i);
       i = next;
       return content;
+    }
+    if (implicit) {
+      const end = bareArgumentEnd(s, i);
+      if (end > i) {
+        const run = s.slice(i, end).trim();
+        i = end;
+        return run;
+      }
     }
     const m = /^[a-zA-Z_]\w*|^\d+\.?\d*(?:[eE][+-]?\d+)?/.exec(s.slice(i));
     if (m) {
@@ -3647,6 +3718,32 @@ function transformLatex(s: string): string {
       return m[0];
     }
     throw new Error(`Expected an argument at position ${i} in LaTeX source: ${s}`);
+  };
+
+  /** A `{...}` group, or the one token TeX takes without braces: a digit, a letter or a `\\command`. */
+  const readGroupOrToken = (): string => {
+    while (s[i] === " ") i++;
+    if (s[i] === "{") return readGroup();
+    const m = /^(?:\\[a-zA-Z]+|[a-zA-Z0-9])/.exec(s.slice(i));
+    if (!m) throw new Error(`Expected an argument at position ${i} in LaTeX source: ${s}`);
+    i += m[0].length;
+    return m[0];
+  };
+
+  /** A power written on a function command (`\\sin^{2}`, `\\sin^2`), or null. */
+  const readFunctionPower = (): string | null => {
+    if (s[i] !== "^") return null;
+    i++;
+    const power = readGroupOrToken();
+    // `\sin^{-1}` is arcsin in most textbooks and calculators but 1/sin in strict TeX/notation; guessing
+    // wrong would silently change the maths, so it is refused rather than interpreted.
+    if (/^\s*-\s*1\s*$/.test(power)) {
+      throw new Error(
+        "Ambiguous LaTeX: a function with exponent -1 (e.g. \\sin^{-1}) may mean the inverse function or the reciprocal; " +
+          "write \\arcsin(x) for the inverse, or (\\sin x)^{-1} / 1/\\sin x for the reciprocal",
+      );
+    }
+    return power;
   };
 
   /** Read a `(...)`/`{...}` group holding exactly 2 comma-separated arguments, for `call2` functions. */
@@ -3698,9 +3795,10 @@ function transformLatex(s: string): string {
           const [exprPart, condPart] = cols;
           if (condPart.trim() === "\\text{otherwise}") {
             if (otherwise !== null) throw new Error("\\begin{cases} may have only one \\text{otherwise} row");
-            otherwise = transformLatex(exprPart);
+            otherwise = transformLatex(exprPart, opts);
           } else {
-            parts.push(`${transformLatex(condPart)}, ${transformLatex(exprPart)}`);
+            const condition = condPart.replace(/^\s*\\text\{\s*(?:if|when)\s*\}/, ""); // "x & \text{if } x<0" as MathLive writes it
+            parts.push(`${transformLatex(condition, opts)}, ${transformLatex(exprPart, opts)}`);
           }
         }
         if (otherwise === null) {
@@ -3709,28 +3807,28 @@ function transformLatex(s: string): string {
         out += `piecewise(${parts.concat(otherwise).join(", ")})`;
         continue;
       }
-      if (cmd === "\\frac") {
-        const numerator = readGroup();
-        const denominator = readGroup();
-        out += `((${transformLatex(numerator)})/(${transformLatex(denominator)}))`;
+      if (cmd === "\\frac" || cmd === "\\dfrac" || cmd === "\\tfrac") {
+        const numerator = readGroupOrToken();
+        const denominator = readGroupOrToken();
+        out += `((${transformLatex(numerator, opts)})/(${transformLatex(denominator, opts)}))`;
         continue;
       }
       if (cmd === "\\sqrt") {
         if (s[i] === "[") {
           const { content: root, next } = extractGroup(s, i);
           i = next;
-          const arg = readGroup();
-          const transformedRoot = transformLatex(root).trim();
+          const arg = readGroupOrToken();
+          const transformedRoot = transformLatex(root, opts).trim();
           // \sqrt[3]{...} maps to cbrt(...) rather than a fractional power so
           // negative arguments evaluate correctly (Math.cbrt(-8) = -2, but
           // (-8)^(1/3) is NaN under JS's `**`).
           out +=
             transformedRoot === "3"
-              ? `cbrt(${transformLatex(arg)})`
-              : `((${transformLatex(arg)})^(1/(${transformedRoot})))`;
+              ? `cbrt(${transformLatex(arg, opts)})`
+              : `((${transformLatex(arg, opts)})^(1/(${transformedRoot})))`;
         } else {
-          const arg = readGroup();
-          out += `sqrt(${transformLatex(arg)})`;
+          const arg = readGroupOrToken();
+          out += `sqrt(${transformLatex(arg, opts)})`;
         }
         continue;
       }
@@ -3744,8 +3842,10 @@ function transformLatex(s: string): string {
         if (base !== "10" && base !== "2") {
           throw new Error(`Unsupported LaTeX construct: \\log base ${base} (only base 10 and base 2 are supported)`);
         }
+        const power = readFunctionPower();
         const arg = readGroupOrParenOrToken();
-        out += `${base === "2" ? "log2" : "log10"}(${transformLatex(arg)})`;
+        const call = `${base === "2" ? "log2" : "log10"}(${transformLatex(arg, opts)})`;
+        out += power === null ? call : `${call}^(${transformLatex(power, opts)})`;
         continue;
       }
       if (cmd === "\\lfloor" || cmd === "\\lceil") {
@@ -3754,7 +3854,7 @@ function transformLatex(s: string): string {
         if (closeIdx === -1) throw new Error(`Unmatched '${cmd}' in LaTeX source`);
         const inner = s.slice(i, closeIdx);
         i = closeIdx + closeCmd.length;
-        out += `${cmd === "\\lfloor" ? "floor" : "ceil"}(${transformLatex(inner)})`;
+        out += `${cmd === "\\lfloor" ? "floor" : "ceil"}(${transformLatex(inner, opts)})`;
         continue;
       }
       if (cmd === "\\operatorname") {
@@ -3762,25 +3862,29 @@ function transformLatex(s: string): string {
         const binaryName = OPERATORNAME_BINARY_FUNC_NAMES[opName];
         if (binaryName) {
           const [left, right] = readArgPair();
-          out += `${binaryName}(${transformLatex(left)}, ${transformLatex(right)})`;
+          out += `${binaryName}(${transformLatex(left, opts)}, ${transformLatex(right, opts)})`;
           continue;
         }
         const funcName = OPERATORNAME_FUNC_NAMES[opName];
         if (!funcName) throw new Error(`Unsupported LaTeX construct: \\operatorname{${opName}}`);
+        const power = readFunctionPower();
         const arg = readGroupOrParenOrToken();
-        out += `${funcName}(${transformLatex(arg)})`;
+        const call = `${funcName}(${transformLatex(arg, opts)})`;
+        out += power === null ? call : `${call}^(${transformLatex(power, opts)})`;
         continue;
       }
       const binaryFuncName = LATEX_BINARY_FUNC_NAMES[cmd];
       if (binaryFuncName) {
         const [left, right] = readArgPair();
-        out += `${binaryFuncName}(${transformLatex(left)}, ${transformLatex(right)})`;
+        out += `${binaryFuncName}(${transformLatex(left, opts)}, ${transformLatex(right, opts)})`;
         continue;
       }
       const funcName = LATEX_FUNC_NAMES[cmd];
       if (funcName) {
+        const power = readFunctionPower();
         const arg = readGroupOrParenOrToken();
-        out += `${funcName}(${transformLatex(arg)})`;
+        const call = `${funcName}(${transformLatex(arg, opts)})`;
+        out += power === null ? call : `${call}^(${transformLatex(power, opts)})`;
         continue;
       }
       throw new Error(`Unsupported LaTeX construct: ${cmd}`);
@@ -3790,13 +3894,20 @@ function transformLatex(s: string): string {
       if (closeIdx === -1) throw new Error("Unmatched '|' in LaTeX source");
       const inner = s.slice(i + 1, closeIdx);
       i = closeIdx + 1;
-      out += `abs(${transformLatex(inner)})`;
+      out += `abs(${transformLatex(inner, opts)})`;
+      continue;
+    }
+    if (implicit && ch === "^" && /^[a-zA-Z0-9]|^\\[a-zA-Z]/.test(s.slice(i + 1))) {
+      // TeX reads `x^23` as `x^2` times `3`: the exponent is one token
+      const m = /^(?:\\[a-zA-Z]+|[a-zA-Z0-9])/.exec(s.slice(i + 1)) as RegExpExecArray;
+      i += 1 + m[0].length;
+      out += `^(${transformLatex(m[0], opts)})`;
       continue;
     }
     if (ch === "^" && s[i + 1] === "{") {
       const { content, next } = extractGroup(s, i + 1);
       i = next;
-      out += `^(${transformLatex(content)})`;
+      out += `^(${transformLatex(content, opts)})`;
       continue;
     }
     if (ch === "_" && s[i + 1] === "{") {
@@ -3808,7 +3919,7 @@ function transformLatex(s: string): string {
     if (ch === "{") {
       const { content, next } = extractGroup(s, i);
       i = next;
-      out += `(${transformLatex(content)})`;
+      out += `(${transformLatex(content, opts)})`;
       continue;
     }
     if (ch === "=") {
@@ -4499,12 +4610,19 @@ function limitAt(e: Expr, x: string, point: number, direction: "left" | "right" 
 }
 
 // -- recursive-descent parser ----------------------------------------------
+/** Every name the parser treats as a function, longest first, so `asinh(` is not read as `a*sinh(`. */
+const FUNCTION_NAMES_LONGEST_FIRST: string[] = [...FUNCTION_NAMES].sort((a, b) => b.length - a.length);
+
 class Parser {
   private readonly s: string;
+  private readonly implicit: boolean;
   private pos = 0;
 
-  constructor(input: string) {
-    this.s = input.replace(/\s+/g, "");
+  constructor(input: string, options: ParseOptions = {}) {
+    this.implicit = options.implicitMultiplication === true;
+    // With implicit multiplication, white space between two numbers is a product (`2 3`), not one number.
+    const spaced = this.implicit ? input.replace(/(\d)\s+(?=[\d.])/g, "$1*") : input;
+    this.s = spaced.replace(/\s+/g, "");
   }
 
   parse(): Expr {
@@ -4625,12 +4743,34 @@ class Parser {
 
   private term(): Expr {
     let left = this.factor();
-    while (this.peek() === "*" || this.peek() === "/") {
-      const op = this.s[this.pos++];
-      const right = this.factor();
-      left = op === "*" ? mul(left, right) : div(left, right);
+    for (;;) {
+      const ch = this.peek();
+      if (ch === "*" || ch === "/") {
+        this.pos++;
+        const right = this.factor();
+        left = ch === "*" ? mul(left, right) : div(left, right);
+      } else if (this.implicit && /[a-zA-Z0-9.(]/.test(ch)) {
+        left = mul(left, this.factor()); // juxtaposition: `2x`, `x y`, `2(x+1)`
+      } else {
+        return left;
+      }
     }
-    return left;
+  }
+
+  /**
+   * The identifier at `this.pos` under implicit multiplication: a function name followed by `(`, `pi`, or a
+   * single letter with an optional `_subscript`. A letter run like `xy` is therefore read one letter at a time.
+   */
+  private implicitIdentifier(): string {
+    const rest = this.s.slice(this.pos);
+    const run = /^[a-zA-Z]+/.exec(rest)?.[0] ?? "";
+    const call = FUNCTION_NAMES_LONGEST_FIRST.find((f) => rest.startsWith(f) && rest[f.length] === "(");
+    if (call) return call;
+    const bare = FUNCTION_NAMES_LONGEST_FIRST.find((f) => f.length > 1 && run.startsWith(f));
+    if (bare) throw new Error(`Function ${bare} needs parentheses: ${bare}(...)`);
+    if (rest.startsWith("pi")) return "pi";
+    const sub = /^[a-zA-Z]_(?:\d+|[a-zA-Z])/.exec(rest);
+    return sub ? sub[0] : rest[0];
   }
 
   private factor(): Expr {
@@ -4668,9 +4808,11 @@ class Parser {
       return num(Number(numMatch[0]));
     }
     // identifier (function or variable or constant)
-    const idMatch = /^[a-zA-Z_]\w*/.exec(this.s.slice(this.pos));
+    const idMatch = this.implicit
+      ? /^[a-zA-Z_]/.exec(this.s.slice(this.pos))
+      : /^[a-zA-Z_]\w*/.exec(this.s.slice(this.pos));
     if (idMatch) {
-      const name = idMatch[0];
+      const name = this.implicit ? this.implicitIdentifier() : idMatch[0];
       this.pos += name.length;
       if ((name === "log" || name === "clamp") && this.peek() === "(") {
         this.pos++;

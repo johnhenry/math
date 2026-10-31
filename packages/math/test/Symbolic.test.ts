@@ -1559,6 +1559,181 @@ test("solveOde2ndOrderConstCoeff throws DegenerateOdeError when a === 0", () => 
   assert.throws(() => Symbolic.solveOde2ndOrderConstCoeff(0, 1, 1, 0, 1, 0), DegenerateOdeError);
 });
 
+// --- implicit multiplication (parse option) and Desmos-style LaTeX ---
+
+const IM = { implicitMultiplication: true };
+const parseIm = (src: string) => Symbolic.toString(Symbolic.parse(src, IM));
+const latexIm = (src: string) => Symbolic.toString(Symbolic.fromLatex(src, IM));
+const latex = (src: string) => Symbolic.toString(Symbolic.fromLatex(src));
+/** The value of the parsed expression at a few points, so two spellings can be compared without caring about tree shape. */
+const sameValue = (a: string, b: string, vars = ["x", "y"]) => {
+  for (const x of [0.5, 1.7, -2.3]) {
+    const env = Object.fromEntries(vars.map((v, i) => [v, x + i]));
+    assert.ok(
+      Math.abs(Symbolic.evaluate(a, env) - Symbolic.evaluate(b, env)) < 1e-9,
+      `${a} vs ${b} at ${JSON.stringify(env)}`,
+    );
+  }
+};
+
+test("parse without the option keeps the strict grammar: 2x and 2(x+1) are errors, xy is one variable", () => {
+  assert.throws(() => Symbolic.parse("2x"));
+  assert.throws(() => Symbolic.parse("2(x+1)"));
+  assert.throws(() => Symbolic.parse("(x+1)(x-1)"));
+  assert.deepEqual(Symbolic.freeVariables("xy"), ["xy"]);
+  assert.deepEqual(Symbolic.freeVariables(Symbolic.parse("xy", { implicitMultiplication: false })), ["xy"]);
+});
+
+test("implicitMultiplication: 2x, x y, xy, 2(x+1), (x+1)(x-1), x(x+1)", () => {
+  assert.equal(parseIm("2x"), "2*x");
+  assert.equal(parseIm("x y"), "x*y");
+  assert.equal(parseIm("xy"), "x*y");
+  assert.equal(parseIm("2(x+1)"), "2*(x + 1)");
+  assert.equal(parseIm("(x+1)(x-1)"), "(x + 1)*(x - 1)");
+  assert.equal(parseIm("x(x+1)"), "x*(x + 1)");
+  assert.equal(parseIm("2x^2+3x+1"), "2*x^2 + 3*x + 1");
+  assert.equal(parseIm("3sin(x)"), "3*sin(x)");
+  assert.equal(parseIm("xsin(x)"), "x*sin(x)");
+  assert.equal(parseIm("2 3"), "2*3");
+  assert.equal(Symbolic.evaluate(Symbolic.parse("2x(x+1)", IM), { x: 3 }), 24);
+});
+
+test("implicitMultiplication: precedence matches * and / (left to right); ^ binds tighter", () => {
+  assert.equal(Symbolic.evaluate(Symbolic.parse("1/2x", IM), { x: 4 }), 2);
+  assert.equal(Symbolic.evaluate(Symbolic.parse("2x^2", IM), { x: 3 }), 18);
+  assert.equal(Symbolic.evaluate(Symbolic.parse("-2x", IM), { x: 3 }), -6);
+  assert.equal(Symbolic.evaluate(Symbolic.parse("2^3x", IM), { x: 2 }), 16);
+  assert.equal(Symbolic.evaluate(Symbolic.parse("x-2y", IM), { x: 10, y: 3 }), 4);
+});
+
+test("implicitMultiplication: functions, pi, e and subscripts keep their meaning", () => {
+  assert.equal(parseIm("asinh(x)y"), "asinh(x)*y");
+  assert.equal(parseIm("max(a,b)c"), "max(a, b)*c");
+  assert.equal(parseIm("exp(x)"), "exp(x)");
+  assert.equal(Symbolic.evaluate(Symbolic.parse("2pi", IM), {}), 2 * Math.PI);
+  assert.equal(Symbolic.evaluate(Symbolic.parse("2e", IM), {}), 2 * Math.E);
+  assert.equal(Symbolic.evaluate(Symbolic.parse("2e3", IM), {}), 2000);
+  assert.deepEqual(Symbolic.freeVariables(Symbolic.parse("x_1 y_2", IM)), ["x_1", "y_2"]);
+  assert.equal(parseIm("piecewise(x<0, -x, 2x)"), "piecewise(x<0, -x, 2*x)");
+  assert.equal(parseIm("sum(i, 1, 4, 2i)"), Symbolic.toString(Symbolic.parse("sum(i, 1, 4, 2*i)")));
+});
+
+test("implicitMultiplication: a function name without parentheses is an error, not s*i*n*x", () => {
+  assert.throws(() => Symbolic.parse("sin x", IM), /needs parentheses/);
+  assert.throws(() => Symbolic.parse("sinx", IM), /needs parentheses/);
+});
+
+test("implicitMultiplication: strict inputs parse the same with the option on", () => {
+  for (const src of ["x^2 + 1", "sin(x)*cos(y)", "(x+1)/(x-1)", "2*x - 3", "abs(x) + sqrt(y)", "x<=3", "atan2(y, x)"]) {
+    assert.equal(parseIm(src), Symbolic.toString(Symbolic.parse(src)), src);
+  }
+});
+
+test("fromLatex reads TeX's one-token arguments: \\frac12, \\frac1x, \\sqrt2, \\sin x (no option needed)", () => {
+  assert.equal(latex("\\frac12"), "1/2");
+  assert.equal(latex("\\frac1x"), "1/x");
+  assert.equal(latex("\\frac{x}2"), "x/2");
+  assert.equal(latex("\\frac 12"), "1/2");
+  assert.equal(latex("\\sqrt2"), "sqrt(2)");
+  assert.equal(latex("\\sqrt x"), "sqrt(x)");
+  assert.equal(latex("\\sin x"), "sin(x)");
+  assert.equal(latex("\\ln x"), "ln(x)");
+  assert.equal(latex("\\frac{\\pi}{2}"), latex("\\frac\\pi2"));
+});
+
+test("fromLatex accepts a power on a function command: \\sin^{2}(x), \\sin^2 x, \\log_{2}^{2}(x)", () => {
+  assert.equal(latex("\\sin^{2}(x)"), "sin(x)^2");
+  assert.equal(latex("\\sin^2 x"), "sin(x)^2");
+  assert.equal(latex("\\sin^{2}\\left(x\\right)"), "sin(x)^2");
+  assert.equal(latex("\\ln^2(x)"), "ln(x)^2");
+  assert.equal(Symbolic.evaluate(Symbolic.fromLatex("\\cos^{2}(x)+\\sin^{2}(x)"), { x: 0.7 }), 1);
+});
+
+test("fromLatex without the option still rejects implicit multiplication", () => {
+  assert.throws(() => Symbolic.fromLatex("2x"));
+  assert.throws(() => Symbolic.fromLatex("\\sin 2x"));
+  assert.throws(() => Symbolic.fromLatex("3\\left(x+1\\right)"));
+  assert.equal(latex("x^23"), "x^23", "default exponent reading is unchanged");
+});
+
+test("fromLatex with implicitMultiplication: what MathLive writes while a person types", () => {
+  assert.equal(latexIm("2x"), "2*x");
+  assert.equal(latexIm("2x^2+3x+1"), "2*x^2 + 3*x + 1");
+  assert.equal(latexIm("xy"), "x*y");
+  assert.equal(latexIm("\\sin x"), "sin(x)");
+  assert.equal(latexIm("\\sin 2x"), "sin(2*x)");
+  assert.equal(latexIm("\\sin x\\cos x"), "sin(x)*cos(x)");
+  assert.equal(latexIm("\\sin^{2}(x)"), "sin(x)^2");
+  assert.equal(latexIm("\\sin^2 x"), "sin(x)^2");
+  assert.equal(latexIm("\\frac12"), "1/2");
+  assert.equal(latexIm("3\\left(x+1\\right)"), "3*(x + 1)");
+  assert.equal(latexIm("\\left(x+1\\right)\\left(x-1\\right)"), "(x + 1)*(x - 1)");
+  assert.equal(latexIm("x\\cdot y\\times z"), "x*y*z");
+  assert.equal(latexIm("2\\sqrt x"), "2*sqrt(x)");
+  assert.equal(latexIm("\\sin 2\\pi x"), Symbolic.toString(Symbolic.parse("sin(2*pi*x)")));
+  assert.equal(latexIm("\\log_{2} 8x"), "log2(8*x)");
+});
+
+test("fromLatex with implicitMultiplication: exponents are one token, as TeX reads them", () => {
+  assert.equal(latexIm("x^23"), "x^2*3");
+  assert.equal(latexIm("x^{23}"), "x^23");
+  assert.equal(latexIm("2^{3^x}"), "2^3^x");
+  assert.equal(latexIm("e^{-x^2}"), Symbolic.toString(Symbolic.parse("e^(-x^2)")));
+  assert.equal(latexIm("e^x"), Symbolic.toString(Symbolic.parse("e^x")));
+});
+
+test("fromLatex with implicitMultiplication: a bare argument stops at + - = and at the next command", () => {
+  assert.equal(latexIm("\\sin x+1"), "sin(x) + 1");
+  assert.equal(latexIm("\\sin x-\\cos x"), "sin(x) - cos(x)");
+  assert.equal(latexIm("\\sin x = 1"), "sin(x)==1");
+  assert.equal(latexIm("\\sin x \\cdot y"), "sin(x)*y");
+  assert.equal(latexIm("\\sin x \\cos x"), "sin(x)*cos(x)");
+});
+
+test("fromLatex with implicitMultiplication still reads everything the strict reader does", () => {
+  for (const src of [
+    "\\frac{x^{2}}{2}",
+    "\\sqrt[3]{x}",
+    "\\sqrt[5]{x}",
+    "\\left\\lfloor x\\right\\rfloor",
+    "\\log_{2}(x)",
+    "\\operatorname{sech}(x)",
+    "x \\le 3",
+    "\\left|x\\right|",
+    "\\max(a,b)",
+    "x \\cdot 2 + \\pi",
+  ]) {
+    assert.equal(latexIm(src), Symbolic.toString(Symbolic.fromLatex(src)), src);
+  }
+  // a row separator followed by a space is not the `\\ ` spacing command
+  assert.equal(
+    Symbolic.toString(Symbolic.fromLatex("\\begin{cases} 1 & x<0 \\\\ 2 & \\text{otherwise} \\end{cases}")),
+    "piecewise(x<0, 1, 2)",
+  );
+  assert.equal(latexIm("\\begin{cases} 1 & x<0 \\\\ 2 & \\text{otherwise} \\end{cases}"), "piecewise(x<0, 1, 2)");
+});
+
+test("implicit-multiplication LaTeX is value-equivalent to the explicit spelling", () => {
+  const pairs: [string, string][] = [
+    ["2x", "2*x"],
+    ["xy", "x*y"],
+    ["\\sin 2x", "sin(2*x)"],
+    ["\\frac12x", "1/2*x"],
+    ["3\\left(x+1\\right)", "3*(x+1)"],
+    ["x\\left(y+1\\right)", "x*(y+1)"],
+  ];
+  for (const [l, e] of pairs) sameValue(Symbolic.toString(Symbolic.fromLatex(l, IM)), e);
+});
+
+test("fromLatex reads \\dfrac, \\tfrac and a \\text{if } label in a cases row", () => {
+  assert.equal(latex("\\dfrac{x}{2}"), "x/2");
+  assert.equal(latex("\\tfrac12"), "1/2");
+  assert.equal(
+    latex("\\begin{cases} -x & \\text{if } x < 0 \\\\ x & \\text{otherwise} \\end{cases}"),
+    "piecewise(x<0, -x, x)",
+  );
+});
+
 // --- simplify expands products and cancels common factors (math#92) ---
 
 const simp = (s: string) => Symbolic.toString(Symbolic.simplify(s));
@@ -1708,4 +1883,40 @@ test("simplify cancels only exact factors: x/(x+1) and sin(x)/(sin(x)+1) are lef
   assert.equal(simp("x/(x+1)"), "x/(x + 1)");
   assert.equal(simp("sin(x)/(sin(x)+1)"), "sin(x)/(sin(x) + 1)");
   assert.equal(simp("(x+1)/(x+2)"), "(x + 1)/(x + 2)");
+});
+
+// --- review of math#101: ambiguity, option robustness, default grammar pinned ---
+
+test("fromLatex refuses a -1 exponent on a function command (arcsin vs reciprocal is ambiguous)", () => {
+  for (const src of [
+    "\\sin^{-1}(x)",
+    "\\sin^{-1}x",
+    "\\cos^{ -1 }(x)",
+    "\\ln^{-1}(x)",
+    "\\operatorname{sech}^{-1}(x)",
+  ]) {
+    assert.throws(() => Symbolic.fromLatex(src), /Ambiguous LaTeX/, src);
+    assert.throws(() => Symbolic.fromLatex(src, IM), /Ambiguous LaTeX/, `${src} (implicit)`);
+  }
+  // other negative powers are unambiguous, and the spelled-out forms work
+  assert.equal(latex("\\sin^{-2}(x)"), "sin(x)^(-2)");
+  assert.equal(latex("\\arcsin(x)"), "asin(x)");
+  assert.equal(latex("\\left(\\sin x\\right)^{-1}"), "sin(x)^(-1)");
+});
+
+test("parse tolerates being passed as a bare callback (index/array arrive as `options`) and null options", () => {
+  assert.deepEqual(["x+1", "2*y"].map(Symbolic.parse), [Symbolic.parse("x+1"), Symbolic.parse("2*y")]);
+  assert.deepEqual(Symbolic.parse("x+1", null as unknown as undefined), Symbolic.parse("x+1"));
+  assert.throws(() => ["2x"].map(Symbolic.parse));
+});
+
+test("default grammar is pinned: strict inputs parse to the same trees with options absent, {} or false", () => {
+  for (const src of ["x^2 + 1", "sin(x)*cos(y)", "xy + theta_1", "2e3*x", "e^x", "piecewise(x<0, -x, x)", "a_b/c"]) {
+    const base = Symbolic.parse(src);
+    assert.deepEqual(Symbolic.parse(src, {}), base, src);
+    assert.deepEqual(Symbolic.parse(src, { implicitMultiplication: false }), base, src);
+  }
+  for (const bad of ["2x", "2(x+1)", "(x+1)(x-1)", "3sin(x)"]) {
+    assert.throws(() => Symbolic.parse(bad), undefined, bad);
+  }
 });

@@ -232,6 +232,18 @@ Symbolic.toString(Symbolic.fromLatex("\\sqrt[3]{x}")); // "cbrt(x)" — not a fr
 // since Math.cbrt(-8) = -2 but (-8)^(1/3) is NaN under JS's `**`.
 Symbolic.toString(Symbolic.fromLatex("\\sqrt[5]{x}")); // "x^(1/5)" — any other root stays a fractional power
 
+// What people type into a math field is looser than the strict grammar. With
+// `implicitMultiplication`, juxtaposition multiplies (default off: `2x` is an error):
+Symbolic.toString(Symbolic.parse("2x + 3(x+1)", { implicitMultiplication: true })); // => "2*x + 3*(x + 1)"
+Symbolic.toString(Symbolic.parse("x y", { implicitMultiplication: true })); // => "x*y"
+// ...and fromLatex then reads Desmos-style LaTeX: bare arguments and one-token exponents.
+Symbolic.toString(Symbolic.fromLatex("\\sin 2x", { implicitMultiplication: true })); // => "sin(2*x)"
+Symbolic.toString(Symbolic.fromLatex("3\\left(x+1\\right)", { implicitMultiplication: true })); // => "3*(x + 1)"
+// \frac12, \sqrt2 and \sin^{2}(x) need no option:
+Symbolic.toString(Symbolic.fromLatex("\\frac12")); // => "1/2"
+Symbolic.toString(Symbolic.fromLatex("\\sin^{2}(x)")); // => "sin(x)^2"
+// \sin^{-1} throws as ambiguous (arcsin or 1/sin?): spell it \arcsin(x) or (\sin x)^{-1}.
+
 // arcsin/arccos/arctan/arcsinh/arccosh/arctanh are accepted as aliases for
 // asin/acos/atan/asinh/acosh/atanh — both spellings parse identically:
 Symbolic.toString(Symbolic.parse("arctan(x)")); // => "atan(x)"
