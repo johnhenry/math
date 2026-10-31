@@ -25,6 +25,16 @@ export class DualNumber {
     return new DualNumber(x, 1);
   }
 
+  /**
+   * Builds a dual number whose value may be outside the function's domain. A
+   * NaN value (e.g. `log` of a negative) makes the derivative NaN too, rather
+   * than leaving a finite-looking derivative (`x.deriv / x.value`) next to a
+   * meaningless value.
+   */
+  private static domain(value: number, deriv: number): DualNumber {
+    return new DualNumber(value, Number.isNaN(value) ? Number.NaN : deriv);
+  }
+
   private static lift(x: DualNumber | number): DualNumber {
     return x instanceof DualNumber ? x : new DualNumber(x, 0);
   }
@@ -62,7 +72,7 @@ export class DualNumber {
     // general formula entirely rather than let it hit that indeterminate
     // form (issue #74).
     if (n === 0) return new DualNumber(1, 0);
-    return new DualNumber(this.value ** n, n * this.value ** (n - 1) * this.deriv);
+    return DualNumber.domain(this.value ** n, n * this.value ** (n - 1) * this.deriv);
   }
 
   static sin(x: DualNumber): DualNumber {
@@ -80,11 +90,11 @@ export class DualNumber {
     return new DualNumber(e, e * x.deriv);
   }
   static log(x: DualNumber): DualNumber {
-    return new DualNumber(Math.log(x.value), x.deriv / x.value);
+    return DualNumber.domain(Math.log(x.value), x.deriv / x.value);
   }
   static sqrt(x: DualNumber): DualNumber {
     const s = Math.sqrt(x.value);
-    return new DualNumber(s, x.deriv / (2 * s));
+    return DualNumber.domain(s, x.deriv / (2 * s));
   }
 
   /** The derivative of `f` at `x`, evaluated exactly via dual numbers. */
