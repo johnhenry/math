@@ -212,7 +212,8 @@ Symbolic.evaluate("x^2 + 1", { x: 3 }); // => 10
 // Algebraic simplification collects like terms, not just identities:
 Symbolic.toString(Symbolic.simplify("a*b + b*a")); // => "2*(a*b)"
 Symbolic.toString(Symbolic.expand("(x+1)^2")); // => "x^2 + 2*x + 1"
-// ...and it expands products and cancels common factors when that makes the result smaller:
+// ...and it expands products and cancels common factors when that makes the result smaller
+// (cancellation ignores points where the original is undefined, e.g. x = 1 below):
 Symbolic.toString(Symbolic.simplify("(x+1)^2 - x^2 - 2*x")); // => "1"
 Symbolic.toString(Symbolic.simplify("(x^2-1)/(x-1)")); // => "x + 1"
 Symbolic.toString(Symbolic.substitute("x^2 + 1", "x", "y+1")); // in terms of y
