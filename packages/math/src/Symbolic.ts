@@ -469,7 +469,7 @@ export class Symbolic {
    * Pass `{ implicitMultiplication: true }` to also read `2x`, `x y` and `2(x+1)`; see {@link ParseOptions}.
    */
   static parse(input: string, options: ParseOptions = {}): Expr {
-    return new Parser(input, options).parse();
+    return new Parser(input, options ?? {}).parse();
   }
 
   static differentiate(expr: Expr | string, variable = "x"): Expr {
@@ -881,7 +881,8 @@ export class Symbolic {
    * `\operatorname{atan2}`, `\operatorname{hypot}`, `\operatorname{lcm}`).
    * Spacing commands (`\,`, `\;`, `\!`, `\quad`) are ignored. Single-token arguments as TeX
    * reads them (`\frac12`, `\frac1x`, `\sqrt2`) and a power on a function command
-   * (`\sin^{2}(x)` is `sin(x)^2`) are accepted. For what people type into a math field
+   * (`\sin^{2}(x)` is `sin(x)^2`) are accepted. An exponent of `-1` on a function command (`\sin^{-1}`) is
+   * refused as ambiguous (inverse function or reciprocal): write `\arcsin(x)` or `(\sin x)^{-1}`. For what people type into a math field
    * (`2x`, `\sin 2x`, `(x+1)(x-1)`, `x^23`) pass `{ implicitMultiplication: true }`; see {@link ParseOptions}.
    *
    * @throws on LaTeX constructs with no `Expr` equivalent, e.g. `\int` or `\sum`.
@@ -3733,7 +3734,16 @@ function transformLatex(s: string, opts: ParseOptions = {}): string {
   const readFunctionPower = (): string | null => {
     if (s[i] !== "^") return null;
     i++;
-    return readGroupOrToken();
+    const power = readGroupOrToken();
+    // `\sin^{-1}` is arcsin in most textbooks and calculators but 1/sin in strict TeX/notation; guessing
+    // wrong would silently change the maths, so it is refused rather than interpreted.
+    if (/^\s*-\s*1\s*$/.test(power)) {
+      throw new Error(
+        "Ambiguous LaTeX: a function with exponent -1 (e.g. \\sin^{-1}) may mean the inverse function or the reciprocal; " +
+          "write \\arcsin(x) for the inverse, or (\\sin x)^{-1} / 1/\\sin x for the reciprocal",
+      );
+    }
+    return power;
   };
 
   /** Read a `(...)`/`{...}` group holding exactly 2 comma-separated arguments, for `call2` functions. */

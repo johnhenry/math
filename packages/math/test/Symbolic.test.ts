@@ -1732,6 +1732,7 @@ test("fromLatex reads \\dfrac, \\tfrac and a \\text{if } label in a cases row", 
     latex("\\begin{cases} -x & \\text{if } x < 0 \\\\ x & \\text{otherwise} \\end{cases}"),
     "piecewise(x<0, -x, x)",
   );
+});
 
 // --- simplify expands products and cancels common factors (math#92) ---
 
@@ -1882,4 +1883,40 @@ test("simplify cancels only exact factors: x/(x+1) and sin(x)/(sin(x)+1) are lef
   assert.equal(simp("x/(x+1)"), "x/(x + 1)");
   assert.equal(simp("sin(x)/(sin(x)+1)"), "sin(x)/(sin(x) + 1)");
   assert.equal(simp("(x+1)/(x+2)"), "(x + 1)/(x + 2)");
+});
+
+// --- review of math#101: ambiguity, option robustness, default grammar pinned ---
+
+test("fromLatex refuses a -1 exponent on a function command (arcsin vs reciprocal is ambiguous)", () => {
+  for (const src of [
+    "\\sin^{-1}(x)",
+    "\\sin^{-1}x",
+    "\\cos^{ -1 }(x)",
+    "\\ln^{-1}(x)",
+    "\\operatorname{sech}^{-1}(x)",
+  ]) {
+    assert.throws(() => Symbolic.fromLatex(src), /Ambiguous LaTeX/, src);
+    assert.throws(() => Symbolic.fromLatex(src, IM), /Ambiguous LaTeX/, `${src} (implicit)`);
+  }
+  // other negative powers are unambiguous, and the spelled-out forms work
+  assert.equal(latex("\\sin^{-2}(x)"), "sin(x)^(-2)");
+  assert.equal(latex("\\arcsin(x)"), "asin(x)");
+  assert.equal(latex("\\left(\\sin x\\right)^{-1}"), "sin(x)^(-1)");
+});
+
+test("parse tolerates being passed as a bare callback (index/array arrive as `options`) and null options", () => {
+  assert.deepEqual(["x+1", "2*y"].map(Symbolic.parse), [Symbolic.parse("x+1"), Symbolic.parse("2*y")]);
+  assert.deepEqual(Symbolic.parse("x+1", null as unknown as undefined), Symbolic.parse("x+1"));
+  assert.throws(() => ["2x"].map(Symbolic.parse));
+});
+
+test("default grammar is pinned: strict inputs parse to the same trees with options absent, {} or false", () => {
+  for (const src of ["x^2 + 1", "sin(x)*cos(y)", "xy + theta_1", "2e3*x", "e^x", "piecewise(x<0, -x, x)", "a_b/c"]) {
+    const base = Symbolic.parse(src);
+    assert.deepEqual(Symbolic.parse(src, {}), base, src);
+    assert.deepEqual(Symbolic.parse(src, { implicitMultiplication: false }), base, src);
+  }
+  for (const bad of ["2x", "2(x+1)", "(x+1)(x-1)", "3sin(x)"]) {
+    assert.throws(() => Symbolic.parse(bad), undefined, bad);
+  }
 });

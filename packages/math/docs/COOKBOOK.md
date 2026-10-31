@@ -242,6 +242,7 @@ Symbolic.toString(Symbolic.fromLatex("3\\left(x+1\\right)", { implicitMultiplica
 // \frac12, \sqrt2 and \sin^{2}(x) need no option:
 Symbolic.toString(Symbolic.fromLatex("\\frac12")); // => "1/2"
 Symbolic.toString(Symbolic.fromLatex("\\sin^{2}(x)")); // => "sin(x)^2"
+// \sin^{-1} throws as ambiguous (arcsin or 1/sin?): spell it \arcsin(x) or (\sin x)^{-1}.
 
 // arcsin/arccos/arctan/arcsinh/arccosh/arctanh are accepted as aliases for
 // asin/acos/atan/asinh/acosh/atanh — both spellings parse identically:
