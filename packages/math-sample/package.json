@@ -54,7 +54,7 @@
   "author": "John Henry",
   "license": "MIT",
   "peerDependencies": {
-    "@johnhenry/math": ">=0.0.0 <0.1.0"
+    "@johnhenry/math": "^0.1.0"
   },
   "peerDependenciesMeta": {
     "@johnhenry/math": {
@@ -62,7 +62,7 @@
     }
   },
   "devDependencies": {
-    "@johnhenry/math": ">=0.0.0 <0.1.0",
+    "@johnhenry/math": "^0.1.0",
     "@types/node": "^22.10.0",
     "typescript": "^5.9.0"
   },

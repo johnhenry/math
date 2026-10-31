@@ -47,3 +47,8 @@ test("tickStep and formatTick agree on precision", () => {
   assert.equal(formatTick(1500, 500), "1500");
   assert.equal(formatTick(-0, 1), "0");
 });
+
+test("niceTicks returns [] rather than a run of zeros for a range too small to represent", () => {
+  assert.deepEqual(niceTicks(0, 1e-24), []);
+  assert.deepEqual(niceTicks(0, 1e-12).length > 0, true);
+});

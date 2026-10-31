@@ -44,3 +44,13 @@ test("svgDocument wraps content with a viewBox", () => {
   assert.match(doc, /^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" width="300" height="200" viewBox="0 0 300 200">/);
   assert.match(doc, /<g\/>\n<\/svg>$/);
 });
+
+test("axesToSvg escapes caller-supplied colours so they cannot break out of the attribute", () => {
+  const svg = axesToSvg({ xMin: -1, xMax: 1, yMin: -1, yMax: 1 }, 100, 100, {
+    stroke: '#000" onload="x',
+    labelFill: "<b>",
+  });
+  assert.ok(!svg.includes('onload="x'));
+  assert.ok(svg.includes("&quot; onload=&quot;x"));
+  assert.ok(svg.includes("&lt;b&gt;"));
+});

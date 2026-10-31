@@ -55,7 +55,7 @@ the polylines to draw.
   (a pole's finite but enormous shoulders) is treated as a gap, and the curve
   is capped with an interpolated point just inside the edge, so it runs up to
   the border of the plot instead of stopping short. Also sets the default
-  tolerance and enables jump detection.
+  tolerance and, for `sampleAdaptive`, enables jump detection (`sampleUniform` does not detect jumps).
 - `signal` (`{ aborted: boolean }`, so any `AbortSignal`) and `isCancelled: () => boolean`:
   checked every 256 evaluations; either one makes the sampler throw
   `SampleCancelledError`. `isCancelled: () => generation !== latest` is the
@@ -113,8 +113,10 @@ string and params, compile there, sample, and `postMessage` the arrays with
 
 ## What it does not do (yet)
 
-- **No implicit multiplication in source text.** `2x` fails to parse; write
-  `2*x`. The option is a follow-up for when `@johnhenry/math` releases it.
+- **Implicit multiplication is opt-in.** `2x` fails to parse by default; write
+  `2*x`, or pass `compileExpression(src, { implicitMultiplication: true })`
+  (needs `@johnhenry/math` 0.1.0+; multi-letter variable names such as `theta`
+  then become products, use `x_1`).
 - **1D `y = f(x)` only.** Implicit/interval curves, parametric and polar,
   surfaces, ODEs and series samplers are planned as later parts.
 - **Gaps from steep or fast-oscillating functions.** Jump detection is a

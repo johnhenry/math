@@ -1,6 +1,7 @@
 /**
  * The step "nice numbers" tick generation uses for `[min, max]`: the value of
- * 1, 2, 5 or 10 times a power of ten nearest `(max - min) / targetCount`.
+ * 1, 2, 5 or 10 times a power of ten at or just above `(max - min) / targetCount`
+ * (rounded up, so there are never more than about `targetCount` ticks).
  * Returns `NaN` for a degenerate range.
  */
 export function tickStep(min: number, max: number, targetCount = 6): number {
@@ -20,7 +21,7 @@ export function tickStep(min: number, max: number, targetCount = 6): number {
  */
 export function niceTicks(min: number, max: number, targetCount = 6): number[] {
   const step = tickStep(min, max, targetCount);
-  if (!Number.isFinite(step)) return [];
+  if (!Number.isFinite(step) || step < 1e-20) return []; // below this, fixed-point rounding would collapse every tick to 0
   const decimals = decimalsOf(step);
   const first = Math.ceil(min / step - 1e-9);
   const last = Math.floor(max / step + 1e-9);

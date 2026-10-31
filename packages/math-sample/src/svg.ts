@@ -43,6 +43,11 @@ export function samplesToSvgPath(
   return parts.join(" ");
 }
 
+/** Escape a value for use inside a double-quoted SVG attribute, so a caller-supplied colour cannot break out of it. */
+function attr(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 export interface AxesOptions {
   /** Approximate tick count per axis. Default 6. */
   targetTickCount?: number;
@@ -64,9 +69,9 @@ export interface AxesOptions {
 export function axesToSvg(viewport: Viewport, width: number, height: number, options: AxesOptions = {}): string {
   const { xMin, xMax, yMin, yMax } = viewport;
   if (!(xMax > xMin) || !(yMax > yMin)) return "";
-  const stroke = options.stroke ?? "#888";
-  const fill = options.labelFill ?? "#222";
-  const fontSize = options.fontSize ?? 11;
+  const stroke = attr(options.stroke ?? "#888");
+  const fill = attr(options.labelFill ?? "#222");
+  const fontSize = options.fontSize !== undefined && Number.isFinite(options.fontSize) ? options.fontSize : 11;
   const count = options.targetTickCount ?? 6;
   const half = 4;
   const font = `font-size="${fontSize}" font-family="system-ui, sans-serif"`;

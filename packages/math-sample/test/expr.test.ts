@@ -19,6 +19,15 @@ test("the returned function is reusable and does not leak state between calls", 
   assert.equal(f(5), 25);
 });
 
-test("explicit multiplication is required until @johnhenry/math ships the implicit option", () => {
+test("explicit multiplication is required by default", () => {
   assert.throws(() => compileExpression("2x")(1));
+  assert.throws(() => compileExpression("2x", { implicitMultiplication: false })(1));
+});
+
+test("implicitMultiplication: true reads 2x, 3sin(x) and (x+1)(x-1)", () => {
+  const opt = { implicitMultiplication: true };
+  assert.equal(compileExpression("2x", opt)(4), 8);
+  assert.equal(compileExpression("3sin(x)", opt)(0), 0);
+  assert.equal(compileExpression("(x+1)(x-1)", opt)(3), 8);
+  assert.equal(compileExpression("a x", { ...opt, params: { a: 5 } })(2), 10);
 });

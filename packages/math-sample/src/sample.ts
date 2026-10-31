@@ -34,7 +34,8 @@ export interface SampleOptions {
    * The y-range on screen. Samples far outside it (a pole's shoulders, which
    * are finite but huge) are treated as gaps, and the curve is capped with an
    * interpolated point at the edge of the range. Also sets the default
-   * adaptive tolerance, and enables jump detection.
+   * adaptive tolerance, and (for `sampleAdaptive` only; `sampleUniform` does
+   * not detect jumps) enables jump detection.
    */
   visibleYRange?: YRange;
   /** Abort when `signal.aborted` becomes true. Checked every few hundred evaluations. */
