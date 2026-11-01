@@ -2,8 +2,9 @@ name: Release
 
 # Changesets-driven publish, replacing the previous scripts/publish-workspaces.mjs
 # (a readdir-over-packages/ + per-package `npm view` idempotency guard). Same
-# deployment substrate as before (GitHub Actions + the NPM_TOKEN repository
-# secret), now modeled on johnhenry/math-plus's release.yml -- math is the
+# deployment substrate as before (GitHub Actions), publishing through npm trusted
+# publishing (GitHub OIDC, no token or secret; each package lists this repo and
+# this workflow as its trusted publisher), now modeled on johnhenry/math-plus's release.yml -- math is the
 # pilot for the family's Changesets-as-monorepo-standard decision (see
 # ecosystem-cohesion-plan.md section 2b):
 #
@@ -62,20 +63,16 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
-    # Secrets can't be referenced in `if:` directly, so surface it as env and
-    # gate the publish step on it -- the workflow stays green (and inert)
-    # until the token is configured, rather than failing every push.
-    env:
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0 # changesets needs history to diff against the base branch
 
+      # No registry-url: setup-node would write an .npmrc with a placeholder
+      # NODE_AUTH_TOKEN that npm sends as a bearer token instead of using OIDC.
       - uses: actions/setup-node@v4
         with:
           node-version: "26"
-          registry-url: "https://registry.npmjs.org"
           cache: npm
 
       - run: npm ci
@@ -88,13 +85,18 @@ jobs:
           npm run build
           npm run test:build
 
-      - name: No NPM_TOKEN — skipping release
-        if: env.NPM_TOKEN == ''
+      # npm trusted publishing (OIDC) needs npm 11.5.1 or newer, as in
+      # johnhenry/workflows' npm-publish.yml.
+      - name: Ensure npm supports trusted publishing
         run: |
-          echo "::notice title=Release skipped::NPM_TOKEN is not configured, so nothing was versioned or published."
+          have=$(npm --version)
+          if [ "$(printf '%s\n' "11.5.1" "$have" | sort -V | head -1)" != "11.5.1" ]; then
+            echo "npm $have is older than 11.5.1; upgrading for trusted publishing"
+            npm install -g npm@latest
+          fi
+          npm --version
 
       - name: Create version PR or publish
-        if: env.NPM_TOKEN != ''
         uses: changesets/action@v1
         with:
           publish: npm run release
@@ -102,7 +104,7 @@ jobs:
           commit: "chore: version packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # No NODE_AUTH_TOKEN: npm publishes through OIDC trusted publishing.
 
   # JSR dual-publish (issue #13) -- pre-existing, independent of the
   # Changesets migration above; unchanged except for running on this
