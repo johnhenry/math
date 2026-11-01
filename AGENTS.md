@@ -84,7 +84,6 @@ Releases use [Changesets](https://github.com/changesets/changesets) (the
 default branch, then merge the bot-opened "chore: version packages" PR.
 `.github/workflows/release.yml` verifies everything and publishes any
 workspace package whose version isn't yet on npm (idempotent — re-running,
-including manual `workflow_dispatch`, is safe). Requires the `NPM_TOKEN`
-repository secret. See the workflow file's header comment for how
+including manual `workflow_dispatch`, is safe). Publishes through npm trusted publishing (GitHub OIDC): no token or secret; each package lists `johnhenry/math` / `release.yml` as its trusted publisher. See the workflow file's header comment for how
 prerelease (`rc`) dist-tags work under Changesets, which differs from the
 retired `scripts/publish-workspaces.mjs`.
