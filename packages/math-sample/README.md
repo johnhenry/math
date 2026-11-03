@@ -1,6 +1,6 @@
 # @johnhenry/math-sample
 
-Sampling for plots, as a library with no DOM in it. Give it a `(x) => number`
+Sampling for plots (1D curves, 2D implicit/contour/gradient fields, 3D meshes, complex rasters, ODEs, series), as a library with no DOM in it. Give it a `(x) => number`
 (or an `@johnhenry/math` expression) and a viewport; get back `Float64Array`s
 with the poles and jumps already turned into gaps, plus the viewport maths,
 "nice" ticks and SVG path output a plot needs. Pure ESM, zero runtime
@@ -111,14 +111,110 @@ dependency**; the main entry never imports it. In a Worker: post the source
 string and params, compile there, sample, and `postMessage` the arrays with
 `[s.x.buffer, s.y.buffer]` as transferables.
 
+## 2D and 3D samplers, ODEs, series (part 2/3)
+
+All of these take plain functions, return typed arrays, and never draw spikes: a
+non-finite value is a **hole** (a gap row in curves, a skipped vertex in meshes,
+`NaN` in rasters). Everything that walks a grid accepts a **budget** and the
+cancellation options of part 1 (`signal`, `isCancelled`, which throw
+`SampleCancelledError`):
+
+```ts
+{ maxCells?: number; maxMillis?: number; now?: () => number }
+```
+
+When the budget runs out the sampler stops at a row (or slab) boundary and
+**returns what it has** with `progress: { rows, of, complete, reason? }`
+(`reason` is `"cells"` or `"time"`), so a UI can say "stopped at row 120 of 161:
+the time limit". The time limit is checked per row, so one row can overrun it.
+
+### 3D (typed-array meshes)
+
+| Function | Returns |
+|---|---|
+| `sampleSurface(f(x, y), xDomain, yDomain, { columns, rows, zRange, ...budget })` | `Mesh` for `z = f(x, y)` |
+| `sampleParametricSurface(f(u, v) => [x, y, z], uDomain, vDomain, opts)` | `Mesh` |
+| `sampleSpaceCurve(f(t) => [x, y, z], tDomain, { samples, maxStep, ...budget })` | `Curve3` |
+| `curve3Runs(curve)` | `[start, end)` row ranges of consecutive data |
+| `sampleVectorField3(f(x, y, z) => [a, b, c], xD, yD, zD, { grid, ...budget })` | `VectorField3` |
+
+`Mesh` is `{ positions: Float32Array, normals: Float32Array, indices: Uint32Array, valid: Uint8Array,
+vertexCount, columns, rows, bounds, progress }` (3 floats per vertex; triangles are counter-clockwise
+seen from the side the normals point to, which is `+z` for `sampleSurface`, and `dP/du x dP/dv` for a
+parametric surface). A hole vertex has `NaN` position, zero normal and `valid = 0`, and **no triangle
+references it**, so GPU upload needs no special casing. `zRange` also turns a pole's huge but finite
+shoulders into holes. A quad with one hole corner keeps its other triangle. `bounds` covers valid vertices.
+`Curve3` is `{ positions: Float64Array (3 per row), t, count, progress }` with `NaN` rows as gaps (never first,
+last or adjacent). `VectorField3` is `{ origins, vectors, magnitudes: Float32Array, maxMagnitude, count,
+skipped, progress }`; points where the field is non-finite are dropped and counted in `skipped`.
+
+### Complex functions
+
+`ComplexFn` is `(re, im) => [re, im]`.
+
+- `sampleComplexRaster(f, reDomain, imDomain, { width, height })`: `{ re, im, abs, arg: Float32Array,
+  width, height, progress }` sampled at cell centres, row 0 at the smallest imaginary part; `arg` in
+  `(-PI, PI]`. Colour it yourself (hue from `arg`, brightness from `abs`).
+- `conformalGrid(f, reDomain, imDomain, { reLines, imLines, samplesPerLine, bound, maxStep })`: the image of a
+  rectangular grid of lines as `{ kind: "re" | "im", value, x, y }[]`; `NaN` gaps where `|f| > bound` (a pole)
+  or a step exceeds `maxStep` (a branch cut).
+- `findZerosAndPoles(f, reDomain, imDomain, { grid, tolerance })`: argument principle on every grid cell
+  (winding number = zeros - poles), then Newton on `f` or `1/f` scaled by the multiplicity. Returns
+  `{ items: { re, im, kind, order, refined }[] }`. A zero and a pole in one cell cancel, and two distinct
+  roots in one cell are reported as one root of order 2 with `refined: false`: raise `grid` if you suspect it.
+
+### ODEs
+
+- `sampleSlopeField(f(x, y), xDomain, yDomain, { columns, rows })`: slopes and unit directions
+  (`dirX`, `dirY`; vertical slopes are `(0, +-1)`; `NaN` where undefined).
+- `integrateRk4(f(t, y[]) => number[], t0, y0[], tEnd, { steps })` and `integrateAdaptive(...,
+  { atol, rtol, hMin, hMax })` (Dormand-Prince 5(4)): a `Trajectory { t, y (steps x dim), dim, steps,
+  reason }` where `reason` is `"end" | "blowup" | "maxSteps" | "stopped" | "stepTooSmall"`. Either direction in
+  `t`. `stop(t, y)` ends the run; `blowup` (default 1e12) catches finite-time singularities cleanly.
+- `sampleSolutionCurve(f(x, y), x0, y0, xDomain, { method: "adaptive" | "rk4" })`: the solution through a
+  point both ways as `Samples`, ending (not spiking) at an asymptote.
+- `samplePhasePortrait(F(x, y) => [dx, dy], xDomain, yDomain, { grid, seeds, tMax, fixedPointStarts })`:
+  `{ field, trajectories, fixedPoints, progress }`. Fixed points are found by Newton from a grid of starts
+  and classified from the Jacobian by `classifyFixedPoint(J)`: `stable/unstable node`, `saddle`,
+  `stable/unstable spiral`, `center`, the star/degenerate case, or `non-hyperbolic` (det ~ 0; linearisation
+  says nothing). A `center` is a linear classification: the nonlinear system may spiral.
+
+### Series
+
+- `taylorCoefficients(expr, x0, order)` (in `/expr`, needs `@johnhenry/math`) then
+  `sampleTaylorPartialSums(coefficients, x0, domain, orders, samples)`: one curve per order.
+- `sampleSeriesPartialSums(term(k, x), from, domain, orders, samples)`: function-series partial sums in
+  one pass over `k` (each term evaluated once per sample).
+- `partialSums(term(k), from, to)`: numeric partial sums plus an Aitken delta-squared `limitEstimate`
+  (a hint, not a convergence proof).
+- `fourierCoefficients(f, { min, max }, terms)` (midpoint rule on 4096 samples by default; the interval is one
+  period), `evaluateFourier`, `sampleFourierPartialSums(coefficients, domain, orders)`. Trig form
+  `a0/2 + sum a_k cos(k pi (x - c) / L) + b_k sin(...)`. A function with jumps shows the Gibbs overshoot, as it should.
+
+### 2D (implicit, contours, gradient)
+
+- `sampleImplicit(f(x, y), xDomain, yDomain, { grid, level })`: marching squares, saddle cells settled by the
+  centre value. Segments come back as `Samples` rows: two endpoints then a `NaN` row per segment, so
+  `runsOf` gives one run per segment. Cells with a non-finite corner are skipped.
+- `sampleContours(f, xDomain, yDomain, { grid, levels | count })`: one pass for all levels; default levels are
+  spread strictly between the grid's least and greatest value.
+- `sampleGradient(fx, fy, xDomain, yDomain, { grid })`: arrow tails and components with magnitudes.
+
 ## What it does not do (yet)
 
 - **Implicit multiplication is opt-in.** `2x` fails to parse by default; write
   `2*x`, or pass `compileExpression(src, { implicitMultiplication: true })`
   (needs `@johnhenry/math` 0.1.0+; multi-letter variable names such as `theta`
   then become products, use `x_1`).
-- **1D `y = f(x)` only.** Implicit/interval curves, parametric and polar,
-  surfaces, ODEs and series samplers are planned as later parts.
+- **No interval-robust implicit mode.** `sampleImplicit` is a plain grid; thin features narrower
+  than a cell and isolated points can be missed (the quadtree/interval variant needs
+  `Symbolic.evaluateInterval`, johnhenry/math#108). Segments are not joined into long polylines.
+- **Meshes are uniform grids.** No adaptive refinement for surfaces or space curves; normals come from
+  finite differences of the vertex grid (one-sided at holes and edges), not from analytic gradients.
+- **Budgets stop at row boundaries**, and the time limit is only checked there. The ODE integrators take
+  `maxSteps`, not a budget.
+- **Polar/parametric 2D curves and 3D adaptive sampling** are not here; wrap `sampleSpaceCurve`
+  (with `z = 0`) or sample a parametric function through `sampleUniform` on each coordinate.
 - **Gaps from steep or fast-oscillating functions.** Jump detection is a
   heuristic; a function that oscillates faster than the grid resolves can read
   as a jump. Raise the resolution or `maxDepth`, or set `jumpFraction: Infinity`.

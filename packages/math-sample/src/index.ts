@@ -1,3 +1,67 @@
+export type { Budget, Cancellable, Progress } from "./budget.ts";
+export {
+  type ComplexFn,
+  type ComplexRaster,
+  type ComplexRasterOptions,
+  type ConformalGridOptions,
+  type ConformalLine,
+  conformalGrid,
+  findZerosAndPoles,
+  sampleComplexRaster,
+  type ZeroOrPole,
+  type ZerosPoles,
+  type ZerosPolesOptions,
+} from "./complex.ts";
+export {
+  type Contours,
+  type GradientField,
+  type Grid2Options,
+  type ImplicitCurve,
+  sampleContours,
+  sampleGradient,
+  sampleImplicit,
+} from "./field2d.ts";
+export {
+  type Curve3,
+  type CurveFn3,
+  type CurveOptions,
+  curve3Runs,
+  type Fn2,
+  type Mesh,
+  type MeshOptions,
+  type ParametricSurfaceFn,
+  sampleParametricSurface,
+  sampleSpaceCurve,
+  sampleSurface,
+  sampleVectorField3,
+  type VectorField3,
+  type VectorField3Options,
+  type VectorFn3,
+} from "./mesh.ts";
+export {
+  type AdaptiveOdeOptions,
+  classifyFixedPoint,
+  type Field2,
+  type FixedPoint,
+  type FixedPointType,
+  integrateAdaptive,
+  integrateRk4,
+  jacobian2,
+  type OdeOptions,
+  type PhasePortrait,
+  type PhasePortraitOptions,
+  type Rk4Options,
+  type Slope,
+  type SlopeField,
+  type SlopeFieldOptions,
+  type SolutionCurveOptions,
+  type StopReason,
+  type System,
+  samplePhasePortrait,
+  sampleSlopeField,
+  sampleSolutionCurve,
+  type Trajectory,
+} from "./ode.ts";
 export {
   type AdaptiveOptions,
   type CancelSignal,
@@ -18,6 +82,18 @@ export {
   toPoints,
   type YRange,
 } from "./sample.ts";
+export {
+  evaluateFourier,
+  evaluateTaylor,
+  type FourierCoefficients,
+  fourierCoefficients,
+  type NumericSeries,
+  type PartialSumCurves,
+  partialSums,
+  sampleFourierPartialSums,
+  sampleSeriesPartialSums,
+  sampleTaylorPartialSums,
+} from "./series.ts";
 export { type AxesOptions, axesToSvg, type PathOptions, samplesToSvgPath, svgDocument, type XY } from "./svg.ts";
 export { formatTick, niceTicks, tickStep } from "./ticks.ts";
 export {

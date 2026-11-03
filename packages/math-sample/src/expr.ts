@@ -37,3 +37,27 @@ export function compileExpression(expr: Expr | string, options: CompileOptions =
     return compiled(env);
   };
 }
+
+/**
+ * Taylor coefficients `a_k = f^(k)(x0) / k!` for `k = 0..order` of an expression, by symbolic
+ * differentiation then evaluation. Feed them to `sampleTaylorPartialSums`. A derivative that is not finite
+ * at `x0` yields `NaN` for that coefficient (and the sums are gaps).
+ */
+export function taylorCoefficients(
+  expr: Expr | string,
+  x0: number,
+  order: number,
+  options: { variable?: string; params?: Record<string, number> } = {},
+): Float64Array {
+  if (!Number.isInteger(order) || order < 0) throw new RangeError("order must be a non-negative integer");
+  const variable = options.variable ?? "x";
+  let term: Expr = typeof expr === "string" ? Symbolic.parse(expr) : expr;
+  const out = new Float64Array(order + 1);
+  let factorial = 1;
+  for (let k = 0; k <= order; k++) {
+    if (k > 0) factorial *= k;
+    out[k] = Symbolic.evaluate(term, { ...options.params, [variable]: x0 }) / factorial;
+    if (k < order) term = Symbolic.differentiate(term, variable);
+  }
+  return out;
+}

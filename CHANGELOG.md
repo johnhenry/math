@@ -9,6 +9,13 @@ versions were reset to `0.0.0` when the packages moved under the `@johnhenry` sc
 
 ### Added
 
+- `@johnhenry/math-sample` parts 2 and 3: 3D samplers (surface, parametric surface, space curve, vector field) returning
+  typed-array meshes with holes instead of spikes; complex raster, conformal grid, zeros and poles; ODE slope field,
+  RK4/adaptive integration, solution curves, phase portrait with fixed-point classification; Taylor, series and
+  Fourier partial sums; implicit/contour/gradient (marching squares); a shared cell/time budget that reports where
+  it stopped. Closes the sampler part of #109.
+- `Symbolic.toGLSL` / `Symbolic.toWGSL`: compile an `Expr` to shader source over float or complex (`vec2`).
+
 - New package `@johnhenry/math-sample` (part 1: 1D): adaptive/uniform sampling with NaN gaps and jump
   detection, viewport model, nice ticks, SVG path/axes output, root and intersection finders. SciPy/SymPy/NumPy
   goldens committed as JSON. See `packages/math-sample/README.md`. Refs viaframe#753.

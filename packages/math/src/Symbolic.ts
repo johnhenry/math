@@ -8,6 +8,7 @@ import { FUNC_DERIVATIVE_RULES } from "./differentiation-rules.ts";
 import { MatrixMath } from "./MatrixMath.ts";
 import { Numerical } from "./Numerical.ts";
 import { Rational } from "./Rational.ts";
+import { compileShader, type ShaderOptions, type ShaderResult } from "./Shader.ts";
 import { SpecialFunctions } from "./SpecialFunctions.ts";
 import type { Structure } from "./Structure.ts";
 
@@ -862,6 +863,23 @@ export class Symbolic {
 
   static toString(expr: Expr | string): string {
     return render(typeof expr === "string" ? Symbolic.parse(expr) : expr, 0);
+  }
+
+  /**
+   * Compile `expr` to a GLSL ES 3.0 expression over `float` (default) or, with
+   * `{ complex: true }`, over `vec2` complex numbers (the helpers it needs, such as
+   * `mx_cmul`, are returned in `helpers` and emitted once). Output is deterministic.
+   * Refuses nodes with no shader form (`sum`, `product`, `erf`, `gcd`, `lcm`, and anything
+   * not closed under the complex numbers in complex mode) with a `ShaderUnsupportedError`.
+   * Shader `pow` of a negative base with a non-integer exponent is undefined, unlike JS `NaN`.
+   */
+  static toGLSL(expr: Expr | string, options: ShaderOptions = {}): ShaderResult {
+    return compileShader(typeof expr === "string" ? Symbolic.parse(expr) : expr, "glsl", options);
+  }
+
+  /** As {@link toGLSL}, for WGSL (`f32` / `vec2<f32>`; `select` replaces the ternary). */
+  static toWGSL(expr: Expr | string, options: ShaderOptions = {}): ShaderResult {
+    return compileShader(typeof expr === "string" ? Symbolic.parse(expr) : expr, "wgsl", options);
   }
 
   /** Render `expr` as a LaTeX string, e.g. `"x/2"` -> `"\\frac{x}{2}"`. */
