@@ -142,8 +142,8 @@ export interface FourierCoefficients {
 }
 
 /**
- * Fourier coefficients of `f` on `[a, b]` taken as one period, by the trapezoid rule on `samples` points
- * (exact for trig polynomials below the Nyquist order; for a function with jumps the coefficients carry
+ * Fourier coefficients of `f` on `[a, b]` taken as one period, by the midpoint rule on `samples` points
+ * (exact for trig polynomials below the Nyquist order, being a full-period rule; for a function with jumps the coefficients carry
  * ordinary O(1/samples) quadrature error). `terms` is the highest harmonic. Trig form:
  * `a0/2 + sum a_k cos(k w x) + b_k sin(k w x)` about the interval centre.
  */

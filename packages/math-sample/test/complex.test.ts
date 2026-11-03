@@ -99,3 +99,84 @@ test("findZerosAndPoles: no roots, and an exp(z) with none, yield an empty list;
   assert.equal(r.progress.complete, false);
   assert.equal(r.progress.rows, 1);
 });
+
+const cm = (a: [number, number], b: [number, number]): [number, number] => [
+  a[0] * b[0] - a[1] * b[1],
+  a[0] * b[1] + a[1] * b[0],
+];
+const rootsOf = (r: { items: Array<{ re: number; im: number; kind: string }> }, kind: string) =>
+  r.items
+    .filter((p) => p.kind === kind)
+    .map((p) => [Math.round(p.re * 1e6) / 1e6 + 0, Math.round(p.im * 1e6) / 1e6 + 0]);
+
+test("findZerosAndPoles: roots on grid lines and vertices of a symmetric integer domain (z^3 - z, grid 24)", () => {
+  const f = (re: number, im: number): [number, number] => {
+    const z3 = cm(cm([re, im], [re, im]), [re, im]);
+    return [z3[0] - re, z3[1] - im];
+  };
+  const r = findZerosAndPoles(f, { min: -2, max: 2 }, { min: -2, max: 2 }, { grid: 24 });
+  assert.deepEqual(rootsOf(r, "zero"), [
+    [-1, 0],
+    [0, 0],
+    [1, 0],
+  ]);
+  assert.equal(rootsOf(r, "pole").length, 0);
+});
+
+test("findZerosAndPoles: z^2 - 1 on [-2,2]^2 at grid 12", () => {
+  const r = findZerosAndPoles(
+    (re, im) => [re * re - im * im - 1, 2 * re * im],
+    { min: -2, max: 2 },
+    { min: -2, max: 2 },
+    { grid: 12 },
+  );
+  assert.deepEqual(rootsOf(r, "zero"), [
+    [-1, 0],
+    [1, 0],
+  ]);
+});
+
+test("findZerosAndPoles: 1/z has its pole at the origin vertex (grid 24)", () => {
+  const r = findZerosAndPoles(
+    (re, im) => {
+      const m = re * re + im * im;
+      return [re / m, -im / m];
+    },
+    { min: -2, max: 2 },
+    { min: -2, max: 2 },
+    { grid: 24 },
+  );
+  assert.deepEqual(rootsOf(r, "pole"), [[0, 0]]);
+  assert.equal(rootsOf(r, "zero").length, 0);
+});
+
+test("findZerosAndPoles: sin z on [-7,7] x [-2,2] at the default grid finds 0, +-pi, +-2pi", () => {
+  const r = findZerosAndPoles(
+    (re, im) => [Math.sin(re) * Math.cosh(im), Math.cos(re) * Math.sinh(im)],
+    { min: -7, max: 7 },
+    { min: -2, max: 2 },
+  );
+  const zs = r.items.filter((p) => p.kind === "zero");
+  assert.equal(zs.length, 5);
+  zs.forEach((p, k) => {
+    assert.ok(Math.abs(p.re - (k - 2) * Math.PI) < 1e-7 && Math.abs(p.im) < 1e-7);
+  });
+});
+
+test("findZerosAndPoles: a triple zero reports order 3, refined, once", () => {
+  const f = (re: number, im: number): [number, number] => cm(cm([re, im], [re, im]), [re, im]);
+  const r = findZerosAndPoles(f, { min: -2, max: 2 }, { min: -2, max: 2 }, { grid: 8 });
+  assert.equal(r.items.length, 1);
+  assert.equal(r.items[0]?.order, 3);
+  assert.equal(r.items[0]?.refined, true);
+});
+
+test("findZerosAndPoles: results lie inside the requested rectangle", () => {
+  const r = findZerosAndPoles(
+    (re, im) => [re * re - im * im - 9, 2 * re * im],
+    { min: -2, max: 2 },
+    { min: -2, max: 2 },
+    { grid: 8 },
+  );
+  assert.equal(r.items.length, 0);
+});

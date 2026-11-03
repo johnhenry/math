@@ -87,13 +87,13 @@ function marching(
           const centre = ((s[0] as number) + (s[1] as number) + (s[2] as number) + (s[3] as number)) / 4;
           const p = pts as Array<[number, number]>;
           const bottomLeftPositive = (s[0] as number) >= 0;
-          const joinsCorner0 = centre >= 0 === bottomLeftPositive; // centre agrees with corner 0: corners 0 and 2 are linked through it
+          const joinsCorner0 = centre >= 0 === bottomLeftPositive; // centre agrees with corner 0: corners 0 and 2 are linked through the middle, so the curve cuts off corners 1 and 3
           if (joinsCorner0) {
-            emit(p[3] as [number, number], p[0] as [number, number]);
-            emit(p[1] as [number, number], p[2] as [number, number]);
-          } else {
             emit(p[0] as [number, number], p[1] as [number, number]);
             emit(p[2] as [number, number], p[3] as [number, number]);
+          } else {
+            emit(p[3] as [number, number], p[0] as [number, number]);
+            emit(p[1] as [number, number], p[2] as [number, number]);
           }
         }
       });

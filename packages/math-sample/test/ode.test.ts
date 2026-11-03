@@ -212,3 +212,33 @@ test("samplePhasePortrait: a budget stops after the field with no trajectories",
   assert.equal(p.trajectories.length, 0);
   assert.equal(p.field.rows, 2);
 });
+
+test("integrateAdaptive: isolated rejected-as-bad steps over a long run do not add up to a false blowup", () => {
+  let nan = 0;
+  const f = (t: number, y: readonly number[]) => {
+    if ((t * 37.1 + 0.5) % 1 < 0.01) {
+      nan++;
+      return [Number.NaN];
+    }
+    return [0 * (y[0] as number)];
+  };
+  const r = integrateAdaptive(f, 0, [1], 60, { hMax: 0.1, h0: 0.1 });
+  assert.ok(nan > 12, `the scenario must hit more than 12 bad steps (got ${nan})`);
+  assert.equal(r.reason, "end");
+});
+
+test("integrateRk4: steps beyond maxSteps are honoured, not silently truncated", () => {
+  const r = integrateRk4((_t, y) => [y[0] as number], 0, [1], 1, { steps: 50, maxSteps: 10 });
+  assert.equal(r.reason, "end");
+  assert.equal(r.steps, 51);
+});
+
+test("sampleSolutionCurve: output stays inside xDomain even when x0 is outside it", () => {
+  for (const x0 of [-3, 3]) {
+    const c = sampleSolutionCurve((_x, y) => y, x0, Math.exp(x0), { min: -1, max: 1 });
+    assert.ok(c.x.length > 2);
+    for (const x of c.x) assert.ok(x >= -1 && x <= 1, `x=${x}`);
+    assert.ok(Math.abs((c.y[c.y.length - 1] as number) - Math.E) < 1e-4);
+    assert.ok(Math.abs((c.y[0] as number) - Math.exp(-1)) < 1e-4);
+  }
+});

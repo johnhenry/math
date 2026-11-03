@@ -168,3 +168,27 @@ test("sampleVectorField3: slab budget", () => {
   assert.deepEqual(f.progress, { rows: 2, of: 4, complete: false, reason: "cells" });
   assert.equal(f.count, 32);
 });
+
+test("sampleParametricSurface: pole vertices that are valid still get a unit normal from a neighbouring row", () => {
+  const m = sampleParametricSurface(
+    (u, v) => [Math.sin(v) * Math.cos(u), Math.sin(v) * Math.sin(u), Math.cos(v)],
+    { min: 0, max: 2 * Math.PI },
+    { min: 0, max: Math.PI },
+    { columns: 9, rows: 5 },
+  );
+  for (let k = 0; k < m.vertexCount; k++) {
+    assert.equal(m.valid[k], 1);
+    assert.ok(
+      Math.abs(
+        Math.hypot(m.normals[3 * k] as number, m.normals[3 * k + 1] as number, m.normals[3 * k + 2] as number) - 1,
+      ) < 1e-5,
+      `vertex ${k}`,
+    );
+  }
+});
+
+test("sampleSurface: bounds are NaN when no vertex is valid", () => {
+  const m = sampleSurface(() => Number.NaN, D, D, { columns: 3, rows: 3 });
+  assert.ok(m.bounds.min.every(Number.isNaN));
+  assert.ok(m.bounds.max.every(Number.isNaN));
+});

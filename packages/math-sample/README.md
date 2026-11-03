@@ -115,9 +115,12 @@ string and params, compile there, sample, and `postMessage` the arrays with
 
 All of these take plain functions, return typed arrays, and never draw spikes: a
 non-finite value is a **hole** (a gap row in curves, a skipped vertex in meshes,
-`NaN` in rasters). Everything that walks a grid accepts a **budget** and the
-cancellation options of part 1 (`signal`, `isCancelled`, which throw
-`SampleCancelledError`):
+`NaN` in rasters). The grid and field samplers (`sampleSurface`, `sampleParametricSurface`,
+`sampleSpaceCurve`, `sampleVectorField3`, `sampleComplexRaster`, `findZerosAndPoles`, `sampleSlopeField`,
+`samplePhasePortrait` (field pass), `sampleImplicit`, `sampleContours`, `sampleGradient`) accept a
+**budget** and the cancellation options of part 1 (`signal`, `isCancelled`, which throw
+`SampleCancelledError`). `conformalGrid`, the ODE integrators, and the series/Fourier samplers do not take a budget
+(they are bounded by their own `samplesPerLine`, `maxSteps`, `samples` arguments):
 
 ```ts
 { maxCells?: number; maxMillis?: number; now?: () => number }
@@ -143,7 +146,10 @@ vertexCount, columns, rows, bounds, progress }` (3 floats per vertex; triangles 
 seen from the side the normals point to, which is `+z` for `sampleSurface`, and `dP/du x dP/dv` for a
 parametric surface). A hole vertex has `NaN` position, zero normal and `valid = 0`, and **no triangle
 references it**, so GPU upload needs no special casing. `zRange` also turns a pole's huge but finite
-shoulders into holes. A quad with one hole corner keeps its other triangle. `bounds` covers valid vertices.
+shoulders into holes. A quad with one hole corner keeps its other triangle. `bounds` covers valid vertices
+(`NaN`s when there are none). A valid vertex whose own normal degenerates (the poles of a sphere parameterisation) borrows
+a neighbouring vertex's normal. Mind the sign: `dP/du x dP/dv` on the usual sphere parameterisation
+`(sin v cos u, sin v sin u, cos v)` points **inward**; swap the arguments or negate a component for outward normals.
 `Curve3` is `{ positions: Float64Array (3 per row), t, count, progress }` with `NaN` rows as gaps (never first,
 last or adjacent). `VectorField3` is `{ origins, vectors, magnitudes: Float32Array, maxMagnitude, count,
 skipped, progress }`; points where the field is non-finite are dropped and counted in `skipped`.
@@ -161,7 +167,11 @@ skipped, progress }`; points where the field is non-finite are dropped and count
 - `findZerosAndPoles(f, reDomain, imDomain, { grid, tolerance })`: argument principle on every grid cell
   (winding number = zeros - poles), then Newton on `f` or `1/f` scaled by the multiplicity. Returns
   `{ items: { re, im, kind, order, refined }[] }`. A zero and a pole in one cell cancel, and two distinct
-  roots in one cell are reported as one root of order 2 with `refined: false`: raise `grid` if you suspect it.
+  roots in one cell are reported as one root of the combined order (Newton's step scaled by that order may fail to converge,
+  giving `refined: false` at the cell centre): raise `grid` if you suspect it. A genuine multiple root (`z^3`) reports
+  its multiplicity once with `refined: true`. The search grid is offset by an irrational fraction of a cell and
+  extended past the rectangle, so roots and poles on round-number domains and on grid vertices are found; results
+  outside the rectangle are dropped.
 
 ### ODEs
 
@@ -181,7 +191,9 @@ skipped, progress }`; points where the field is non-finite are dropped and count
 
 ### Series
 
-- `taylorCoefficients(expr, x0, order)` (in `/expr`, needs `@johnhenry/math`) then
+- `taylorCoefficients(expr, x0, order)` (in `/expr`, needs `@johnhenry/math`; computed by power-series arithmetic, so order
+  12 or more is instant for `+ - * /`, powers, `exp ln sqrt sin cos tan sinh cosh tanh atan asin acos`; any other function
+  falls back to repeated symbolic differentiation, keep `order` <= 8 there) then
   `sampleTaylorPartialSums(coefficients, x0, domain, orders, samples)`: one curve per order.
 - `sampleSeriesPartialSums(term(k, x), from, domain, orders, samples)`: function-series partial sums in
   one pass over `k` (each term evaluated once per sample).

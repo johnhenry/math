@@ -188,8 +188,9 @@ const wrap = (d: number) => {
  * Zeros and poles of `f` inside a rectangle, by the argument principle: the winding number of `f` around each
  * grid cell is (zeros - poles) inside it; non-zero cells are refined with Newton's method (on `f` for a
  * zero, on `1/f` for a pole, scaled by the multiplicity). A zero and a pole inside one cell cancel and are missed:
- * raise `grid`. A root exactly on a grid line can be reported once or twice; results within the tolerance
- * are merged. `progress.rows` counts grid rows searched.
+ * raise `grid`. The search grid is offset by an irrational fraction of a cell and extended past the
+ * rectangle, so round-number domains do not put roots on cell edges; results inside the rectangle (or on its edge) are
+ * kept and results within the tolerance are merged. `progress.rows` counts grid rows searched.
  */
 export function findZerosAndPoles(
   f: ComplexFn,
@@ -210,12 +211,14 @@ export function findZerosAndPoles(
 
   const argAt = (x: number, y: number): number => {
     const w = f(x, y);
+    if (w[0] === 0 && w[1] === 0) return Number.NaN; // an exact zero has no argument
     return Math.atan2(w[1], w[0]);
   };
   // winding of f along segment p->q, subdividing until the phase moves < 1 rad per piece
   const segment = (x0: number, y0: number, a0: number, x1: number, y1: number, a1: number, depth: number): number => {
     const d = wrap(a1 - a0);
-    if (Math.abs(d) < 1 || depth >= 14) return d;
+    // a minimum depth keeps a high-order root from aliasing a whole turn (3 theta moving 2 pi in one piece)
+    if ((depth >= 4 && Math.abs(d) < 1) || depth >= 14) return d;
     const xm = (x0 + x1) / 2;
     const ym = (y0 + y1) / 2;
     const am = argAt(xm, ym);
@@ -279,15 +282,31 @@ export function findZerosAndPoles(
     return undefined;
   };
 
+  // The search grid is shifted by an irrational fraction of a cell and extended by one cell on each side, so
+  // roots and poles on a round-number domain (z^3 - z on [-2, 2]) sit inside cells, not on their edges or
+  // corners. Candidates outside the requested rectangle are discarded at the end.
+  const OFFSET = 0.3819660112501051;
+  const gx0 = reDomain.min - (1 - OFFSET) * dx;
+  const gy0 = imDomain.min - (1 - OFFSET) * dy;
+  const cells = grid + 1;
+  const slack = 1e-9 * size;
+  const insideRect = (x: number, y: number) =>
+    x >= reDomain.min - slack && x <= reDomain.max + slack && y >= imDomain.min - slack && y <= imDomain.max + slack;
   let rows = 0;
   let reason: "cells" | "time" | undefined;
-  for (let j = 0; j < grid; j++) {
-    reason = meter.check(grid * 4);
+  for (let j = 0; j < cells; j++) {
+    reason = meter.check(cells * 4);
     if (reason) break;
-    for (let i = 0; i < grid; i++) {
-      const x0 = reDomain.min + i * dx;
-      const y0 = imDomain.min + j * dy;
-      const w = winding(x0, y0, x0 + dx, y0 + dy);
+    for (let i = 0; i < cells; i++) {
+      const x0 = gx0 + i * dx;
+      const y0 = gy0 + j * dy;
+      let w = winding(x0, y0, x0 + dx, y0 + dy);
+      let ex = 0;
+      if (Number.isNaN(w)) {
+        // f is zero or non-finite on this cell's boundary (an exact root/pole on an edge): retry slightly inflated
+        ex = 0.0123 * dx;
+        w = winding(x0 - ex, y0 - 0.0123 * dy, x0 + dx + ex, y0 + dy + 0.0123 * dy);
+      }
       if (!Number.isFinite(w) || w === 0) continue;
       const kind = w > 0 ? "zero" : "pole";
       const order = Math.abs(w);
@@ -295,13 +314,14 @@ export function findZerosAndPoles(
       const cy = y0 + dy / 2;
       const refined = newton(cx, cy, kind, order, [x0, x0 + dx, y0, y0 + dy]);
       const [rx, ry] = refined ?? [cx, cy];
+      if (!insideRect(rx, ry)) continue;
       if (found.some((p) => p.kind === kind && Math.hypot(p.re - rx, p.im - ry) < Math.max(tol * 1e3, 1e-7 * size)))
         continue;
       found.push({ re: rx, im: ry, kind, order, refined: refined !== undefined });
     }
-    meter.spend(grid * 4);
+    meter.spend(cells * 4);
     rows++;
   }
   found.sort((a, b) => a.re - b.re || a.im - b.im);
-  return { items: found, progress: progress(rows, grid, reason) };
+  return { items: found, progress: progress(rows, cells, reason) };
 }

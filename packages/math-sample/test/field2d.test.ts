@@ -97,3 +97,29 @@ test("sampleGradient: budget", () => {
   );
   assert.deepEqual(g.progress, { rows: 2, of: 5, complete: false, reason: "cells" });
 });
+
+test("sampleImplicit: saddle cell with a positive centre cuts off the two negative corners (BR and TL)", () => {
+  const U = { min: 0, max: 1 };
+  const c = sampleImplicit((x, y) => (x - 0.5) * (y - 0.5) + 0.1, U, U, { grid: 1 });
+  assert.equal(c.segmentCount, 2);
+  const segs = [0, 1].map((s) =>
+    [0, 1].map((e) => [c.segments.x[3 * s + e] as number, c.segments.y[3 * s + e] as number]),
+  );
+  const nearBR = segs.filter((s) => s.every(([x, y]) => (x as number) >= 0.5 && (y as number) <= 0.5));
+  const nearTL = segs.filter((s) => s.every(([x, y]) => (x as number) <= 0.5 && (y as number) >= 0.5));
+  assert.equal(nearBR.length, 1);
+  assert.equal(nearTL.length, 1);
+});
+
+test("sampleImplicit: saddle cell with a negative centre cuts off the two positive corners (BL and TR)", () => {
+  const U = { min: 0, max: 1 };
+  const c = sampleImplicit((x, y) => (x - 0.5) * (y - 0.5) - 0.1, U, U, { grid: 1 });
+  assert.equal(c.segmentCount, 2);
+  const segs = [0, 1].map((s) =>
+    [0, 1].map((e) => [c.segments.x[3 * s + e] as number, c.segments.y[3 * s + e] as number]),
+  );
+  const nearBL = segs.filter((s) => s.every(([x, y]) => (x as number) <= 0.5 && (y as number) <= 0.5));
+  const nearTR = segs.filter((s) => s.every(([x, y]) => (x as number) >= 0.5 && (y as number) >= 0.5));
+  assert.equal(nearBL.length, 1);
+  assert.equal(nearTR.length, 1);
+});

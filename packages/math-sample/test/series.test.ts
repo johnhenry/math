@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { Symbolic } from "@johnhenry/math";
 import { taylorCoefficients } from "../src/expr.ts";
 import {
   evaluateFourier,
@@ -97,4 +98,47 @@ test("sampleFourierPartialSums: order 0 is the mean; curves have the requested s
   assert.ok(Array.from(r.curves[0]?.y ?? []).every((v) => Math.abs(v - 2) < 1e-10));
   assert.equal(r.curves[2]?.x.length, 7);
   assert.throws(() => sampleFourierPartialSums(c, { min: 0, max: 1 }, [-1]), RangeError);
+});
+
+test("taylorCoefficients: order 12 of 1/(1+x^2) and sin(x)exp(x)/(1+x^2) is fast and exact", () => {
+  const t0 = Date.now();
+  const a = taylorCoefficients("1/(1+x^2)", 0, 12);
+  assert.deepEqual(
+    [...a].map((v) => v + 0),
+    [1, 0, -1, 0, 1, 0, -1, 0, 1, 0, -1, 0, 1],
+  );
+  const b = taylorCoefficients("sin(x)*exp(x)/(1+x^2)", 0, 12);
+  // sin x e^x = x + x^2 + x^3/3 - x^5/30 ...; times 1/(1+x^2): x + x^2 + (1/3-1)x^3 + (0-1)x^4 ...
+  assert.ok(Math.abs((b[1] as number) - 1) < 1e-12 && Math.abs((b[2] as number) - 1) < 1e-12);
+  assert.ok(Math.abs((b[3] as number) + 2 / 3) < 1e-12);
+  assert.ok(Math.abs((b[4] as number) + 1) < 1e-12);
+  assert.ok(Date.now() - t0 < 1000);
+});
+
+test("taylorCoefficients: jets agree with symbolic differentiation across functions", () => {
+  for (const [src, x0] of [
+    ["atan(x)", 0.3],
+    ["sqrt(x)", 2],
+    ["ln(x)*cos(x)", 1.5],
+    ["x^2.5", 2],
+    ["tanh(x)", 0.4],
+    ["asin(x)", 0.2],
+    ["2^x", 1],
+  ] as const) {
+    const a = taylorCoefficients(src, x0, 6);
+    for (const h of [0.01]) {
+      const f = Symbolic.compile(src);
+      let s = 0;
+      for (let k = 0; k <= 6; k++) s += (a[k] as number) * h ** k;
+      assert.ok(Math.abs(s - f({ x: x0 + h })) < 1e-9, src);
+    }
+  }
+});
+
+test("taylorCoefficients: nodes without a jet rule fall back to symbolic differentiation (asinh)", () => {
+  const a = taylorCoefficients("asinh(x)", 0, 5);
+  assert.deepEqual(
+    [...a].map((v) => Math.round(v * 1e9) / 1e9 + 0),
+    [0, 1, 0, -1 / 6, 0, 3 / 40].map((v) => Math.round(v * 1e9) / 1e9),
+  );
 });

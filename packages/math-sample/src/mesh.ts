@@ -122,6 +122,36 @@ function build(
       }
     }
   }
+  // valid vertices with a degenerate normal (the poles of a sphere parameterisation): borrow from a neighbour
+  for (let j = 0; j < usedRows; j++) {
+    for (let i = 0; i < columns; i++) {
+      const o = at(i, j);
+      if (!isOk(i, j) || normals[o] !== 0 || normals[o + 1] !== 0 || normals[o + 2] !== 0) continue;
+      for (const [di, dj] of [
+        [0, 1],
+        [0, -1],
+        [1, 0],
+        [-1, 0],
+        [0, 2],
+        [0, -2],
+      ] as const) {
+        if (!isOk(i + di, j + dj)) continue;
+        const q = at(i + di, j + dj);
+        if (normals[q] !== 0 || normals[q + 1] !== 0 || normals[q + 2] !== 0) {
+          normals[o] = normals[q] as number;
+          normals[o + 1] = normals[q + 1] as number;
+          normals[o + 2] = normals[q + 2] as number;
+          break;
+        }
+      }
+    }
+  }
+  if (!valid.some((x) => x === 1)) {
+    for (let c = 0; c < 3; c++) {
+      min[c] = Number.NaN;
+      max[c] = Number.NaN;
+    }
+  }
   const tri: number[] = [];
   for (let j = 0; j + 1 < usedRows; j++) {
     for (let i = 0; i + 1 < columns; i++) {

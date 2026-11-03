@@ -179,7 +179,7 @@ export function integrateRk4(
   assertCount("steps", steps, 1);
   if (!Number.isFinite(t0) || !Number.isFinite(tEnd)) throw new RangeError("t0 and tEnd must be finite");
   const limit = options.blowup ?? 1e12;
-  const maxSteps = options.maxSteps ?? 100000;
+  const maxSteps = Math.max(options.maxSteps ?? 100000, steps + 1); // never truncate a run the caller asked for
   const dim = y0.length;
   const h = (tEnd - t0) / steps;
   const ts = [t0];
@@ -254,6 +254,7 @@ export function integrateAdaptive(
   let reason: StopReason = "end";
   let iterations = 0;
   let badSteps = 0;
+  let sinceBad = Number.POSITIVE_INFINITY;
   while (dir * (tEnd - t) > 0) {
     if (ts.length >= maxSteps || iterations++ > maxSteps * 20) {
       reason = "maxSteps";
@@ -284,6 +285,10 @@ export function integrateAdaptive(
     );
     if (bad(y5, limit)) {
       // may be a bad step rather than a blow-up: try smaller before giving up
+      // bad steps count only while they recur within 10 accepted steps (a Zeno approach to the limit);
+      // isolated ones over a long run are forgiven
+      if (sinceBad > 10) badSteps = 0;
+      sinceBad = 0;
       if (++badSteps > 12 || hh <= hMin * 2) {
         reason = "blowup";
         break;
@@ -299,6 +304,7 @@ export function integrateAdaptive(
     if (err <= 1 || hh <= hMin) {
       t = last ? tEnd : t + step;
       y = y5;
+      sinceBad++;
       ts.push(t);
       ys.push(...y);
       if (options.stop?.(t, y)) {
@@ -345,6 +351,17 @@ export function sampleSolutionCurve(
   const ys: number[] = [];
   let reasonBefore: StopReason = "end";
   let reasonAfter: StopReason = "end";
+  // A start outside the window is first carried to the nearest edge, so the curve begins exactly at the edge.
+  if (x0 < xDomain.min || x0 > xDomain.max) {
+    const edge = x0 < xDomain.min ? xDomain.min : xDomain.max;
+    const toEdge = run(edge);
+    if (toEdge.reason !== "end") {
+      const r = toEdge.reason;
+      return { x: new Float64Array(0), y: new Float64Array(0), reasonBefore: r, reasonAfter: r };
+    }
+    x0 = edge;
+    y0 = toEdge.y[toEdge.steps - 1] as number;
+  }
   if (x0 > xDomain.min) {
     const back = run(xDomain.min);
     reasonBefore = back.reason;

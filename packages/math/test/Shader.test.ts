@@ -114,3 +114,61 @@ test("toGLSL: float literals are valid GLSL (always a point or exponent)", () =>
     assert.ok(/[.e]/i.test(e), e);
   }
 });
+
+test("toGLSL: negative literals are parenthesised (no '--')", () => {
+  const e = Symbolic.toGLSL({ type: "neg", arg: { type: "const", value: -2 } }).expression;
+  assert.ok(!e.includes("--"), e);
+  assert.equal(e, "(-(-2.0))");
+  assert.ok(!Symbolic.toGLSL("x - -2").expression.includes("--"));
+  assert.ok(!Symbolic.toWGSL({ type: "neg", arg: { type: "const", value: -2 } }).expression.includes("--"));
+});
+
+test("toGLSL: cmp.op is validated by own property", () => {
+  const bad = {
+    type: "cmp",
+    op: "toString",
+    left: { type: "var", name: "x" },
+    right: { type: "const", value: 1 },
+  } as never;
+  assert.throws(() => Symbolic.toGLSL(bad), ShaderUnsupportedError);
+  assert.throws(() => Symbolic.toWGSL(bad), ShaderUnsupportedError);
+  assert.throws(() => Symbolic.toGLSL({ ...(bad as object), op: "__proto__" } as never), ShaderUnsupportedError);
+});
+
+test("toGLSL: reserved words and builtins are refused as variable and function names", () => {
+  for (const w of [
+    "input",
+    "output",
+    "precision",
+    "sampler2D",
+    "texture",
+    "half",
+    "floor",
+    "target",
+    "type",
+    "override",
+    "main",
+    "mx_cmul",
+    "gl_Position",
+    "highp",
+    "buffer",
+    "common",
+    "fixed",
+    "smooth",
+    "flat",
+    "noperspective",
+    "mod",
+    "dot",
+    "fract",
+    "let",
+    "struct",
+    "enum",
+    "var",
+    "const",
+  ]) {
+    assert.throws(() => glsl("x", { variables: [w] }), ShaderUnsupportedError, w);
+    assert.throws(() => glsl("x", { functionName: w }), ShaderUnsupportedError, `fn ${w}`);
+    assert.throws(() => Symbolic.toWGSL("x", { variables: [w] }), ShaderUnsupportedError, `wgsl ${w}`);
+  }
+  assert.doesNotThrow(() => glsl("t", { variables: ["t"], functionName: "domainColor" }));
+});
