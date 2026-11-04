@@ -1,6 +1,6 @@
 {
   "name": "@johnhenry/math-sample",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Pure-ESM, DOM-free, Web-Worker-safe 1D function sampling for plotting: adaptive sampling with NaN gaps and discontinuity detection, a DPR-aware viewport model, nice ticks, and SVG path output. Typed arrays out.",
   "type": "module",
   "publishConfig": {
@@ -54,7 +54,7 @@
   "author": "John Henry",
   "license": "MIT",
   "peerDependencies": {
-    "@johnhenry/math": "^0.2.0"
+    "@johnhenry/math": ">=0.2.0 <1.0.0"
   },
   "peerDependenciesMeta": {
     "@johnhenry/math": {
