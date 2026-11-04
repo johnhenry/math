@@ -100,6 +100,7 @@ export { Rational } from "./Rational.ts";
 // Numeric cores
 export * as RealMath from "./RealMath.ts";
 export { Rotor4 } from "./Rotor4.ts";
+export { type ShaderDialect, type ShaderOptions, type ShaderResult, ShaderUnsupportedError } from "./Shader.ts";
 export { SpecialFunctions } from "./SpecialFunctions.ts";
 export { SpecialOperator } from "./SpecialOperator.ts";
 export * as Statistics from "./Statistics.ts";

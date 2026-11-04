@@ -382,6 +382,28 @@ Symbolic.evaluateExact("x+1/2", { x: new Rational(1n, 2n) }).toString(); // => "
 Symbolic.evaluateOverStructure("3+5", Structure.integersModulo(7)); // => 1
 ```
 
+### Compile to a shader
+
+`Symbolic.toGLSL` / `Symbolic.toWGSL` turn an expression into shader source. Real mode is `float` / `f32`;
+`{ complex: true }` works over `vec2` (re, im) and returns the helper functions it needs (emitted once,
+deterministically), which is what domain colouring wants.
+
+```ts
+import { Symbolic } from "@johnhenry/math";
+
+Symbolic.toGLSL("sin(x) * 2 + 1").expression; // => "((sin(x) * 2.0) + 1.0)"
+Symbolic.toWGSL("x > 1").expression; // => "select(0.0, 1.0, x > 1.0)"
+
+const c = Symbolic.toGLSL("z^2 + 1/z", { complex: true, functionName: "f" });
+c.expression; // => "(mx_cpowi(z, 2) + mx_cdiv(vec2(1.0, 0.0), z))"
+c.variables; // => ["z"]
+c.source.includes("vec2 f(vec2 z)"); // => true
+```
+
+Unsupported nodes (`sum`, `product`, `erf`, `gcd`, `lcm`, and anything with no complex form in complex mode)
+throw `ShaderUnsupportedError`. Shader `pow` of a negative base with a non-integer exponent is undefined,
+where JavaScript gives `NaN`.
+
 ## Multivariable calculus
 
 ```ts
