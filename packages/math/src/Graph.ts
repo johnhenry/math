@@ -260,6 +260,74 @@ export class Graph<T = string | number> {
     return mst;
   }
 
+  /**
+   * Minimum spanning tree (or forest, when the graph is disconnected) with
+   * its total weight and the number of connected components. Edge direction
+   * is ignored. `algorithm` picks Kruskal (default, sort + union-find) or
+   * Prim (heap-based, grown from each unvisited vertex in turn); both give
+   * the same total weight, though tie-broken edge choices may differ.
+   */
+  mst(algorithm: "kruskal" | "prim" = "kruskal"): { edges: Array<Edge<T>>; totalWeight: number; components: number } {
+    const n = this.vertices().length;
+    let edges: Array<Edge<T>>;
+    if (algorithm === "kruskal") edges = this.minimumSpanningTree();
+    else {
+      edges = [];
+      const nbrs = new Map<T, Array<Edge<T>>>();
+      for (const v of this.vertices()) nbrs.set(v, []);
+      for (const e of this.edges()) {
+        (nbrs.get(e.from) as Array<Edge<T>>).push(e);
+        (nbrs.get(e.to) as Array<Edge<T>>).push(e);
+      }
+      const seen = new Set<T>();
+      for (const root of this.vertices()) {
+        if (seen.has(root)) continue;
+        seen.add(root);
+        const heap = new MinHeap<Edge<T>>();
+        for (const e of nbrs.get(root) as Array<Edge<T>>) heap.push(e, e.weight);
+        for (let top = heap.pop(); top; top = heap.pop()) {
+          const e = top.value;
+          const next = seen.has(e.from) ? e.to : e.from;
+          if (seen.has(next)) continue;
+          seen.add(next);
+          edges.push(e);
+          for (const f of nbrs.get(next) as Array<Edge<T>>)
+            if (!seen.has(f.from) || !seen.has(f.to)) heap.push(f, f.weight);
+        }
+      }
+    }
+    return { edges, totalWeight: edges.reduce((s, e) => s + e.weight, 0), components: n - edges.length };
+  }
+
+  /** Alias of {@link stronglyConnectedComponents} (Tarjan; components in reverse topological order). */
+  scc(): T[][] {
+    return this.stronglyConnectedComponents();
+  }
+
+  /**
+   * The condensation: one vertex per strongly connected component (numbered
+   * by position in {@link scc}'s output), with one weight-1 edge `i -> j`
+   * wherever the original graph has any edge from a member of `i` to a
+   * member of `j`. Always a DAG. Also returns the `components` and the
+   * `componentOf` vertex-to-index map.
+   */
+  condensation(): { graph: Graph<number>; components: T[][]; componentOf: Map<T, number> } {
+    const components = this.scc();
+    const componentOf = new Map<T, number>();
+    components.forEach((c, i) => {
+      for (const v of c) componentOf.set(v, i);
+    });
+    const graph = new Graph<number>(true);
+    for (let i = 0; i < components.length; i++) graph.addVertex(i);
+    for (const e of this.edges()) {
+      const a = componentOf.get(e.from) as number;
+      const b = componentOf.get(e.to) as number;
+      if (a !== b) graph.addEdge(a, b, 1);
+      if (!this.directed && a !== b) graph.addEdge(b, a, 1);
+    }
+    return { graph, components, componentOf };
+  }
+
   /** Adjacency matrix (rows/cols follow the returned `order`; `Infinity` = no edge). */
   toAdjacencyMatrix(): { matrix: number[][]; order: T[] } {
     const order = this.vertices();

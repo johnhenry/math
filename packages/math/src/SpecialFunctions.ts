@@ -38,22 +38,18 @@ export class SpecialFunctions {
     return Math.exp(SpecialFunctions.lnGamma(a) + SpecialFunctions.lnGamma(b) - SpecialFunctions.lnGamma(a + b));
   }
 
-  /** The error function erf(x). */
+  /** The error function erf(x) (to ~1e-15, via the regularised incomplete gamma P(1/2, x²)). */
   static erf(x: number): number {
-    const sign = x < 0 ? -1 : 1;
-    const ax = Math.abs(x);
-    const t = 1 / (1 + 0.3275911 * ax);
-    const y =
-      1 -
-      ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) *
-        t *
-        Math.exp(-ax * ax);
-    return sign * y;
+    if (x === 0 || Number.isNaN(x)) return x;
+    const v = SpecialFunctions.regularizedGammaP(0.5, x * x);
+    return x < 0 ? -v : v;
   }
 
-  /** The complementary error function erfc(x) = 1 − erf(x). */
+  /** The complementary error function erfc(x) = 1 − erf(x), accurate in the upper tail (no cancellation). */
   static erfc(x: number): number {
-    return 1 - SpecialFunctions.erf(x);
+    if (Number.isNaN(x)) return x;
+    if (x < 0) return 2 - SpecialFunctions.regularizedGammaQ(0.5, x * x);
+    return SpecialFunctions.regularizedGammaQ(0.5, x * x);
   }
 
   /**
@@ -63,44 +59,16 @@ export class SpecialFunctions {
   static regularizedGammaP(a: number, x: number): number {
     if (x < 0 || a <= 0) return Number.NaN;
     if (x === 0) return 0;
-    if (x < a + 1) {
-      // series expansion
-      let ap = a;
-      let sum = 1 / a;
-      let del = sum;
-      for (let n = 0; n < 200; n++) {
-        ap++;
-        del *= x / ap;
-        sum += del;
-        if (Math.abs(del) < Math.abs(sum) * 1e-15) break;
-      }
-      return sum * Math.exp(-x + a * Math.log(x) - SpecialFunctions.lnGamma(a));
-    }
-    // continued fraction for the upper part Q, then P = 1 - Q
-    const tiny = 1e-300;
-    let b = x + 1 - a;
-    let c = 1 / tiny;
-    let d = 1 / b;
-    let h = d;
-    for (let i = 1; i < 200; i++) {
-      const an = -i * (i - a);
-      b += 2;
-      d = an * d + b;
-      if (Math.abs(d) < tiny) d = tiny;
-      c = b + an / c;
-      if (Math.abs(c) < tiny) c = tiny;
-      d = 1 / d;
-      const del = d * c;
-      h *= del;
-      if (Math.abs(del - 1) < 1e-15) break;
-    }
-    const q = Math.exp(-x + a * Math.log(x) - SpecialFunctions.lnGamma(a)) * h;
-    return 1 - q;
+    if (x === Number.POSITIVE_INFINITY) return 1;
+    return x < a + 1 ? gammaSeries(a, x) : 1 - gammaContinuedFraction(a, x);
   }
 
-  /** The regularised upper incomplete gamma function Q(a, x) = 1 − P(a, x). */
+  /** The regularised upper incomplete gamma function Q(a, x) = 1 − P(a, x), computed directly in the upper tail. */
   static regularizedGammaQ(a: number, x: number): number {
-    return 1 - SpecialFunctions.regularizedGammaP(a, x);
+    if (x < 0 || a <= 0) return Number.NaN;
+    if (x === 0) return 1;
+    if (x === Number.POSITIVE_INFINITY) return 0;
+    return x < a + 1 ? 1 - gammaSeries(a, x) : gammaContinuedFraction(a, x);
   }
 
   /**
@@ -129,7 +97,7 @@ function betaContinuedFraction(a: number, b: number, x: number): number {
   if (Math.abs(d) < tiny) d = tiny;
   d = 1 / d;
   let h = d;
-  for (let m = 1; m < 200; m++) {
+  for (let m = 1; m < 1000; m++) {
     const m2 = 2 * m;
     let aa = (m * (b - m) * x) / ((qam + m2) * (a + m2));
     d = 1 + aa * d;
@@ -149,4 +117,40 @@ function betaContinuedFraction(a: number, b: number, x: number): number {
     if (Math.abs(del - 1) < 1e-15) break;
   }
   return h;
+}
+
+/** Series for P(a, x), valid and fast for x < a + 1. */
+function gammaSeries(a: number, x: number): number {
+  let ap = a;
+  let sum = 1 / a;
+  let del = sum;
+  for (let n = 0; n < 1000; n++) {
+    ap++;
+    del *= x / ap;
+    sum += del;
+    if (Math.abs(del) < Math.abs(sum) * 1e-16) break;
+  }
+  return sum * Math.exp(-x + a * Math.log(x) - SpecialFunctions.lnGamma(a));
+}
+
+/** Lentz continued fraction for Q(a, x), valid and fast for x >= a + 1. */
+function gammaContinuedFraction(a: number, x: number): number {
+  const tiny = 1e-300;
+  let b = x + 1 - a;
+  let c = 1 / tiny;
+  let d = 1 / b;
+  let h = d;
+  for (let i = 1; i < 1000; i++) {
+    const an = -i * (i - a);
+    b += 2;
+    d = an * d + b;
+    if (Math.abs(d) < tiny) d = tiny;
+    c = b + an / c;
+    if (Math.abs(c) < tiny) c = tiny;
+    d = 1 / d;
+    const del = d * c;
+    h *= del;
+    if (Math.abs(del - 1) < 1e-16) break;
+  }
+  return Math.exp(-x + a * Math.log(x) - SpecialFunctions.lnGamma(a)) * h;
 }

@@ -24,18 +24,31 @@ export { ComplexNumber } from "./ComplexNumber.ts";
 export { Cycle } from "./Cycle.ts";
 export { Decimal } from "./Decimal.ts";
 export {
+  type Alternative,
+  type ChiSquareIndependenceResult,
   type ContinuousDistribution,
   type DiscreteDistribution,
   Distributions,
   HypothesisTests,
   type TestResult,
+  type TTestIndependentOptions,
+  type TTestOptions,
 } from "./Distributions.ts";
 export { DualNumber } from "./DualNumber.ts";
 export { FUNC_DERIVATIVE_RULES, type FuncDerivativeRule } from "./differentiation-rules.ts";
+export type { GeneralEigenResult } from "./EigenGeneral.ts";
 // Expression evaluation
 export { Environment } from "./Environment.ts";
 export { Expression } from "./Expression.ts";
 export { FFT } from "./FFT.ts";
+export {
+  type FrobeniusBlock,
+  type FrobeniusResult,
+  frobeniusNormalForm,
+  type NumericMatrix,
+  type RationalCanonicalResult,
+  rationalCanonicalForm,
+} from "./Frobenius.ts";
 export {
   type BivectorGeometricProduct,
   commutatorProduct,
@@ -90,15 +103,35 @@ export {
   type QRResult,
   type SVDResult,
 } from "./MatrixMath.ts";
+export {
+  type BootstrapResult,
+  type ConvergencePoint,
+  type DartPiResult,
+  type DartPoint,
+  type HistogramBin,
+  type IntegrationConvergencePoint,
+  type IntegrationResult,
+  MonteCarlo,
+} from "./MonteCarlo.ts";
 export { NumberTheory } from "./NumberTheory.ts";
 export { type LevenbergMarquardtResult, Numerical, type ODEStep } from "./Numerical.ts";
 export { Permutation } from "./Permutation.ts";
 export { Polygon } from "./Polygon.ts";
 export { PolynomialRing, parsePolynomial, polynomialToString } from "./PolynomialRing.ts";
 export { Quaternion } from "./Quaternion.ts";
+export { Rng, seed } from "./Random.ts";
 export { Rational } from "./Rational.ts";
 // Numeric cores
 export * as RealMath from "./RealMath.ts";
+export {
+  type CurveFitOptions,
+  type CurveFitResult,
+  type HuberLinearResult,
+  type LeastSquaresOptions,
+  type LeastSquaresResult,
+  Regression,
+  type RobustLoss,
+} from "./Regression.ts";
 export { Rotor4 } from "./Rotor4.ts";
 export { type ShaderDialect, type ShaderOptions, type ShaderResult, ShaderUnsupportedError } from "./Shader.ts";
 export { SpecialFunctions } from "./SpecialFunctions.ts";
