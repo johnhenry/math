@@ -1,3 +1,5 @@
+import type { ComplexNumber } from "./ComplexNumber.ts";
+import { eigenGeneral, type GeneralEigenResult } from "./EigenGeneral.ts";
 import { Vector } from "./Vector.ts";
 import type { Matrix } from "./VectorUtils.ts";
 
@@ -257,6 +259,17 @@ export class MatrixMath {
       values: vec(pairs.map((p) => p.value)),
       vectors: wrap(transposeRaw(pairs.map((p) => p.vec))),
     };
+  }
+
+  /**
+   * Eigenvalues and right eigenvectors of any square matrix (real or complex
+   * entries), as `scipy.linalg.eig`: Hessenberg reduction plus shifted QR.
+   * Eigenvalues may be complex; `vectors[i][k]` is component `i` of the unit
+   * eigenvector for `values[k]`. For symmetric input prefer
+   * {@link MatrixMath.eigenSymmetric} (real, orthonormal, faster).
+   */
+  static eigen(A: MatrixInput | ComplexNumber[][]): GeneralEigenResult {
+    return eigenGeneral([...(A as Iterable<Iterable<number | ComplexNumber>>)].map((r) => [...r]));
   }
 
   /**
